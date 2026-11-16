@@ -225,7 +225,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
   const consoleLines = useMemo(() => {
     const boot = [];
     if (system && bootAt) {
-      boot.push({ t: bootAt, level: 'info', text: 'J.A.R.V.I.S. (núcleo) conectado ao backend mo3y/openshorts.' });
+      boot.push({ t: bootAt, level: 'info', text: 'J.A.R.V.I.S. (núcleo) conectado ao servidor mo3y/openshorts.' });
       boot.push(system.ffmpeg
         ? { t: bootAt, level: 'ok', text: `${system.ffmpeg.replace(/ Copyright.*/, '')} · codificador ${system.encoder}.` }
         : { t: bootAt, level: 'error', text: 'FFmpeg não encontrado no servidor.' });
@@ -260,7 +260,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
   const mod = MODULES.find((m) => m.id === section) || MODULES[0];
   const modIndex = MODULES.indexOf(mod) + 1;
   const moduleBody = {
-    dashboard: <DashboardSection dash={dash} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} />,
+    dashboard: <DashboardSection dash={dash} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} clips={clips} pubs={pubs}
+      working={working} agentCount={agents.length} connected={!!(uploadPostKey || meta?.upload_post_configured)} />,
     games: <GamesSection meta={meta} games={games} reload={() => Promise.all([loadGames(), loadDash()])} />,
     import: <ImportSection meta={meta} games={games} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,

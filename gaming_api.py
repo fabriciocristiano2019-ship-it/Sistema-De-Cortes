@@ -305,7 +305,12 @@ def _clip_url(job_id, meta_path, index, clip=None):
     j = jobs.get(job_id) or {}
     clips = ((j.get("result") or {}).get("clips") or [])
     if index < len(clips) and clips[index].get("video_url"):
-        return clips[index]["video_url"]
+        # Only when the file is really there: a cancelled job lists clips that
+        # were never rendered, and a guessed name would be a dead link.
+        from urllib.parse import unquote
+        name = unquote(str(clips[index]["video_url"]).rsplit("/", 1)[-1])
+        if os.path.exists(os.path.join(job_dir, name)):
+            return clips[index]["video_url"]
     cands = sorted(glob.glob(os.path.join(job_dir, f"*{base}_clip_{index + 1}.mp4")),
                    key=lambda p: (-os.path.getmtime(p)))
     cands = [c for c in cands if not os.path.basename(c).startswith("temp_")]

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, Upload, ImagePlus, Save, X, Square, Play, RefreshCw } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtClock, fmtDate, jsonReq, mediaUrl, PLATFORMS, STATUS_LABEL } from './util';
+import ResultsBoard from './ResultsBoard';
 import { Badge, BarList, DayColumns, Empty, Field, Header, Notice, StatTile } from './ui';
 
 /* 01 · Dashboard ---------------------------------------------------------- */
@@ -37,7 +38,7 @@ function SocialMetrics({ uploadPostKey, uploadUserId, go }) {
   return (
     <section className="card p-5 mb-4" aria-label="Desempenho nas redes">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-sm text-ink">Desempenho nas redes</h2>
+        <h2 className="text-sm text-ink">Resultados nas redes: visualizações e curtidas</h2>
         <div className="flex items-center gap-3 text-xs text-muted">
           {m?.fetched_at && <span className="font-mono">atualizado às {new Date(m.fetched_at * 1000).toLocaleTimeString('pt-BR')} · a cada 60 s</span>}
           {loading && <RefreshCw size={12} className="animate-spin" aria-label="atualizando" />}
@@ -87,7 +88,7 @@ function SocialMetrics({ uploadPostKey, uploadUserId, go }) {
   );
 }
 
-export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId }) {
+export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId, clips, pubs, working = 0, agentCount = 8, connected = false }) {
   if (!dash) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
   const t = dash.totals;
   const minutes = Math.round(t.seconds / 60);
@@ -104,6 +105,7 @@ export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId })
           </Notice>
         </div>
       )}
+      <ResultsBoard dash={dash} clips={clips} pubs={pubs} working={working} agentCount={agentCount} connected={connected} go={go} />
       <div className="grid sm:grid-cols-3 gap-3 mb-3">
         <StatTile label="Gameplays Processadas" value={t.videos} sub={`${t.games} jogos na biblioteca`} />
         <StatTile label="Cortes 9:16 Gerados" value={t.clips} sub={`${minutes} min de vídeo`} tone="accent" />
