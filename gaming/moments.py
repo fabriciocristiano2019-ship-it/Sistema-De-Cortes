@@ -29,6 +29,47 @@ SPECIFICITY = {
     "perseguicao": 0.6, "inesperado": 0.6, "tensao": 0.5, "reacao": 0.35,
 }
 
+# Where each signal comes from. Two signals of the same source can be one
+# event seen twice (a hard scene cut is both "motion" and "flash"), so the
+# evidence gate counts sources, not signals.
+MODALITY = {
+    "audio_peak": "audio", "audio_spike": "audio",
+    "motion": "visual", "flash": "visual", "red": "visual",
+    "keyword": "speech", "laughter": "speech", "speech_rate": "speech",
+}
+# An audio track whose loudness barely moves (digital silence, a constant
+# hum) says nothing about moments; below this p10..p99 range it is ignored.
+MIN_AUDIO_RANGE_DB = 4.0
+# A peak this far above the ordinary level (0.9 ≈ 11 dB over normal talking)
+# is a scream or an explosion and stands as evidence without a second source.
+LOUD_ALONE = 0.9
+
+
+def has_evidence(strong, audio_usable, sustained_visual=True, audio_peak=0.0):
+    """Is this set of clearly-above-baseline signals a real moment?
+
+    - the player's own words or laughter name a moment by themselves;
+    - otherwise two different sources must agree (sound + picture, sound +
+      speech rate, ...);
+    - sound alone counts only when it is exceptionally loud (a scream, an
+      explosion) or both loud AND sudden, which ordinary speech starting
+      after a pause is not;
+    - picture alone never counts while there is usable audio: a menu or a
+      scene transition changes the image and nothing else;
+    - with no usable audio, two visual signals that last (not a one-frame
+      cut) are all there is to go on, and are accepted.
+    """
+    strong = set(strong)
+    if strong & {"keyword", "laughter"}:
+        return True
+    sources = {MODALITY[k] for k in strong if k in MODALITY}
+    if not audio_usable:
+        return len(strong & {"motion", "flash", "red"}) >= 2 and sustained_visual
+    if len(sources) >= 2:
+        return True
+    return sources == {"audio"} and (len(strong) >= 2 or audio_peak >= LOUD_ALONE)
+
+
 SIGNAL_LABELS = {
     "audio_peak": "pico de volume", "audio_spike": "aumento súbito de áudio",
     "motion": "muita ação na tela", "cut": "mudança brusca de cena", "flash": "clarão na tela",
@@ -239,12 +280,16 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     else:
         af, vf = features
     has_audio = len(af["rms_db"]) > 0
+    audio_usable = bool(has_audio and float(
+        np.percentile(af["rms_db"], 99) - np.percentile(af["rms_db"], 10)) >= MIN_AUDIO_RANGE_DB)
     tf, hits = transcript_features(transcript, n)
     win = int(60 / STEP)
+    log(f"✂️ Selecionando janelas de {int(round(clip_len))}s com contexto "
+        f"(picos de áudio, imagem e fala)...")
 
     raw = {
-        "audio_peak": _norm(signals.level_above_active(_fit(af["rms_db"], n), 3.0)) if has_audio else np.zeros(n),
-        "audio_spike": _norm(signals.level_above_active(_fit(af["spike_db"], n), 3.0)) if has_audio else np.zeros(n),
+        "audio_peak": _norm(signals.level_above_active(_fit(af["rms_db"], n), 3.0)) if audio_usable else np.zeros(n),
+        "audio_spike": _norm(signals.level_above_active(_fit(af["spike_db"], n), 3.0)) if audio_usable else np.zeros(n),
         "motion": _norm(signals.robust_z(_fit(vf["motion"], n), win, floor=2.0)),
         "cut": _fit(vf["cut"], n),
         "flash": _norm(signals.robust_z(_fit(vf["flash"], n), floor=4.0), 5.0),
@@ -253,7 +298,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         "laughter": np.clip(_fit(tf["laughter"], n) / 2.0, 0, 1),
         "speech_rate": _norm(_fit(tf["speech_rate"], n)),
     }
-    if not has_audio:  # redistribute audio weight to visuals instead of scoring zero
+    if not audio_usable:  # redistribute audio weight to visuals instead of scoring zero
         moved = weights.pop("audio_peak", 0) + weights.pop("audio_spike", 0)
         for k in ("motion", "flash", "cut", "red"):
             weights[k] = weights.get(k, 0) + moved / 4
@@ -287,10 +332,12 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         if evidence_max[idx] < EVIDENCE_NORM:
             continue
         # One lone signal is not a moment: a sentence starting after silence is
-        # an "audio rise" too. Require two independent signals, unless the one
-        # signal is the player's own words (or laughter), which name the moment.
+        # an "audio rise" too, and a scene cut is "motion" and "flash" at once.
+        # See has_evidence for what does count.
         strong = [k for k in feats if k != "cut" and feats[k][idx] >= EVIDENCE_NORM]
-        if len(strong) < 2 and not (set(strong) & {"keyword", "laughter"}):
+        lo, hi = max(0, idx - spread), min(n, idx + spread + 1)
+        sustained = int(np.sum(raw["motion"][lo:hi] >= EVIDENCE_NORM)) >= 2
+        if not has_evidence(strong, audio_usable, sustained, float(feats["audio_peak"][idx])):
             rejected_single += 1
             continue
         # Category: transcript words near the peak win; else the dominant signal.
@@ -337,9 +384,9 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         excerpt = _excerpt(words, start, end)
         copy = build_copy(game.get("name"), moment, excerpt, f"{game.get('id')}-{start:.1f}")
         clip = {
-            "start": round(start, 3),
-            "end": round(end, 3),
-            "peak_time": round(peak_t, 2),
+            "start": round(float(start), 3),
+            "end": round(float(end), 3),
+            "peak_time": round(float(peak_t), 2),
             "start_timecode": fmt_ts(start),
             "end_timecode": fmt_ts(end),
             "predicted_score": score,
@@ -363,6 +410,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         "engine": "local",
         "duration": round(duration, 2),
         "has_audio": has_audio,
+        "audio_usable": audio_usable,
         "transcript_words": len(words),
         "keyword_hits": len(hits),
         "candidates_below_min_score": rejected_low,

@@ -40,7 +40,9 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # Configuration
 # Default to 1 if not set, but user can set higher for powerful servers
 MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "5"))
-MAX_FILE_SIZE_MB = 2048  # 2GB limit
+# 2 GB by default. Local installs that clip long gameplay recordings raise it
+# with MAX_FILE_SIZE_MB (docker-compose.yml sets 20 GB for the Gaming Edition).
+MAX_FILE_SIZE_MB = int(os.environ.get("MAX_FILE_SIZE_MB", "2048") or 2048)
 
 # How TikTok receives our uploads. MEDIA_UPLOAD lands the video in the user's
 # TikTok drafts so they finish the post inside TikTok's own editor; DIRECT_POST
@@ -2397,7 +2399,8 @@ async def process_endpoint(
     # Enqueue Job
     jobs[job_id] = {
         'status': 'queued',
-        'logs': [f"Job {job_id} queued."],
+        # Timestamped so the Gaming Edition console can show when each line arrived.
+        'logs': gaming_api.TimedLogs([f"Job {job_id} queued."]),
         'cmd': cmd,
         'env': env,
         'output_dir': job_output_dir,

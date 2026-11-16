@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, Upload, ImagePlus, Save, X, Square, Play, RefreshCw } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { errText, fmtDate, jsonReq, mediaUrl, PLATFORMS, STATUS_LABEL } from './util';
+import { errText, fmtClock, fmtDate, jsonReq, mediaUrl, PLATFORMS, STATUS_LABEL } from './util';
 import { Badge, BarList, DayColumns, Empty, Field, Header, Notice, StatTile } from './ui';
 
 /* 01 · Dashboard ---------------------------------------------------------- */
@@ -104,11 +104,21 @@ export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId })
           </Notice>
         </div>
       )}
+      <div className="grid sm:grid-cols-3 gap-3 mb-3">
+        <StatTile label="Gameplays Processadas" value={t.videos} sub={`${t.games} jogos na biblioteca`} />
+        <StatTile label="Cortes 9:16 Gerados" value={t.clips} sub={`${minutes} min de vídeo`} tone="accent" />
+        {t.external_api_jobs > 0 ? (
+          <StatTile label="Custo de APIs Externas" value={`${t.external_api_jobs} análise(s) Gemini`} tone="warn"
+            sub="Cobrança feita pelo Google; consulte o painel deles." />
+        ) : (
+          <StatTile label="Custo de APIs Externas" value="R$ 0,00" tone="ok" sub="Todas as análises usaram o motor local." />
+        )}
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatTile label="Cortes produzidos" value={t.clips} sub={`${minutes} min de vídeo`} />
-        <StatTile label="Gameplays analisadas" value={t.videos} sub={`${t.games} jogos na biblioteca`} />
-        <StatTile label="Aguardando aprovação" value={t.pending} sub={`${t.approved} aprovados · ${t.rejected} rejeitados`} />
-        <StatTile label="Publicações" value={t.published} sub={`${t.scheduled} na fila/agendadas`} />
+        <StatTile label="Aguardando aprovação" value={t.pending} />
+        <StatTile label="Aprovados" value={t.approved} sub={`${t.rejected} rejeitados`} />
+        <StatTile label="Na fila de publicação" value={t.scheduled} />
+        <StatTile label="Publicações enviadas" value={t.published} />
       </div>
       <SocialMetrics uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
@@ -429,18 +439,17 @@ export function ImportSection({ meta, games, form, setForm, onStart, starting, s
 }
 
 /* 04 · Análise inteligente ------------------------------------------------ */
-const STEPS = [
-  { key: 'Transcribing', label: 'Transcrição (Faster-Whisper)' },
-  { key: 'Análise de áudio', label: 'Análise de áudio' },
-  { key: 'Análise visual', label: 'Análise visual' },
-  { key: 'momento(s) com evidência', label: 'Seleção de momentos' },
-  { key: 'Processing Clip', label: 'Renderização dos cortes' },
-];
+const STEP_STATE = {
+  idle: ['Pronto', 'text-muted'], waiting: ['Aguardando', 'text-muted'], working: ['Trabalhando', 'text-brass border-brass/50'],
+  done: ['Concluído', 'text-ok'], skipped: ['Dispensado', 'text-muted'], failed: ['Falhou', 'text-danger border-danger/50'],
+  stopped: ['Parado', 'text-muted'],
+};
 
 export function AnalysisSection({ job, onCancel, cancelling, go }) {
   const logRef = useRef(null);
-  const logs = useMemo(() => (job?.logs || []).filter((l) => l && !/^(frame=|\[K|W0000|INFO:|WARNING:)/.test(l)), [job?.logs]);
-  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [logs.length]);
+  const snap = job?.snap;
+  const lines = useMemo(() => snap?.console || [], [snap]);
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [lines.length]);
 
   if (!job?.id) {
     return (
@@ -450,10 +459,10 @@ export function AnalysisSection({ job, onCancel, cancelling, go }) {
       </div>
     );
   }
-  const text = (job.logs || []).join('\n');
-  const reached = STEPS.map((s) => text.includes(s.key));
   const active = ['queued', 'processing'].includes(job.status);
-  const last = reached.lastIndexOf(true);
+  const agents = snap?.agents || [];
+  const roles = Object.fromEntries(agents.map((a) => [a.id, a.role]));
+  const pct = snap?.progress ?? 0;
   return (
     <div>
       <Header ord="04 · ANÁLISE INTELIGENTE" title="Análise" hint="Áudio e imagem são analisados separadamente; a fala entra como terceiro sinal.">
@@ -465,25 +474,41 @@ export function AnalysisSection({ job, onCancel, cancelling, go }) {
         )}
         {job.status === 'completed' && <button className="btn-primary" onClick={() => go('clips')}>Ver cortes encontrados</button>}
       </Header>
-      <ol className="grid sm:grid-cols-5 gap-2 mb-5">
-        {STEPS.map((s, i) => {
-          const done = job.status === 'completed' || i < last;
-          const now = active && i === Math.max(last, 0);
+      {snap && (
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-ink2 mb-1.5">
+            <span>{active ? `Etapa ${snap.step} de ${snap.steps}${snap.step_label ? `: ${snap.step_label}` : ''}` : STATUS_LABEL[job.status]}</span>
+            <span className="font-mono tabular-nums">{pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-paper3 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Progresso da análise">
+            <div className="h-full rounded-full bg-brass transition-[width] duration-700" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      )}
+      <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
+        {agents.map((a, i) => {
+          const [label, tone] = STEP_STATE[a.state] || STEP_STATE.idle;
           return (
-            <li key={s.key} className={`card px-3 py-2.5 text-xs ${done ? 'text-ok' : now ? 'text-brass border-brass/50' : 'text-muted'}`}>
-              <span className="font-mono mr-1.5">{String(i + 1).padStart(2, '0')}</span>{s.label}
-              {now && <Loader2 size={12} className="inline animate-spin ml-1.5" />}
+            <li key={a.id} className={`card px-3 py-2.5 text-xs ${tone}`} title={a.does}>
+              <span className="font-mono mr-1.5">{String(i + 1).padStart(2, '0')}</span>
+              <span className="font-semibold">{a.name}</span>
+              {a.state === 'working' && <Loader2 size={12} className="inline animate-spin ml-1.5" />}
+              <span className="block mt-0.5 opacity-80">{a.role} · {label}</span>
             </li>
           );
         })}
       </ol>
       {job.status === 'failed' && (
-        <div className="mb-4"><Notice tone="error">{job.error || logs[logs.length - 1] || 'O processamento falhou. Veja o registro abaixo.'}</Notice></div>
+        <div className="mb-4"><Notice tone="error">{snap?.error || 'O processamento falhou. Veja o registro abaixo.'}</Notice></div>
       )}
       {job.status === 'cancelled' && <div className="mb-4"><Notice tone="warn">Processamento cancelado. O vídeo original foi preservado.</Notice></div>}
       <div className="card p-0 overflow-hidden">
         <p className="eyebrow px-4 pt-3">REGISTRO DE OPERAÇÕES</p>
-        <pre ref={logRef} className="p-4 text-xs font-mono text-ink2 whitespace-pre-wrap max-h-[26rem] overflow-y-auto">{logs.slice(-300).join('\n') || 'Aguardando…'}</pre>
+        <pre ref={logRef} tabIndex={0} className="p-4 text-xs font-mono text-ink2 whitespace-pre-wrap max-h-[26rem] overflow-y-auto">
+          {lines.length
+            ? lines.map((l) => `${l.t ? `[${fmtClock(l.t)}] ` : ''}${l.agent && l.agent !== 'core' ? `[${roles[l.agent] || l.agent}] ` : ''}${l.text}`).join('\n')
+            : 'Aguardando…'}
+        </pre>
       </div>
     </div>
   );

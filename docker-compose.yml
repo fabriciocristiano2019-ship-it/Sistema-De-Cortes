@@ -8,6 +8,16 @@ services:
       - .:/app
       - /app/__pycache__
       - ./output:/app/output
+    # Gaming Edition (local install) defaults. Every value can be overridden in
+    # .env; docker compose reads that file for the ${VAR:-default} below.
+    #  - nothing produced is deleted automatically (0 = keep): the video
+    #    library and the originals stay until the user removes them;
+    #  - gameplay recordings are large, so the upload limit is 20 GB.
+    environment:
+      - JOB_RETENTION_SECONDS=${JOB_RETENTION_SECONDS:-0}
+      - OUTPUT_MAX_GB=${OUTPUT_MAX_GB:-0}
+      - UPLOADS_MAX_GB=${UPLOADS_MAX_GB:-0}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-20480}
     restart: unless-stopped
 
   frontend:

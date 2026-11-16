@@ -6,6 +6,20 @@
 
 :root {
   /* paper */
+  /* channel triplets consumed by tailwind.config.js */
+  --tw-paper: 13% 0.014 265;
+  --tw-paper2: 16.5% 0.015 265;
+  --tw-paper3: 20% 0.016 265;
+  --tw-ink: 96% 0.006 262;
+  --tw-ink2: 86% 0.01 262;
+  --tw-muted: 64% 0.012 262;
+  --tw-brass: 76% 0.17 50;
+  --tw-brassink: 17% 0.03 50;
+  --tw-coral: 68% 0.16 18;
+  --tw-ok: 75% 0.11 150;
+  --tw-warn: 78% 0.14 75;
+  --tw-danger: 66% 0.18 25;
+
   --color-paper: oklch(13% 0.014 265);
   --color-paper-2: oklch(16.5% 0.015 265);
   --color-paper-3: oklch(20% 0.016 265);

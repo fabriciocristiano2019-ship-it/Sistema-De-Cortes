@@ -15,6 +15,11 @@ Routes (all JSON unless noted):
   POST   /api/gaming/publications               queue a clip (needs manual approval first)
   POST   /api/gaming/publications/{id}/approve  approve -> sends to Upload-Post (now or scheduled)
   DELETE /api/gaming/publications/{id}          cancel a queued publication
+  GET    /api/gaming/pipeline/{job_id}          per-agent state of a job (Sede Virtual)
+  GET    /api/gaming/queue                      jobs running / waiting right now
+  POST   /api/gaming/selftest                   real toolchain check ("Executar Teste Completo")
+  GET    /api/gaming/system                     versions, limits, disk
+  GET    /api/gaming/metrics                    views / likes from published posts
 
 Publishing goes through the existing /api/social/post (Upload-Post) in
 process, so there is one publishing path. Nothing is ever published without
@@ -33,7 +38,8 @@ import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from gaming import library, profiles
+from gaming import library, pipeline, profiles
+from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
 from gaming.moments import fmt_ts
 
 router = APIRouter()
@@ -81,8 +87,10 @@ def parse_gaming(raw):
     if layout not in LAYOUTS:
         raise HTTPException(status_code=400, detail=f"layout inválido: {layout}")
     try:
-        clip_seconds = float(raw.get("clip_seconds") or 30)
-        max_clips = int(raw.get("max_clips") or 8)
+        # Only a missing value takes the default: an explicit 0 is a mistake to
+        # report, not something to replace quietly.
+        clip_seconds = float(raw["clip_seconds"] if raw.get("clip_seconds") is not None else 30)
+        max_clips = int(raw["max_clips"] if raw.get("max_clips") is not None else 8)
         min_score = float(raw.get("min_score") if raw.get("min_score") is not None else 30)
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="clip_seconds/max_clips/min_score inválidos")
@@ -196,6 +204,7 @@ async def gaming_meta():
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
         "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
         "defaults": library.DEFAULT_PREFS,
+        "agents": pipeline.AGENTS,
     }
 
 
@@ -305,6 +314,15 @@ def _clip_url(job_id, meta_path, index, clip=None):
     return None
 
 
+def _job_layout(job_dir):
+    """Layout the job was submitted with (gaming_job.json), or None."""
+    try:
+        with open(os.path.join(job_dir, "gaming_job.json"), "r", encoding="utf-8") as f:
+            return json.load(f).get("layout")
+    except (OSError, ValueError):
+        return None
+
+
 @router.get("/api/gaming/clips")
 async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None):
     out = []
@@ -312,6 +330,8 @@ async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None)
         g = data["gaming"]
         if game_id and g.get("game_id") != game_id:
             continue
+        layout = _job_layout(os.path.dirname(meta))
+        source = library.display_source(job_id, data.get("source_video"))
         for i, c in enumerate(data.get("shorts") or []):
             st = {True: "aprovado", False: "rejeitado"}.get(c.get("approved"), "pendente")
             if status and st != status:
@@ -320,6 +340,7 @@ async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None)
                         # Recomputed on read: the editor's recut moves start/end.
                         "start_timecode": fmt_ts(c.get("start", 0)), "end_timecode": fmt_ts(c.get("end", 0)),
                         "job_id": job_id, "clip_index": i, "status": st,
+                        "layout": layout, "source": source,
                         "video_url": _clip_url(job_id, meta, i, c),
                         "created_at": os.path.getmtime(meta)})
     out.sort(key=lambda c: (-c["created_at"], c["clip_index"]))
@@ -330,7 +351,7 @@ async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None)
 async def dashboard():
     games = {g["id"]: g for g in library.load(_out())}
     totals = {"games": len(games), "videos": 0, "clips": 0, "approved": 0, "pending": 0,
-              "rejected": 0, "seconds": 0.0}
+              "rejected": 0, "seconds": 0.0, "external_api_jobs": 0}
     by_game, by_cat, by_moment, by_day, recent = {}, {}, {}, {}, []
     for job_id, meta, data in _gaming_jobs():
         g = data["gaming"]
@@ -353,6 +374,8 @@ async def dashboard():
                 totals["rejected"] += 1
             else:
                 totals["pending"] += 1
+        if g.get("engine") == "gemini":
+            totals["external_api_jobs"] += 1
         recent.append({"job_id": job_id, "game": name, "clips": len(shorts),
                        "engine": g.get("engine"), "created_at": os.path.getmtime(meta),
                        "source": library.display_source(job_id, data.get("source_video"))})
@@ -570,7 +593,66 @@ async def system_status():
         "output_bytes": _dir_bytes(_out()),
         "disk_free_bytes": usage.free,
         "max_concurrent_jobs": int(os.environ.get("MAX_CONCURRENT_JOBS", "5") or 5),
+        "games": len(library.load(_out())),
+        **_queue_counts(),
     }
+
+
+def _queue_counts():
+    jobs = _STATE["jobs"] or {}
+    return {"jobs_active": sum(1 for j in jobs.values() if j.get("status") == "processing"),
+            "jobs_queued": sum(1 for j in jobs.values() if j.get("status") == "queued")}
+
+
+@router.get("/api/gaming/queue")
+async def queue_state():
+    return _queue_counts()
+
+
+# --------------------------------------------------------------------------- #
+# Sede Virtual: per-agent state of a job, derived from its real log
+# --------------------------------------------------------------------------- #
+@router.get("/api/gaming/pipeline/{job_id}")
+async def pipeline_state(job_id: str, request: Request):
+    # Through /api/status in process: same ownership check, same disk fallback
+    # for a job this instance no longer holds in memory.
+    headers = {k: v for k, v in request.headers.items() if k.lower() in ("authorization", "x-api-key")}
+    transport = httpx.ASGITransport(app=_STATE["app"])
+    async with httpx.AsyncClient(transport=transport, base_url="http://internal", timeout=30) as c:
+        r = await c.get(f"/api/status/{job_id}", headers=headers)
+    if r.status_code != 200:
+        raise HTTPException(status_code=r.status_code, detail="Trabalho não encontrado.")
+    st = r.json()
+    logs = st.get("logs") or []
+    held = ((_STATE["jobs"] or {}).get(job_id) or {}).get("logs")
+    times = getattr(held, "times", None)
+    if times is not None and len(times) != len(logs):
+        times = None   # a filtered log view: positions no longer line up
+    ready = len(((st.get("result") or {}).get("clips")) or [])
+    snap = pipeline.snapshot(logs, st.get("status"), times, clips_ready=ready or None)
+    snap.update(job_id=job_id, error=st.get("error"), log_lines=len(logs), **_queue_counts())
+    return snap
+
+
+_SELFTEST_LOCK = threading.Lock()
+
+
+@router.post("/api/gaming/selftest")
+def run_selftest():
+    """Sync on purpose: FastAPI runs it in the threadpool, the event loop stays free."""
+    if not _SELFTEST_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Um teste já está em execução.")
+    try:
+        report = pipeline.self_test(_out(), games_count=len(library.load(_out())))
+    finally:
+        _SELFTEST_LOCK.release()
+    report["optional"] = [
+        {"name": "Gemini (opcional)", "configured": bool(os.environ.get("GEMINI_API_KEY")),
+         "detail": "Motor alternativo de análise. Exige chave do Google e pode gerar custo."},
+        {"name": "Upload-Post (opcional)", "configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
+         "detail": "Publicação e métricas. Serviço de terceiros; pode exigir plano pago."},
+    ]
+    return report
 
 
 # --------------------------------------------------------------------------- #

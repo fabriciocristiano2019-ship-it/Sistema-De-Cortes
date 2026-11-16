@@ -1619,6 +1619,38 @@ def get_viral_clips(transcript_result, video_duration):
 
 
 # --- Gaming Edition ---------------------------------------------------------
+def gaming_preflight(cfg, input_video):
+    """Gaming Edition: validate the source and try to name the game BEFORE the
+    slow transcription, so the panel can show both right away.
+
+    A confident match on the file name settles the game here; anything weaker
+    is left to gaming_detect, which also has the transcript to go on.
+    """
+    from gaming import library as game_library
+    from gaming import pipeline as game_pipeline
+    from gaming import profiles as game_profiles
+
+    print("📦 " + game_pipeline.describe_probe(game_pipeline.probe_summary(input_video)))
+    game = cfg.get("game") or {}
+    if game.get("id") and game.get("id") != "auto":
+        label = game_profiles.category(game.get("category") or "other")["label"]
+        print(f"🎮 Jogo selecionado: {game.get('name')} — perfil {label}.")
+        return
+    library_dir = cfg.get("library_dir")
+    if not library_dir:
+        return
+    ident = game_library.identify(library_dir, cfg.get("source_name") or input_video, None)
+    best = ident.get("best")
+    if best and ident["confidence"] == "alta":
+        cfg["game"] = {"id": best["game_id"], "name": best["name"], "category": best["category"]}
+        cfg["identification"] = ident
+        label = game_profiles.category(best["category"])["label"]
+        print(f"🎮 Jogo identificado pelo nome do arquivo: {best['name']} — perfil {label}.")
+    else:
+        print("🎮 Jogo ainda não identificado pelo nome do arquivo — "
+              "a fala será conferida após a transcrição.")
+
+
 def gaming_detect(cfg, input_video, transcript, duration):
     """Run moment detection for a Gaming Edition job and tag every clip.
 
@@ -1631,7 +1663,7 @@ def gaming_detect(cfg, input_video, transcript, duration):
 
     library_dir = cfg.get("library_dir")
     game = dict(cfg.get("game") or {})
-    identification = None
+    identification = cfg.get("identification")
     if (not game.get("id") or game.get("id") == "auto") and library_dir:
         identification = game_library.identify(library_dir, cfg.get("source_name") or input_video, transcript)
         best = identification.get("best")
@@ -1852,6 +1884,13 @@ if __name__ == '__main__':
         print(f"❌ Input file not found: {input_video}")
         exit(1)
 
+    # Gaming Edition jobs carry their own config (game, engine, clip settings).
+    gaming_cfg = None
+    if args.gaming_config:
+        with open(args.gaming_config, 'r', encoding='utf-8') as f:
+            gaming_cfg = json.load(f)
+        gaming_preflight(gaming_cfg, input_video)
+
     # Layout choice is per SOURCE video, not per clip: one upload and one call
     # instead of one per clip, and the answer is a property of the material
     # ("this is a screencast"), which does not change between its own clips.
@@ -1926,10 +1965,6 @@ if __name__ == '__main__':
         # 4. Moment detection. Gaming Edition jobs default to the local engine
         # (audio + visual + transcript signals, no API); Gemini stays available
         # as an opt-in, or as the fallback for non-gaming jobs.
-        gaming_cfg = None
-        if args.gaming_config:
-            with open(args.gaming_config, 'r', encoding='utf-8') as f:
-                gaming_cfg = json.load(f)
         if gaming_cfg is not None:
             clips_data = gaming_detect(gaming_cfg, input_video, transcript, duration)
         elif transcript is not None:

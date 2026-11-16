@@ -1069,6 +1069,22 @@ function App() {
     );
   };
 
+  // Gaming Edition is its own full-screen workspace (the Sede Virtual); the
+  // original OpenShorts tools stay one click away through onLegacy.
+  if (activeTab === 'gaming') {
+    return (
+      <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden">
+        <GamingHub
+          apiKey={apiKey}
+          uploadPostKey={uploadPostKey}
+          uploadUserId={uploadUserId}
+          onOpenSettings={() => setActiveTab('settings')}
+          onLegacy={() => setActiveTab('dashboard')}
+        />
+      </div>
+    );
+  }
+
   return (
     /* h-dvh where supported: on mobile Safari/Chrome `100vh` is the tallest the
        viewport ever gets, so a h-screen shell hides its own bottom bar behind
@@ -1211,16 +1227,6 @@ function App() {
 
         {/* Main Workspace */}
         <div className="flex-1 overflow-hidden relative">
-
-          {/* View: Gaming Edition (PT-BR workspace; needs no API key) */}
-          {activeTab === 'gaming' && (
-            <GamingHub
-              apiKey={apiKey}
-              uploadPostKey={uploadPostKey}
-              uploadUserId={uploadUserId}
-              onOpenSettings={() => setActiveTab('settings')}
-            />
-          )}
 
           {/* View: Settings */}
           {activeTab === 'settings' && (

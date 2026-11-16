@@ -18,6 +18,14 @@ export const fmtDate = (epochSeconds) =>
       })
     : '';
 
+// Wall-clock time of a console line (epoch seconds from the server).
+export const fmtClock = (epochSeconds) =>
+  new Date(epochSeconds * 1000).toLocaleTimeString('pt-BR', { hour12: false });
+
+export const LAYOUT_SHORT = {
+  auto: 'Layout automático', full: 'Layout A', webcam: 'Layout B', vertical: 'Layout C',
+};
+
 export const mediaUrl = (path) => (path ? getApiUrl(path) : '');
 
 export const errText = (e) => e?.detail || e?.message || 'Erro inesperado';

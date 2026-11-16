@@ -1,0 +1,165 @@
+/* Sede Virtual (Gaming Edition) themes. Both scopes only re-point the shared
+ * design tokens, so every existing module inherits the skin with no edits. */
+
+.sede {
+  --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --radius-card: 16px;
+  --radius-input: 10px;
+  font-family: var(--font-body);
+  background: var(--color-paper);
+  color: var(--color-ink-2);
+}
+
+/* Clássica: dark neon */
+.sede-classic {
+  color-scheme: dark;
+  --tw-paper: 13.5% 0.028 262;
+  --tw-paper2: 17.5% 0.034 262;
+  --tw-paper3: 23% 0.04 262;
+  --tw-ink: 98% 0.004 250;
+  --tw-ink2: 89% 0.014 250;
+  --tw-muted: 68% 0.03 255;
+  --tw-brass: 80% 0.135 205;
+  --tw-brassink: 17% 0.04 235;
+  --tw-coral: 66% 0.2 300;
+  --tw-ok: 80% 0.17 158;
+  --tw-warn: 82% 0.15 80;
+  --tw-danger: 64% 0.22 15;
+  --sede-map: oklch(11.5% 0.026 262);
+  --sede-grid: oklch(80% 0.135 205 / 0.07);
+  --sede-line: oklch(70% 0.03 255 / 0.22);
+  --sede-glow: oklch(80% 0.135 205 / 0.35);
+  --sede-console: oklch(10% 0.022 262);
+  --sede-card-shadow: none;
+  --sede-core-chip: linear-gradient(135deg, oklch(80% 0.135 205), oklch(58% 0.2 262));
+  --sede-core-ink: oklch(15% 0.04 250);
+}
+
+/* Nova: light minimal */
+.sede-nova {
+  color-scheme: light;
+  --tw-paper: 96.8% 0.005 255;
+  --tw-paper2: 100% 0 0;
+  --tw-paper3: 93% 0.009 255;
+  --tw-ink: 21% 0.035 262;
+  --tw-ink2: 31% 0.035 262;
+  --tw-muted: 51% 0.03 258;
+  --tw-brass: 50% 0.095 195;
+  --tw-brassink: 99% 0 0;
+  --tw-coral: 52% 0.22 300;
+  --tw-ok: 53% 0.14 155;
+  --tw-warn: 58% 0.14 70;
+  --tw-danger: 55% 0.21 25;
+  --sede-map: oklch(94.5% 0.008 255);
+  --sede-grid: oklch(51% 0.03 258 / 0.12);
+  --sede-line: oklch(51% 0.03 258 / 0.3);
+  --sede-glow: oklch(21% 0.035 262 / 0.16);
+  --sede-console: oklch(21% 0.035 262);
+  --sede-card-shadow: 0 1px 2px oklch(21% 0.035 262 / 0.06), 0 8px 24px oklch(21% 0.035 262 / 0.07);
+  --sede-core-chip: oklch(21% 0.035 262);
+  --sede-core-ink: white;
+}
+
+.sede-classic, .sede-nova {
+  --color-paper: oklch(var(--tw-paper));
+  --color-paper-2: oklch(var(--tw-paper2));
+  --color-paper-3: oklch(var(--tw-paper3));
+  --color-ink: oklch(var(--tw-ink));
+  --color-ink-2: oklch(var(--tw-ink2));
+  --color-muted: oklch(var(--tw-muted));
+  --color-rule: oklch(var(--tw-ink) / 0.09);
+  --color-rule-2: oklch(var(--tw-ink) / 0.17);
+  --color-accent: oklch(var(--tw-brass));
+  --color-accent-ink: oklch(var(--tw-brassink));
+  --color-accent-2: oklch(var(--tw-coral));
+  --color-paper-emit: oklch(var(--tw-brass) / 0.035);
+  --color-focus: oklch(var(--tw-brass));
+  --color-ok: oklch(var(--tw-ok));
+  --color-danger: oklch(var(--tw-danger));
+  --color-warn: oklch(var(--tw-warn));
+}
+
+/* Nova: teal for text accents, navy for filled controls (as in the reference). */
+.sede-nova {
+  --color-accent: oklch(21% 0.035 262);
+  --color-accent-ink: white;
+  --color-focus: oklch(50% 0.095 195);
+}
+.sede-nova .sede-select { background-color: white; }
+
+.sede h1, .sede h2, .sede h3 { font-weight: 700; letter-spacing: -0.01em; }
+.sede .btn-primary, .sede .btn-ghost, .sede .btn-quiet, .sede .btn-danger {
+  text-transform: none; border-radius: 10px; font-weight: 600;
+}
+.sede .eyebrow { font-family: var(--font-body); font-weight: 700; opacity: 0.6; }
+
+.sede-map {
+  background-color: var(--sede-map);
+  background-image:
+    linear-gradient(to right, var(--sede-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sede-grid) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+.sede-console { background: var(--sede-console); }
+.sede-cta {
+  background: linear-gradient(90deg, oklch(80% 0.135 205), oklch(60% 0.2 262));
+  color: oklch(15% 0.04 250);
+}
+.sede-nova .sede-cta { background: oklch(21% 0.035 262); color: white; }
+.sede-core-ring { box-shadow: 0 0 0 1px var(--color-accent), 0 0 32px var(--sede-glow); }
+
+@keyframes sedeDash { to { stroke-dashoffset: -20; } }
+.sede-flow { animation: sedeDash 0.7s linear infinite; }
+@keyframes sedeSpin { to { transform: rotate(360deg); } }
+.sede-orbit { animation: sedeSpin 14s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sede-flow, .sede-orbit { animation: none; }
+}
+
+.sede-core-chip { background: var(--sede-core-chip); color: var(--sede-core-ink); }
+
+.sede-select {
+  appearance: none;
+  height: 38px;
+  padding: 0 30px 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid var(--color-rule-2);
+  border-radius: 10px;
+  outline: none;
+  text-overflow: ellipsis;
+}
+.sede-select:focus-visible { border-color: var(--color-accent); }
+.sede-select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.sede-btn-accent {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  transition: filter 0.2s;
+  white-space: nowrap;
+}
+.sede-btn-accent:hover { filter: brightness(1.1); }
+
+/* header tabs + theme switch */
+.sede-seg { display: inline-flex; gap: 2px; padding: 4px; border-radius: 12px; border: 1px solid var(--color-rule-2); background: var(--color-paper-2); }
+.sede-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; font-size: 12.5px; font-weight: 700; color: var(--color-muted); white-space: nowrap; transition: color 0.2s, background-color 0.2s; }
+.sede-seg button:hover { color: var(--color-ink); }
+.sede-seg button[aria-pressed="true"] { background: var(--color-accent); color: var(--color-accent-ink); box-shadow: 0 0 18px var(--sede-glow); }
+.sede-seg.sede-seg-soft button[aria-pressed="true"] { background: oklch(var(--tw-brass) / 0.16); color: var(--color-accent); box-shadow: inset 0 0 0 1px oklch(var(--tw-brass) / 0.4); }
+.sede-nova .sede-seg.sede-seg-soft button[aria-pressed="true"] { background: white; color: var(--color-ink); box-shadow: 0 1px 3px oklch(21% 0.035 262 / 0.18); }
+
+/* module pills */
+.sede-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 700; color: var(--color-muted); white-space: nowrap; transition: color 0.2s, background-color 0.2s; }
+.sede-pill:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.sede-pill[aria-current="page"] { background: var(--color-accent); color: var(--color-accent-ink); }
+
+.sede :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }

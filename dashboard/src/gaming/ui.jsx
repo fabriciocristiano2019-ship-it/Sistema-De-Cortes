@@ -1,7 +1,25 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { ModuleCtx } from './ctx';
 import { STATUS_LABEL, STATUS_TONE } from './util';
 
 export function Header({ ord, title, hint, children }) {
+  const mod = useContext(ModuleCtx);
+  if (mod) {
+    // Inside the Sede shell every module opens with its numbered name and the
+    // way back to the virtual room.
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+        <div className="min-w-0">
+          <h2 className="text-lg font-extrabold text-ink">{mod.label}</h2>
+          <p className="text-sm text-muted mt-0.5 max-w-3xl">{hint || mod.hint}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {children}
+          <button type="button" onClick={mod.onBack} className="sede-btn-accent">Voltar à Sala Virtual</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
       <div className="min-w-0">
@@ -52,18 +70,17 @@ export function Notice({ tone = 'info', children }) {
   return <div role={tone === 'error' ? 'alert' : 'status'} className={`rounded-input border px-3 py-2 text-sm ${cls}`}>{children}</div>;
 }
 
-export function StatTile({ label, value, sub }) {
+export function StatTile({ label, value, sub, tone = 'ink' }) {
+  const color = { ink: 'text-ink', accent: 'text-brass', ok: 'text-ok', warn: 'text-warn' }[tone];
   return (
     <div className="card p-4">
       <p className="text-xs text-muted mb-2">{label}</p>
-      <p className="font-mono text-2xl text-ink tabular-nums leading-none">{value}</p>
+      <p className={`text-2xl font-extrabold tabular-nums leading-none ${color}`}>{value}</p>
       {sub && <p className="text-xs text-muted mt-2">{sub}</p>}
     </div>
   );
 }
 
-// Horizontal bars, one hue, value printed at the end of each bar: the reader
-// compares lengths and reads exact numbers without a legend or an axis.
 export function BarList({ data, unit = '', max = 8, empty = 'Sem dados ainda.' }) {
   const rows = (data || []).slice(0, max);
   if (!rows.length) return <p className="text-sm text-muted">{empty}</p>;
