@@ -140,6 +140,9 @@
   }
   .btn-danger:hover { background: color-mix(in oklab, var(--color-danger) 12%, transparent); }
 
+  /* Compact modifier for dense card actions (Gaming Edition). */
+  .btn-sm { @apply px-3 py-1.5 text-xs gap-1; }
+
   .badge-ok, .badge-warn, .badge-danger, .badge-brass, .badge-float {
     font-family: var(--font-mono);
     font-size: 10.5px;

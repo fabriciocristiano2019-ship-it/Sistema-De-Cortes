@@ -321,6 +321,20 @@ def _run(cmd):
                    stderr=subprocess.PIPE, timeout=1800)
 
 
+def _inset_box_from_env(orig_w, orig_h):
+    """INSET_BOX="x,y,w,h" (fractions of the frame) -> pixel box, or None."""
+    raw = os.environ.get("INSET_BOX", "").strip()
+    if not raw:
+        return None
+    try:
+        x, y, w, h = [float(v) for v in raw.split(",")]
+        if not (0 <= x < 1 and 0 <= y < 1 and 0 < w <= 1 and 0 < h <= 1):
+            return None
+        return (int(x * orig_w), int(y * orig_h), int(w * orig_w), int(h * orig_h))
+    except ValueError:
+        return None
+
+
 def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
            force_strategy=None, crop_overrides=None):
     """Full v2 reframe of one clip. Raises on failure (caller falls back).
@@ -445,6 +459,22 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
         print(f"   📐 Full-width layout on {wide_count} scene(s)")
     if inset_count:
         print(f"   📹 Camera-inset layout on {inset_count} scene(s)")
+
+    # Forced webcam layout (Gaming Edition option B): find the inset once, or
+    # take the box the user drew (INSET_BOX="x,y,w,h" as fractions). With no
+    # webcam to show, fall back to the full-width layout instead of failing.
+    if force_strategy == 'INSET' and not inset:
+        inset = _inset_box_from_env(orig_w, orig_h)
+        if not inset:
+            try:
+                inset = camera_inset.detect(input_video)
+            except Exception as e:
+                print(f"   ⚠️ Inset check failed ({e}).")
+        if inset:
+            print(f"   📹 Webcam (forced) at {inset}")
+        else:
+            print("   ⚠️ Nenhuma webcam detectada — usando gameplay em tela inteira (GENERAL).")
+            strategies = ['GENERAL'] * len(strategies)
 
     # The crop geometry comes from the SOURCE dims only — SmoothedCameraman
     # derives crop_width/crop_height from video_width/video_height and never

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu } from 'lucide-react';
+import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Gamepad2 } from 'lucide-react';
 import KeyInput from './components/KeyInput';
 import MediaInput from './components/MediaInput';
 import McpConnectCard from './components/McpConnectCard';
@@ -21,6 +21,7 @@ import LoginModal from './components/LoginModal';
 import TrialGate from './components/TrialGate';
 import AdvancedBanner from './components/AdvancedBanner';
 import HistoryTab from './components/HistoryTab';
+import GamingHub from './gaming/GamingHub';
 import ProfileMenu from './components/ProfileMenu';
 import Modal from './components/ui/Modal';
 import { useAuth } from './contexts/AuthContext';
@@ -255,7 +256,7 @@ function App() {
     try { return window.innerWidth >= 768; } catch { return true; }
   });
   const [processingMedia, setProcessingMedia] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, settings
+  const [activeTab, setActiveTab] = useState('gaming'); // gaming (default), dashboard, settings, ...
   // Mobile only: the full nav lives in a drawer behind the header's menu button.
   const [navOpen, setNavOpen] = useState(false);
   // Reopened-project state (paid mode): per-clip {index, server_file, active_layers}
@@ -870,13 +871,14 @@ function App() {
   // drawer, and the bottom tab bar. `short` is the tab-bar label — the full one
   // wraps to two lines in a 5-up bar on a 360px phone.
   const navItems = [
-    { id: 'dashboard', ord: '01', icon: LayoutDashboard, label: 'Clip Generator', short: 'clips', primary: true },
+    { id: 'gaming', ord: '00', icon: Gamepad2, label: 'Gaming Edition', short: 'gaming', primary: true },
+    { id: 'dashboard', ord: '01', icon: LayoutDashboard, label: 'Gerador de cortes', short: 'cortes', primary: true },
     { id: 'saasshorts', ord: '02', icon: Sparkles, label: 'AI Shorts', short: 'ai shorts', byok: true, primary: true },
-    { id: 'ai-agent', ord: '03', icon: Bot, label: 'AI Agent', short: 'agent', byok: true },
-    { id: 'ugc-gallery', ord: '04', icon: LayoutGrid, label: 'UGC Gallery', short: 'gallery', primary: true },
+    { id: 'ai-agent', ord: '03', icon: Bot, label: 'Agente de IA', short: 'agente', byok: true },
+    { id: 'ugc-gallery', ord: '04', icon: LayoutGrid, label: 'Galeria UGC', short: 'galeria', primary: true },
     { id: 'thumbnails', ord: '05', icon: Image, label: 'YouTube Studio', short: 'studio', primary: true },
-    ...(billingEnabled && isSignedIn ? [{ id: 'history', ord: '06', icon: History, label: 'History', short: 'history' }] : []),
-    { id: 'settings', ord: '07', icon: Settings, label: 'Settings', short: 'settings' },
+    ...(billingEnabled && isSignedIn ? [{ id: 'history', ord: '06', icon: History, label: 'Histórico', short: 'histórico' }] : []),
+    { id: 'settings', ord: '07', icon: Settings, label: 'Configurações', short: 'config' },
   ];
   const activeNav = navItems.find((n) => n.id === activeTab);
 
@@ -1138,7 +1140,7 @@ function App() {
 
             {/* Hidden below sm: the standing banner underneath already says the
                 same thing, and two warnings in a 360px header is just noise. */}
-            {keysMissing && (
+            {keysMissing && activeTab !== 'gaming' && (
               <button
                 onClick={() => (billingEnabled && !isSignedIn ? setShowLogin(true) : setActiveTab('settings'))}
                 className="badge-warn hover:brightness-125 transition-all hidden sm:inline-flex"
@@ -1159,7 +1161,7 @@ function App() {
         </header>
 
         {/* Persistent Missing Keys Banner — visible on every screen */}
-        {keysMissing && activeTab !== 'settings' && (
+        {keysMissing && activeTab !== 'settings' && activeTab !== 'gaming' && (
           <div className="mx-3 sm:mx-6 mt-3 px-3.5 sm:px-4 py-3 bg-paper2 border border-rule rounded-card flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 shrink-0 animate-fade">
             <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 text-sm text-ink2 min-w-0 flex-1">
               <KeyRound size={16} className="shrink-0 text-warn mt-0.5 sm:mt-0" />
@@ -1209,6 +1211,16 @@ function App() {
 
         {/* Main Workspace */}
         <div className="flex-1 overflow-hidden relative">
+
+          {/* View: Gaming Edition (PT-BR workspace; needs no API key) */}
+          {activeTab === 'gaming' && (
+            <GamingHub
+              apiKey={apiKey}
+              uploadPostKey={uploadPostKey}
+              uploadUserId={uploadUserId}
+              onOpenSettings={() => setActiveTab('settings')}
+            />
+          )}
 
           {/* View: Settings */}
           {activeTab === 'settings' && (

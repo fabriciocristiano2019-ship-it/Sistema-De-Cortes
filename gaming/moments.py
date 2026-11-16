@@ -137,7 +137,7 @@ def transcript_features(transcript, n):
                 laugh[i] += 2.0
     k = max(1, int(2 / STEP))
     rate = np.convolve(wcount, np.ones(k), mode="same")
-    speech = signals.robust_z(rate, floor=1.0) if rate.any() else rate
+    speech = signals.robust_z_active(rate, q=50.0, floor=1.5) if rate.any() else rate
     return {"keyword": kw, "laughter": laugh, "speech_rate": speech}, hits
 
 
@@ -243,8 +243,8 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     win = int(60 / STEP)
 
     raw = {
-        "audio_peak": _norm(signals.robust_z(_fit(af["rms_db"], n), win, floor=2.5)) if has_audio else np.zeros(n),
-        "audio_spike": _norm(signals.robust_z(_fit(af["spike_db"], n), floor=2.5), 5.0) if has_audio else np.zeros(n),
+        "audio_peak": _norm(signals.level_above_active(_fit(af["rms_db"], n), 3.0)) if has_audio else np.zeros(n),
+        "audio_spike": _norm(signals.level_above_active(_fit(af["spike_db"], n), 3.0)) if has_audio else np.zeros(n),
         "motion": _norm(signals.robust_z(_fit(vf["motion"], n), win, floor=2.0)),
         "cut": _fit(vf["cut"], n),
         "flash": _norm(signals.robust_z(_fit(vf["flash"], n), floor=4.0), 5.0),
@@ -276,6 +276,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     taken = []
     shorts = []
     rejected_low = 0
+    rejected_single = 0
     for idx in order:
         if len(shorts) >= max_clips:
             break
@@ -285,22 +286,35 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         val = float(combined[idx])
         if evidence_max[idx] < EVIDENCE_NORM:
             continue
+        # One lone signal is not a moment: a sentence starting after silence is
+        # an "audio rise" too. Require two independent signals, unless the one
+        # signal is the player's own words (or laughter), which name the moment.
+        strong = [k for k in feats if k != "cut" and feats[k][idx] >= EVIDENCE_NORM]
+        if len(strong) < 2 and not (set(strong) & {"keyword", "laughter"}):
+            rejected_single += 1
+            continue
         # Category: transcript words near the peak win; else the dominant signal.
         moment, moment_score, quote = None, 0.0, None
         if len(hit_times):
             near = np.where((hit_times >= peak_t - 6) & (hit_times <= peak_t + 4))[0]
+            # Every nearby cue votes: "meu deus, que susto, socorro" is three
+            # votes for a scare and outweighs one stray "não acredito".
+            votes, quotes = {}, {}
             for j in near:
                 _, m, txt = hits[j]
-                s = SPECIFICITY.get(m, 0.5) + (0.3 if m in boost else 0)
+                votes[m] = votes.get(m, 0.0) + SPECIFICITY.get(m, 0.5)
+                quotes.setdefault(m, txt)
+            for m, v in votes.items():
+                s = min(v, 2.5) + (0.3 if m in boost else 0)
                 if s > moment_score:
-                    moment, moment_score, quote = m, s, txt
+                    moment, moment_score, quote = m, s, quotes[m]
         contrib = {k: weights.get(k, 0) * feats[k][idx] for k in feats}
         dominant = max((k for k in contrib if k != "keyword"), key=lambda k: contrib[k])
         if moment is None:
             moment = profiles.SIGNAL_MOMENT.get(dominant, "reacao")
         if moment in boost:
             val += 0.05
-        score = int(round(min(100, val / 0.45 * 100)))
+        score = int(round(min(100, val / 0.5 * 100)))
         if score < min_score:
             rejected_low += 1
             continue
@@ -352,6 +366,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         "transcript_words": len(words),
         "keyword_hits": len(hits),
         "candidates_below_min_score": rejected_low,
+        "candidates_single_signal": rejected_single,
         "weights": weights,
         "clip_seconds": clip_len,
         "min_score": min_score,

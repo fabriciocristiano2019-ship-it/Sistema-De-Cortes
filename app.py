@@ -955,6 +955,12 @@ def _enforce_uploads_size_cap():
             pass
 
 
+def _protected_output_dirs():
+    """OUTPUT_DIR entries that are not jobs and must never be swept: the
+    thumbnails mount and the Gaming Edition library (games, covers, schedule)."""
+    return {os.path.basename(THUMBNAILS_DIR), "gaming"}
+
+
 def _enforce_output_size_cap():
     """Delete the oldest job dirs while OUTPUT_DIR is over OUTPUT_MAX_GB."""
     cap = OUTPUT_MAX_GB * 1024 ** 3
@@ -963,10 +969,9 @@ def _enforce_output_size_cap():
     used = _dir_size(OUTPUT_DIR)
     if used <= cap:
         return
-    thumbs = os.path.basename(THUMBNAILS_DIR)
     candidates = []
     for job_id in os.listdir(OUTPUT_DIR):
-        if job_id == thumbs:
+        if job_id in _protected_output_dirs():
             continue
         p = os.path.join(OUTPUT_DIR, job_id)
         if os.path.isdir(p):
@@ -1000,11 +1005,11 @@ async def cleanup_jobs():
             for job_id in os.listdir(OUTPUT_DIR):
                 # Not a job: the thumbnails dir backs a StaticFiles mount, so
                 # deleting it would 500 every /thumbnails request until reboot.
-                if job_id == os.path.basename(THUMBNAILS_DIR):
+                if job_id in _protected_output_dirs():
                     continue
                 job_path = os.path.join(OUTPUT_DIR, job_id)
                 if os.path.isdir(job_path):
-                    if now - os.path.getmtime(job_path) > JOB_RETENTION_SECONDS:
+                    if JOB_RETENTION_SECONDS > 0 and now - os.path.getmtime(job_path) > JOB_RETENTION_SECONDS:
                         print(f"🧹 Purging old job: {job_id}")
                         shutil.rmtree(job_path, ignore_errors=True)
                         if job_id in jobs:
@@ -1025,6 +1030,7 @@ async def cleanup_jobs():
                     if jdata.get("status") in ("completed", "failed")
                     and jdata.get("output_dir")
                     and os.path.isdir(jdata["output_dir"])
+                    and JOB_RETENTION_SECONDS > 0
                     and now - os.path.getmtime(jdata["output_dir"]) > JOB_RETENTION_SECONDS
                 ]
                 for jid in saas_expired:
@@ -1041,7 +1047,7 @@ async def cleanup_jobs():
             for filename in os.listdir(UPLOAD_DIR):
                 file_path = os.path.join(UPLOAD_DIR, filename)
                 try:
-                    if now - os.path.getmtime(file_path) > JOB_RETENTION_SECONDS:
+                    if JOB_RETENTION_SECONDS > 0 and now - os.path.getmtime(file_path) > JOB_RETENTION_SECONDS:
                          os.remove(file_path)
                 except Exception: pass
 
@@ -1111,7 +1117,9 @@ async def run_job_wrapper(job_id):
     """Wrapper to run job and release semaphore"""
     try:
         job = jobs.get(job_id)
-        if job:
+        if job and job.get('cancelled'):
+            job['status'] = 'cancelled'   # cancelled while still queued
+        elif job:
             await run_job(job_id, job)
     except Exception as e:
          print(f"❌ Job wrapper error {job_id}: {e}")
@@ -1572,6 +1580,13 @@ if BILLING_ENABLED:
 import mcp_server as _mcp_server
 app.include_router(_mcp_server.router)
 
+# Gaming Edition: game library, local moment engine, clip approval, publishing queue.
+import gaming_api
+gaming_api.init(app, OUTPUT_DIR, jobs)
+_gaming_from_request = gaming_api.gaming_from_request
+_write_gaming_job = gaming_api.write_job_config
+_gaming_env = gaming_api.job_env
+
 # Enable CORS for frontend. Cloud mode locks this down to the configured origins;
 # self-host keeps the permissive wildcard it has always used.
 app.add_middleware(
@@ -1704,8 +1719,12 @@ async def run_job(job_id, job_data):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, # Merge stderr to stdout
             env=env,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
+            # Own process group, so cancelling a job also stops the ffmpeg
+            # children main.py spawned instead of leaving them encoding.
+            start_new_session=(os.name == "posix"),
         )
+        jobs[job_id]['process'] = process
         
         # We need to capture logs in a thread because Popen isn't async
         t_log = threading.Thread(target=enqueue_output, args=(process.stdout, job_id))
@@ -1763,8 +1782,12 @@ async def run_job(job_id, job_data):
                 pass
 
         returncode = process.returncode
-        
-        if returncode == 0:
+        jobs[job_id].pop('process', None)
+
+        if jobs[job_id].get('cancelled'):
+            jobs[job_id]['status'] = 'cancelled'
+            jobs[job_id]['logs'].append("Processamento cancelado pelo usuário.")
+        elif returncode == 0:
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['logs'].append("Process finished successfully.")
             
@@ -2069,9 +2092,13 @@ async def process_endpoint(
     thumbnail_session_id: Optional[str] = Form(None),
     captions: Optional[str] = Form(None),
     upload_id: Optional[str] = Form(None),
+    gaming: Optional[str] = Form(None),
 ):
+    # Gaming Edition: a JSON object (form field or JSON body key). Its local
+    # engine needs no Gemini key, so the key check is skipped for it.
+    gaming_req = await _gaming_from_request(request, gaming)
     api_key = await resolve_gemini(request)
-    if not api_key:
+    if not api_key and not (gaming_req and gaming_req["engine"] != "gemini"):
         raise gemini_missing_error()
 
     ack_flag = str(acknowledged).lower() in ("1", "true", "yes")
@@ -2195,7 +2222,10 @@ async def process_endpoint(
     # probe above already gets this right.
     cmd = [sys.executable, "-u", "main.py"] # -u for unbuffered
     env = os.environ.copy()
-    env["GEMINI_API_KEY"] = api_key # Override with key from request
+    if api_key:
+        env["GEMINI_API_KEY"] = api_key # Override with key from request
+    else:
+        env.pop("GEMINI_API_KEY", None)
     # The stdio fix above only covers this process. main.py prints an emoji on
     # its first line and configures nothing, so on a cp1252 console the child
     # still dies before it renders anything -- the server starts and every job
@@ -2334,6 +2364,22 @@ async def process_endpoint(
     if output_format and output_format != "auto":
         cmd.extend(["--format", output_format])
 
+    if gaming_req:
+        if input_path and _media_duration_seconds(input_path) <= 0:
+            try:
+                os.remove(input_path)
+            except OSError:
+                pass
+            shutil.rmtree(job_output_dir, ignore_errors=True)
+            raise HTTPException(status_code=400,
+                                detail="O arquivo enviado não é um vídeo válido (sem duração legível).")
+        source_name = (getattr(file, "filename", None) or url or input_path or "")
+        cfg_path = _write_gaming_job(job_output_dir, gaming_req, source_name)
+        cmd.extend(["--gaming-config", cfg_path])
+        env.update(_gaming_env(gaming_req))
+        print(f"[gaming] job={job_id} game={gaming_req['game'].get('id')} "
+              f"engine={gaming_req['engine']} layout={gaming_req['layout']}")
+
     print(f"[attestation] job={job_id} ip={attestation['ip']} source={attestation['source']} ack=true")
 
     # Meter + reserve minutes for managed users (no-op for BYOK / self-host).
@@ -2384,6 +2430,46 @@ async def process_endpoint(
     _enqueue_job(job_id, priority)
 
     return {"job_id": job_id, "status": "queued"}
+
+@app.post("/api/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str, request: Request):
+    """Stop a queued or running job. The source video and any clip already
+    rendered stay on disk; only the remaining work is abandoned."""
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    await _assert_job_owner(request, job)
+    if job.get('status') not in ('queued', 'processing'):
+        return {"job_id": job_id, "status": job.get('status')}
+    job['cancelled'] = True
+    proc = job.get('process')
+    if proc is not None and proc.poll() is None:
+        try:
+            if os.name == "posix":
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            else:
+                proc.terminate()
+        except (ProcessLookupError, PermissionError):
+            pass
+
+        def _hard_stop():
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                try:
+                    if os.name == "posix":
+                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                    else:
+                        proc.kill()
+                except (ProcessLookupError, PermissionError):
+                    pass
+        threading.Thread(target=_hard_stop, daemon=True).start()
+    else:
+        job['status'] = 'cancelled'
+    job['logs'].append("Cancelamento solicitado.")
+    _clear_resume_manifest(job_id)
+    return {"job_id": job_id, "status": "cancelling"}
+
 
 def _job_view_from_disk(job_id):
     """What the disk says about a job this instance does not hold in memory.

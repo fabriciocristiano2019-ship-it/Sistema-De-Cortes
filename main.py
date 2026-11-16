@@ -1067,6 +1067,10 @@ def render_clip(input_video, final_output_video, output_format="auto",
     ``force_strategy`` for the scenes it names."""
     if output_format == "horizontal":
         return finalize_clip_passthrough(input_video, final_output_video)
+    # Gaming Edition layout choice for the whole job (A full / B webcam /
+    # C vertical): app.py sets FORCE_STRATEGY; an explicit editor choice wins.
+    if force_strategy is None and not crop_overrides:
+        force_strategy = (os.environ.get("FORCE_STRATEGY") or "").strip().upper() or None
     aspect = 1.0 if output_format == "square" else ASPECT_RATIO
     return process_video_to_vertical(input_video, final_output_video, aspect_ratio=aspect,
                                      force_strategy=force_strategy,

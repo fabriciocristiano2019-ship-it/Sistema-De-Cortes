@@ -131,6 +131,46 @@ def robust_z(x, window_steps=None, floor=0.0):
     return np.clip(z, 0, None)
 
 
+def robust_z_active(x, q=60.0, floor=0.0):
+    """Like robust_z, but the baseline is the ACTIVE part of the signal (samples
+    above the q-th percentile), not the whole of it.
+
+    Commentary over a quiet game is mostly silence: against a whole-signal
+    median every calm sentence is a "peak". Measured against the level of the
+    talking itself, only shouting, laughter bursts and explosions stand out.
+    """
+    x = np.asarray(x, dtype=float)
+    if len(x) == 0:
+        return x
+    thr = np.percentile(x, q)
+    active = x[x > thr]
+    if len(active) < 8:
+        return robust_z(x, floor=floor)
+    med = np.median(active)
+    mad = np.median(np.abs(active - med))
+    return np.clip((x - med) / max(1.4826 * mad, floor + 1e-6), 0, None)
+
+
+def level_above_active(x, scale):
+    """How far each sample sits above the signal's ordinary ACTIVE level, in
+    units of `scale` (same unit as x, e.g. 3 dB).
+
+    Active = samples above the midpoint between the floor (p10) and the top
+    (p99); the ordinary level is the lower quartile of those. So calm talking
+    or steady game audio scores 0 and only what is clearly louder than usual
+    counts, whether the background is silent or a constant firefight.
+    """
+    x = np.asarray(x, dtype=float)
+    if len(x) < 8:
+        return np.zeros_like(x)
+    lo, hi = np.percentile(x, [10, 99])
+    active = x[x > lo + 0.5 * (hi - lo)]
+    if len(active) < 4:
+        return np.zeros_like(x)
+    base = np.percentile(active, 25)
+    return np.clip((x - base) / scale, 0, None)
+
+
 def media_duration(path):
     try:
         out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",

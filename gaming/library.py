@@ -196,6 +196,12 @@ def identify(output_dir, filename="", transcript=None):
     return {"best": best, "confidence": confidence, "candidates": out[:5]}
 
 
+def display_source(job_id, name):
+    """Uploads are stored as "<job_id>_<original name>"; show the original."""
+    name = str(name or "")
+    return name[len(job_id) + 1:] if name.startswith(f"{job_id}_") else name
+
+
 def stats(output_dir):
     """Per-game usage computed from job metadata on disk."""
     per = {}
@@ -215,7 +221,7 @@ def stats(output_dir):
         s["clips"] += n
         s["history"].append({
             "job_id": job_id,
-            "source": data.get("source_video"),
+            "source": display_source(job_id, data.get("source_video")),
             "clips": n,
             "created_at": os.path.getmtime(meta),
         })
