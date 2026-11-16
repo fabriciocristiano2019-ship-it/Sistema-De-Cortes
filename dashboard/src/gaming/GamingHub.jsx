@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, Scissors, Settings,
+  BarChart3, CalendarClock, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, MoreVertical, Scissors, Settings,
   Share2, SlidersHorizontal, Sun, Terminal, Type, Upload,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
@@ -74,6 +74,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
   const [cancelling, setCancelling] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [toast, setToast] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const lastReady = useRef(0);
   const watching = useRef(false);   // true once this tab has seen the job running
 
@@ -277,6 +279,16 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
 
   const closeToast = useCallback(() => setToast(null), []);
 
+  // The module list closes on Escape or a click anywhere else.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDown = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
+
   return (
     <div className={`sede ${theme === 'nova' ? 'sede-nova' : 'sede-classic'} h-full overflow-y-auto`}>
       <header className="sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-3">
@@ -345,13 +357,28 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
 
           {view === 'modules' && (
             <section className="rounded-[20px] border border-rule2 bg-paper2/60 p-4 md:p-5">
-              <nav aria-label="Módulos" className="flex flex-wrap gap-1.5 border-b border-rule pb-4 mb-5">
-                {MODULES.map((m, i) => (
-                  <button key={m.id} type="button" className="sede-pill" aria-current={m.id === mod.id ? 'page' : undefined} onClick={() => go(m.id)}>
-                    <m.icon size={14} aria-hidden="true" /> {i + 1}. {m.label}
-                  </button>
-                ))}
-              </nav>
+              <div className="relative mb-5 flex items-center gap-3 border-b border-rule pb-4" ref={menuRef}>
+                <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Abrir lista de módulos" title="Módulos"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink hover:border-brass">
+                  <MoreVertical size={20} aria-hidden="true" />
+                </button>
+                <span className="flex items-center gap-2 text-sm font-extrabold text-ink">
+                  <mod.icon size={16} className="text-brass" aria-hidden="true" /> {modIndex}. {mod.label}
+                </span>
+                <span className="text-xs text-muted">módulo {modIndex} de {MODULES.length}</span>
+                {menuOpen && (
+                  <nav aria-label="Módulos" role="menu"
+                    className="absolute left-0 top-12 z-30 flex w-72 max-w-[calc(100vw-48px)] flex-col gap-0.5 rounded-2xl border border-rule2 bg-paper2 p-2 shadow-2xl">
+                    {MODULES.map((m, i) => (
+                      <button key={m.id} type="button" role="menuitem" className="sede-pill w-full justify-start" aria-current={m.id === mod.id ? 'page' : undefined}
+                        onClick={() => { setMenuOpen(false); go(m.id); }}>
+                        <m.icon size={15} aria-hidden="true" /> {i + 1}. {m.label}
+                      </button>
+                    ))}
+                  </nav>
+                )}
+              </div>
               <ModuleCtx.Provider value={{ label: `${modIndex}. ${mod.label}`, hint: MODULE_HINT, onBack: goHQ }}>
                 {moduleBody}
               </ModuleCtx.Provider>
