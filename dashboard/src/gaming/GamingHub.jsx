@@ -15,7 +15,7 @@ import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from '.
 import './sede.css';
 
 const MODULES = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'dashboard', label: 'Painel Geral', icon: BarChart3 },
   { id: 'games', label: 'Biblioteca de Jogos', icon: Gamepad2 },
   { id: 'import', label: 'Importação de Gameplays', icon: Upload },
   { id: 'analysis', label: 'Análise Inteligente', icon: Eye },
@@ -25,15 +25,15 @@ const MODULES = [
   { id: 'videos', label: 'Biblioteca de Vídeos', icon: Film },
   { id: 'social', label: 'Redes Sociais', icon: Share2 },
   { id: 'schedule', label: 'Agendamentos', icon: CalendarClock },
-  { id: 'history', label: 'Histórico & Logs', icon: History },
+  { id: 'history', label: 'Histórico & Registros', icon: History },
   { id: 'config', label: 'Configurações (.env)', icon: Settings },
 ];
-const MODULE_HINT = 'Módulo integrado ao pipeline local OpenShorts Gaming Edition (Windows + Docker Desktop).';
+const MODULE_HINT = 'Módulo integrado ao fluxo local OpenShorts Gaming Edition (Windows + Docker Desktop).';
 
 const VIEWS = [
-  { id: 'hq', label: 'Sala Virtual (HQ)', icon: Cpu },
+  { id: 'hq', label: 'Sala Virtual (Sede)', icon: Cpu },
   { id: 'modules', label: 'Módulos (12)', icon: Layers },
-  { id: 'pipeline', label: 'Pipeline & Logs', icon: Terminal },
+  { id: 'pipeline', label: 'Fluxo & Registros', icon: Terminal },
 ];
 
 const DEFAULT_FORM = {
@@ -131,8 +131,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
           reloadAll();
           if (watching.current) {
             watching.current = false;
-            if (d.status === 'completed') setToast({ text: `Pipeline concluído! ${d.clips?.total ?? ready} corte(s) pronto(s) para revisão.` });
-            else if (d.status === 'failed') setToast({ tone: 'error', text: 'O processamento falhou. Veja o motivo no console.' });
+            if (d.status === 'completed') setToast({ text: `Processamento concluído! ${d.clips?.total ?? ready} corte(s) pronto(s) para revisão.` });
+            else if (d.status === 'failed') setToast({ tone: 'error', text: 'O processamento falhou. Veja o motivo no terminal.' });
           }
         }
       } catch { /* transient network error: the next tick retries */ }
@@ -285,7 +285,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-[15px] font-extrabold tracking-wide text-ink">OPENSHORTS GAMING EDITION</h1>
-                <span className="rounded-full border border-ok/50 bg-ok/10 px-2 py-0.5 text-[9.5px] font-extrabold tracking-wider text-ok">LOCAL ENGINE • CUSTO ZERO</span>
+                <span className="rounded-full border border-ok/50 bg-ok/10 px-2 py-0.5 text-[9.5px] font-extrabold tracking-wider text-ok">MOTOR LOCAL • CUSTO ZERO</span>
               </div>
               <p className="text-[11.5px] text-muted truncate">Base: mo3y/openshorts • Orquestração Multi-Agentes PT-BR</p>
             </div>

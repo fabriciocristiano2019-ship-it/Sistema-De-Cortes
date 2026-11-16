@@ -1991,7 +1991,7 @@ async def put_upload(upload_id: str, request: Request):
             if size > limit_bytes:
                 out.close()
                 os.remove(slot["path"])
-                raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
+                raise HTTPException(status_code=413, detail=f"Arquivo grande demais. Tamanho máximo: {MAX_FILE_SIZE_MB} MB")
             out.write(chunk)
     if size == 0:
         os.remove(slot["path"])
@@ -2351,7 +2351,7 @@ async def process_endpoint(
                 if size > limit_bytes:
                     os.remove(input_path)
                     shutil.rmtree(job_output_dir)
-                    raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
+                    raise HTTPException(status_code=413, detail=f"Arquivo grande demais. Tamanho máximo: {MAX_FILE_SIZE_MB} MB")
                 buffer.write(content)
 
         upload_duration = _media_duration_seconds(input_path)
@@ -4775,7 +4775,7 @@ async def thumbnail_upload(
                 size += len(chunk)
                 if size > limit_bytes:
                     os.remove(video_path)
-                    raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
+                    raise HTTPException(status_code=413, detail=f"Arquivo grande demais. Tamanho máximo: {MAX_FILE_SIZE_MB} MB")
                 buffer.write(chunk)
 
     # Meter a fixed guard cost for the background download + Whisper transcription
@@ -4894,7 +4894,7 @@ async def thumbnail_analyze(
                     size += len(chunk)
                     if size > limit_bytes:
                         os.remove(video_path)
-                        raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
+                        raise HTTPException(status_code=413, detail=f"Arquivo grande demais. Tamanho máximo: {MAX_FILE_SIZE_MB} MB")
                     buffer.write(chunk)
 
     # Meter the managed Gemini analysis (no-op for self-host).

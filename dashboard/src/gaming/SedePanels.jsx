@@ -29,7 +29,7 @@ export function OrchestratorPanel({
     }));
   };
 
-  let badge = { label: 'ONLINE', cls: 'text-ok border-ok/40 bg-ok/10' };
+  let badge = { label: 'NO AR', cls: 'text-ok border-ok/40 bg-ok/10' };
   if (active) badge = { label: job.status === 'queued' ? 'NA FILA' : 'PROCESSANDO', cls: 'text-warn border-warn/40 bg-warn/10' };
   else if (job?.status === 'failed') badge = { label: 'FALHOU', cls: 'text-danger border-danger/40 bg-danger/10' };
 
@@ -112,10 +112,10 @@ export function OrchestratorPanel({
           <button type="button" onClick={() => fileRef.current?.click()} disabled={starting}
             className="sede-cta flex w-full items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[12px] font-extrabold whitespace-nowrap transition hover:brightness-110 disabled:opacity-60">
             {starting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {starting ? 'Enviando gameplay…' : 'Importar Gameplay & Iniciar Pipeline'}
+            {starting ? 'Enviando gameplay…' : 'Importar Gameplay & Iniciar'}
           </button>
           <button type="button" onClick={onImportLink} className="mt-2 w-full text-center text-[11px] text-muted underline-offset-2 hover:text-ink hover:underline">
-            ou importar por link e ajustar todas as opções
+            ou importar por endereço e ajustar todas as opções
           </button>
         </>
       )}
@@ -141,11 +141,11 @@ export function ConsolePanel({ lines, roles, host }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines.length]);
   return (
-    <section aria-label="Console local" className="sede-console rounded-[20px] border border-rule2 p-4 text-slate-200">
+    <section aria-label="Terminal local" className="sede-console rounded-[20px] border border-rule2 p-4 text-slate-200">
       <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5 mb-2.5">
         <h2 className="flex items-start gap-2 text-[12px] font-extrabold tracking-wide text-emerald-400">
           <Terminal size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>CONSOLE LOCAL<br />(DOCKER/FFMPEG)</span>
+          <span>TERMINAL LOCAL<br />(DOCKER/FFMPEG)</span>
         </h2>
         <span className="font-mono text-[10px] text-slate-400 mt-0.5">{host}</span>
       </div>
@@ -253,7 +253,7 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
 }
 
 export function PreviewPanel({ clip }) {
-  const layout = clip ? (LAYOUT_SHORT[clip.layout] || 'Layout automático') : null;
+  const layout = clip ? (LAYOUT_SHORT[clip.layout] || 'Formato automático') : null;
   return (
     <section aria-label="Prévia do corte" className="rounded-[20px] border border-rule2 bg-paper2 p-4" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
       <div className="flex items-center justify-between gap-2 mb-3">
@@ -339,7 +339,7 @@ export function PipelineView({ agents, jobId, jobStatus, system }) {
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-2xl border border-rule2 bg-paper p-4">
-            <h3 className="text-[13px] font-extrabold text-brass mb-2">Scripts Windows &amp; Docker</h3>
+            <h3 className="text-[13px] font-extrabold text-brass mb-2">Arquivos do Windows &amp; Docker</h3>
             <ul className="space-y-1 font-mono text-[11.5px] text-ink2">
               <li>• instalar.bat (verifica o Docker Desktop e cria o .env)</li>
               <li>• iniciar.bat (sobe os containers e abre o painel)</li>
@@ -386,7 +386,7 @@ export function PipelineView({ agents, jobId, jobStatus, system }) {
       </section>
 
       <section className="rounded-[20px] border border-rule2 bg-paper2 p-5" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
-        <h2 className="text-[15px] font-extrabold text-ink mb-3">Etapas do pipeline e agente responsável</h2>
+        <h2 className="text-[15px] font-extrabold text-ink mb-3">Etapas do fluxo e agente responsável</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[12.5px]">
             <thead>
@@ -434,7 +434,7 @@ export function PipelineView({ agents, jobId, jobStatus, system }) {
       )}
 
       <section className="sede-console rounded-[20px] border border-rule2 p-5 text-slate-200">
-        <h2 className="text-[13px] font-extrabold text-emerald-400 mb-3">Log completo do último processamento</h2>
+        <h2 className="text-[13px] font-extrabold text-emerald-400 mb-3">Registro completo do último processamento (saída técnica das ferramentas)</h2>
         {!jobId ? (
           <p className="text-sm text-slate-400">Nenhum processamento nesta sessão ainda.</p>
         ) : raw === null ? (

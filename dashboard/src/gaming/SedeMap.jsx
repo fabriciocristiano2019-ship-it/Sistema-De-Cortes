@@ -88,7 +88,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
   const busy = core === 'working';
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   return (
-    <section aria-label="Sede virtual: agentes do pipeline" className="rounded-[20px] border border-rule2 overflow-hidden">
+    <section aria-label="Sede virtual: agentes do fluxo" className="rounded-[20px] border border-rule2 overflow-hidden">
       {/* Phones: same rooms, as a simple grid */}
       <div className="md:hidden sede-map p-3">
         <p className="text-[11px] font-bold text-muted mb-2">J.A.R.V.I.S. · {coreBadge.label}</p>

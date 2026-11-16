@@ -57,7 +57,7 @@ function SocialMetrics({ uploadPostKey, uploadUserId, go }) {
               <StatTile label="Comentários" value={nf.format(m.totals.comments)} />
               <StatTile label="Compartilhamentos" value={nf.format(m.totals.shares)} />
             </div>
-            {m.totals.posts === 0 ? <p className="text-sm text-muted">Nenhum post publicado neste período.</p> : (
+            {m.totals.posts === 0 ? <p className="text-sm text-muted">Nenhuma publicação neste período.</p> : (
               <div className="grid lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-xs text-muted mb-3">Visualizações por rede</h3>
@@ -219,7 +219,7 @@ function GameForm({ meta, initial, onSaved, onCancel }) {
           <input type="number" min="5" max="180" className="input-field w-full" value={f.preferences.clip_seconds}
             onChange={(e) => setPref('clip_seconds', Number(e.target.value))} />
         </Field>
-        <Field label="Layout padrão">
+        <Field label="Formato padrão">
           <select className="input-field w-full" value={f.preferences.layout} onChange={(e) => setPref('layout', e.target.value)}>
             {meta.layouts.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
           </select>
@@ -361,7 +361,7 @@ export function ImportSection({ meta, games, form, setForm, onStart, starting, s
             <input ref={fileRef} type="file" accept="video/*,.mkv" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
             <button className="btn-ghost" onClick={() => fileRef.current?.click()}>Escolher arquivo</button>
           </div>
-          <Field label="Ou cole um link (YouTube / Twitch VOD)" hint="O download usa yt-dlp, já incluído. Arquivo local tem prioridade.">
+          <Field label="Ou cole um endereço (YouTube / gravação da Twitch)" hint="O download usa yt-dlp, já incluído. Arquivo local tem prioridade.">
             <input className="input-field w-full" value={form.url} disabled={!!form.file}
               onChange={(e) => set('url', e.target.value)} placeholder="https://..." />
           </Field>
