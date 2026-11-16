@@ -1,0 +1,140 @@
+"""Audio and visual features, one value per analysis step (default 0.5 s).
+
+Audio and video are analysed separately on purpose: a scream with nothing on
+screen and an explosion with no commentary are both real moments, and neither
+would be found by reading the transcript alone.
+
+Everything streams through ffmpeg pipes in fixed-size chunks, so a 3-hour VOD
+never sits in memory as raw samples. Cost is roughly one decode of the file at
+a tiny resolution; no GPU and no network.
+"""
+import subprocess
+
+import numpy as np
+
+STEP = 0.5            # seconds per feature sample
+AUDIO_SR = 8000       # enough for loudness / onset; speech detail comes from Whisper
+VIS_FPS = 2           # 1 frame per STEP
+VIS_W, VIS_H = 64, 36
+
+
+class Cancelled(Exception):
+    pass
+
+
+def _ffmpeg_stream(args, chunk_bytes, should_cancel=None):
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        while True:
+            if should_cancel and should_cancel():
+                raise Cancelled()
+            buf = proc.stdout.read(chunk_bytes)
+            if not buf:
+                break
+            yield buf
+    finally:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        proc.wait()
+
+
+def audio_features(path, should_cancel=None):
+    """Return dict of per-step arrays: rms_db, spike_db. Empty arrays if no audio."""
+    hop = int(AUDIO_SR * STEP)
+    args = ["ffmpeg", "-nostdin", "-v", "error", "-i", path, "-vn", "-ac", "1",
+            "-ar", str(AUDIO_SR), "-f", "s16le", "-"]
+    rms = []
+    rest = np.zeros(0, dtype=np.int16)
+    for buf in _ffmpeg_stream(args, hop * 2 * 120, should_cancel):
+        data = np.concatenate([rest, np.frombuffer(buf, dtype=np.int16)])
+        n = len(data) // hop
+        if n:
+            block = data[: n * hop].astype(np.float32).reshape(n, hop) / 32768.0
+            rms.extend(np.sqrt(np.mean(block * block, axis=1) + 1e-12).tolist())
+        rest = data[n * hop:]
+    if not rms:
+        return {"rms_db": np.zeros(0), "spike_db": np.zeros(0)}
+    rms_db = 20 * np.log10(np.maximum(np.array(rms), 1e-6))
+    # Spike: loudness now vs the mean of the previous 2 s.
+    k = int(2 / STEP)
+    prev = np.convolve(np.pad(rms_db, (k, 0), mode="edge")[:-1], np.ones(k) / k, mode="valid")[: len(rms_db)]
+    spike = np.maximum(rms_db - prev, 0)
+    return {"rms_db": rms_db, "spike_db": spike}
+
+
+def visual_features(path, should_cancel=None):
+    """Return dict of per-step arrays: motion, cut, flash, red."""
+    fsize = VIS_W * VIS_H * 3
+    args = ["ffmpeg", "-nostdin", "-v", "error", "-i", path, "-an",
+            "-vf", f"fps={VIS_FPS},scale={VIS_W}:{VIS_H}:flags=area",
+            "-pix_fmt", "rgb24", "-f", "rawvideo", "-"]
+    motion, bright, red = [], [], []
+    prev = None
+    rest = b""
+    for buf in _ffmpeg_stream(args, fsize * 240, should_cancel):
+        buf = rest + buf
+        n = len(buf) // fsize
+        if n:
+            frames = np.frombuffer(buf[: n * fsize], dtype=np.uint8).reshape(n, VIS_H, VIS_W, 3).astype(np.float32)
+            gray = frames.mean(axis=3)
+            for i in range(n):
+                g = gray[i]
+                motion.append(0.0 if prev is None else float(np.mean(np.abs(g - prev))))
+                prev = g
+                bright.append(float(g.mean()))
+                f = frames[i]
+                r, gch, b = f[..., 0], f[..., 1], f[..., 2]
+                # Share of pixels clearly dominated by red (damage vignettes, blood screens).
+                red.append(float(np.mean((r > 110) & (r > 1.6 * gch) & (r > 1.6 * b))))
+        rest = buf[n * fsize:]
+    motion = np.array(motion)
+    bright = np.array(bright)
+    red = np.array(red)
+    if len(motion) == 0:
+        z = np.zeros(0)
+        return {"motion": z, "cut": z, "flash": z, "red": z}
+    # A hard cut is a frame difference far above the clip's typical motion.
+    thr = np.median(motion) + 4 * (np.median(np.abs(motion - np.median(motion))) + 1e-3)
+    cut = (motion > max(thr, 25)).astype(float)
+    flash = np.maximum(np.diff(bright, prepend=bright[0]), 0)
+    return {"motion": motion, "cut": cut, "flash": flash, "red": red}
+
+
+def robust_z(x, window_steps=None, floor=0.0):
+    """(x - median) / MAD, clipped at 0. Local baseline when window_steps given,
+    so a loud game section does not hide every peak in a quiet one.
+
+    floor: minimum spread in the signal's own units. Without it a near-constant
+    signal (steady noise, a static menu) has MAD≈0 and any wobble becomes z=50."""
+    x = np.asarray(x, dtype=float)
+    if len(x) == 0:
+        return x
+    if window_steps and len(x) > window_steps:
+        # Rolling median via strided percentile on a coarse grid (cheap for long VODs).
+        stride = max(1, window_steps // 8)
+        centers = np.arange(0, len(x), stride)
+        meds, mads = [], []
+        for c in centers:
+            lo, hi = max(0, c - window_steps // 2), min(len(x), c + window_steps // 2)
+            seg = x[lo:hi]
+            m = np.median(seg)
+            meds.append(m)
+            mads.append(np.median(np.abs(seg - m)))
+        med = np.interp(np.arange(len(x)), centers, meds)
+        mad = np.interp(np.arange(len(x)), centers, mads)
+    else:
+        med = np.median(x)
+        mad = np.median(np.abs(x - med))
+    z = (x - med) / np.maximum(1.4826 * np.asarray(mad), floor + 1e-6)
+    return np.clip(z, 0, None)
+
+
+def media_duration(path):
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                              "-of", "default=nk=1:nw=1", path], capture_output=True, text=True, timeout=60)
+        return float(out.stdout.strip())
+    except Exception:
+        return 0.0

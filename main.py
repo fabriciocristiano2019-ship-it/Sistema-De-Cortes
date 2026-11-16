@@ -1614,6 +1614,73 @@ def get_viral_clips(transcript_result, video_duration):
         return None
 
 
+# --- Gaming Edition ---------------------------------------------------------
+def gaming_detect(cfg, input_video, transcript, duration):
+    """Run moment detection for a Gaming Edition job and tag every clip.
+
+    engine: local (default, free) | gemini (needs GEMINI_API_KEY) | auto
+    (Gemini when a key is present, else local). A failing Gemini call falls
+    back to the local engine instead of failing the job.
+    """
+    from gaming import library as game_library
+    from gaming.moments import detect_moments, fmt_ts
+
+    library_dir = cfg.get("library_dir")
+    game = dict(cfg.get("game") or {})
+    identification = None
+    if (not game.get("id") or game.get("id") == "auto") and library_dir:
+        identification = game_library.identify(library_dir, cfg.get("source_name") or input_video, transcript)
+        best = identification.get("best")
+        if best and identification["confidence"] in ("alta", "média"):
+            game = {"id": best["game_id"], "name": best["name"], "category": best["category"]}
+            print(f"🎮 Jogo identificado: {best['name']} (confiança {identification['confidence']}: "
+                  f"{'; '.join(best['evidence'])})")
+        else:
+            game = {"id": None, "name": cfg.get("fallback_name") or "Gameplay",
+                    "category": cfg.get("fallback_category") or "other"}
+            print("🎮 Jogo não identificado com segurança — usando perfil genérico. "
+                  "Selecione o jogo manualmente para uma análise mais precisa.")
+    settings = cfg.get("settings") or {}
+    engine = (cfg.get("engine") or "local").lower()
+    has_key = bool(os.getenv("GEMINI_API_KEY"))
+    use_gemini = engine == "gemini" or (engine == "auto" and has_key)
+    if engine == "gemini" and not has_key:
+        print("⚠️ Motor Gemini escolhido sem GEMINI_API_KEY — usando o motor local gratuito.")
+        use_gemini = False
+
+    clips_data = None
+    if use_gemini:
+        try:
+            clips_data = (get_viral_clips(transcript, duration) if transcript is not None
+                          else get_visual_clips(input_video, duration))
+        except Exception as e:
+            print(f"⚠️ Gemini falhou ({e}) — usando o motor local.")
+            clips_data = None
+        if clips_data and clips_data.get("shorts"):
+            for c in clips_data["shorts"]:
+                c.setdefault("relevance_score", c.get("predicted_score"))
+                c.update({"game_id": game.get("id"), "game_name": game.get("name"),
+                          "game_category": game.get("category"), "analysis_engine": "gemini",
+                          "moment_category": c.get("moment_category") or "jogada",
+                          "moment_label": c.get("moment_label") or "Destaque (IA)",
+                          "start_timecode": fmt_ts(c.get("start", 0)), "end_timecode": fmt_ts(c.get("end", 0)),
+                          "approved": None})
+                c.setdefault("description", c.get("video_description_for_instagram", ""))
+        else:
+            clips_data = None
+    if clips_data is None:
+        print("🎮 Motor local de momentos (áudio + visual + fala), sem custo de API.")
+        clips_data = detect_moments(input_video, transcript, duration, game, settings)
+    clips_data["gaming"] = {
+        "game_id": game.get("id"), "game_name": game.get("name"), "category": game.get("category"),
+        "engine": "gemini" if use_gemini and clips_data.get("shorts") and
+                  clips_data["shorts"][0].get("analysis_engine") == "gemini" else "local",
+        "identification": identification, "settings": settings,
+        "analysis": clips_data.pop("analysis", None),
+    }
+    return clips_data
+
+
 # --- Speech too sparse to clip by transcript -------------------------------
 # The vision path used to fire only on a missing audio TRACK. A nursery-rhyme
 # video or a dashcam drive has audio, so it went through transcription, came
@@ -1731,6 +1798,8 @@ if __name__ == '__main__':
                         help="Output aspect: vertical/auto (9:16), horizontal (keep 16:9), square (1:1).")
     parser.add_argument('--transcript', type=str,
                         help="Path to a precomputed transcript JSON (transcribe_media shape); skips transcription.")
+    parser.add_argument('--gaming-config', type=str,
+                        help="Gaming Edition job config (JSON): game, engine (local|gemini|auto), clip length.")
 
     args = parser.parse_args()
     output_format = args.format
@@ -1850,8 +1919,16 @@ if __name__ == '__main__':
                   f"switching to visual analysis.")
             transcript = None
 
-        # 4. Gemini Analysis (transcript-driven, or vision for silent videos)
-        if transcript is not None:
+        # 4. Moment detection. Gaming Edition jobs default to the local engine
+        # (audio + visual + transcript signals, no API); Gemini stays available
+        # as an opt-in, or as the fallback for non-gaming jobs.
+        gaming_cfg = None
+        if args.gaming_config:
+            with open(args.gaming_config, 'r', encoding='utf-8') as f:
+                gaming_cfg = json.load(f)
+        if gaming_cfg is not None:
+            clips_data = gaming_detect(gaming_cfg, input_video, transcript, duration)
+        elif transcript is not None:
             clips_data = get_viral_clips(transcript, duration)
         else:
             clips_data = get_visual_clips(input_video, duration)
@@ -1860,6 +1937,10 @@ if __name__ == '__main__':
             # Deliberately fail instead of reframing the whole video: that path
             # wrote no metadata.json, so app.py marked the job failed anyway
             # (app.py:1087) after burning GPU on a render nobody could see.
+            if gaming_cfg is not None:
+                raise RuntimeError(
+                    "Nenhum momento com evidência suficiente foi encontrado. Tente reduzir a "
+                    "pontuação mínima, mudar a categoria do jogo ou a duração dos cortes.")
             raise RuntimeError(
                 "Clip detection failed — Gemini did not return usable clips for this video.")
         else:
