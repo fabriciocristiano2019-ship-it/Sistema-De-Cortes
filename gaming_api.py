@@ -11,6 +11,7 @@ Routes (all JSON unless noted):
   GET    /api/gaming/dashboard                  totals, per game/category/moment, recent jobs
   GET    /api/gaming/clips                      every clip of every gaming job (video library)
   PATCH  /api/gaming/clips/{job_id}/{index}     edit title/description/hashtags, approve/reject
+  POST   /api/gaming/clips/{job_id}/{index}/thumbnail   local thumbnail: best frame + title (free)
   GET    /api/gaming/publications               publication queue + history
   POST   /api/gaming/publications               queue a clip (needs manual approval first)
   POST   /api/gaming/publications/{id}/approve  approve -> sends to Upload-Post (now or scheduled)
@@ -441,6 +442,68 @@ async def patch_clip(job_id: str, index: int, body: ClipPatch):
     if j and (j.get("result") or {}).get("clips") and index < len(j["result"]["clips"]):
         j["result"]["clips"][index].update(patch)
     return {**shorts[index], "job_id": job_id, "clip_index": index}
+
+
+class ThumbIn(BaseModel):
+    text: Optional[str] = None
+
+
+def _clean_clip_file(job_dir, base, index, fallback_url):
+    """The clip without burned captions or hook (they would sit under the
+    thumbnail text); else whatever file the clip currently serves."""
+    name = f"{base}_clip_{index + 1}.mp4"
+    plain = os.path.join(job_dir, name)
+    if os.path.exists(plain):
+        return plain
+    if fallback_url:
+        from urllib.parse import unquote
+        cand = os.path.join(job_dir, unquote(fallback_url.rsplit("/", 1)[-1]))
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+@router.post("/api/gaming/clips/{job_id}/{index}/thumbnail")
+def make_thumbnail(job_id: str, index: int, body: ThumbIn):
+    """Local thumbnail (best frame + title). Free: no model, no API."""
+    from gaming import thumbs
+    if "/" in job_id or ".." in job_id:
+        raise HTTPException(status_code=400, detail="job_id inválido")
+    metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
+    if not metas:
+        raise HTTPException(status_code=404, detail="Trabalho não encontrado")
+    meta = metas[0]
+    job_dir = os.path.dirname(meta)
+    with open(meta, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    shorts = data.get("shorts") or []
+    if not 0 <= index < len(shorts):
+        raise HTTPException(status_code=404, detail="Corte não encontrado")
+    clip = shorts[index]
+    base = os.path.basename(meta).replace("_metadata.json", "")
+    src = _clean_clip_file(job_dir, base, index, _clip_url(job_id, meta, index, clip))
+    if not src:
+        raise HTTPException(status_code=409, detail="O vídeo deste corte ainda não foi renderizado.")
+    text = (body.text or "").strip() or clip.get("viral_hook_text") or clip.get("video_title_for_youtube_short") or "Gameplay"
+    at = float(clip.get("peak_time") or clip.get("start") or 0) - float(clip.get("start") or 0)
+    name = f"thumb_{int(time.time())}_clip_{index + 1}.jpg"
+    try:
+        info = thumbs.make(src, os.path.join(job_dir, name), text, at, tag=clip.get("game_name"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Não foi possível gerar a thumbnail: {e}")
+    old = clip.get("thumbnail_url") or ""
+    if old.startswith(f"/videos/{job_id}/thumb_"):
+        try:
+            os.remove(os.path.join(job_dir, old.rsplit("/", 1)[-1]))
+        except OSError:
+            pass
+    clip["thumbnail_url"] = f"/videos/{job_id}/{name}"
+    clip["thumbnail_text"] = text[:90]
+    tmp = meta + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, meta)
+    return {"thumbnail_url": clip["thumbnail_url"], "text": clip["thumbnail_text"], **info}
 
 
 # --------------------------------------------------------------------------- #

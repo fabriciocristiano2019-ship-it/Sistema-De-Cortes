@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, Loader2, Pencil, Save, Scissors, Type, X } from 'lucide-react';
+import { Check, Download, Loader2, Pencil, Save, Scissors, Type, X, Image as ImageIcon } from 'lucide-react';
 import { errText, fmtDate, fmtTime, jsonReq, mediaUrl } from './util';
 import { Badge, Empty, Field, Header, Notice, ScoreBar } from './ui';
 
@@ -43,6 +43,16 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
       await jsonReq(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}`, 'PATCH', body);
       await onPatched();
       setEdit(false);
+    } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
+  };
+  const [thumbOpen, setThumbOpen] = useState(false);
+  const [thumbText, setThumbText] = useState('');
+  const makeThumb = async () => {
+    setBusy('thumb'); setErr('');
+    try {
+      await jsonReq(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}/thumbnail`, 'POST', { text: thumbText });
+      await onPatched();
+      setThumbOpen(false);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
   const startEdit = () => {
@@ -107,6 +117,26 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
             </ul>
           </div>
         )}
+        {clip.thumbnail_url && (
+          <div className="flex items-start gap-3">
+            <img src={mediaUrl(clip.thumbnail_url)} alt={`Thumbnail: ${clip.thumbnail_text || ''}`} className="w-20 rounded-input border border-rule2" />
+            <div className="text-xs text-muted">
+              <p className="text-ink2">Thumbnail gerada no seu computador (sem custo).</p>
+              <a className="underline" href={mediaUrl(clip.thumbnail_url)} download>Baixar JPG</a>
+            </div>
+          </div>
+        )}
+        {thumbOpen && (
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Texto da thumbnail">
+              <input className="input-field w-64 max-w-full" maxLength={90} value={thumbText} onChange={(e) => setThumbText(e.target.value)} />
+            </Field>
+            <button className="btn-primary btn-sm" disabled={!!busy} onClick={makeThumb}>
+              {busy === 'thumb' ? <Loader2 size={14} className="inline animate-spin mr-1" /> : <ImageIcon size={14} />}Gerar
+            </button>
+            <button className="btn-ghost btn-sm" onClick={() => setThumbOpen(false)}>Fechar</button>
+          </div>
+        )}
         {err && <Notice tone="error">{err}</Notice>}
         <div className="mt-auto pt-1 flex flex-wrap gap-2">
           {edit ? (
@@ -123,6 +153,11 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
               <button className="btn-quiet btn-sm" onClick={startEdit}><Pencil size={14} />Editar texto</button>
               <button className="btn-quiet btn-sm" onClick={() => onEdit(clip)}><Scissors size={14} />Editor</button>
               <button className="btn-quiet btn-sm" onClick={() => onSubs(clip)}><Type size={14} />Legendas</button>
+              {clip.video_url && (
+                <button className="btn-quiet btn-sm" onClick={() => { setThumbText(clip.thumbnail_text || clip.viral_hook_text || clip.video_title_for_youtube_short || ''); setThumbOpen(true); }}>
+                  <ImageIcon size={14} />Thumbnail
+                </button>
+              )}
               {clip.video_url && <a className="btn-quiet btn-sm" href={mediaUrl(clip.video_url)} download><Download size={14} />MP4</a>}
             </>
           )}

@@ -1069,8 +1069,9 @@ function App() {
     );
   };
 
-  // Gaming Edition is its own full-screen workspace (the Sede Virtual); the
-  // original OpenShorts tools stay one click away through onLegacy.
+  // Gaming Edition is its own full-screen workspace (the Sede Virtual). The
+  // original English tools stay in the code but are not linked from it; only
+  // the API keys are edited in the panel's own settings module.
   if (activeTab === 'gaming') {
     return (
       <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden">
@@ -1078,8 +1079,7 @@ function App() {
           apiKey={apiKey}
           uploadPostKey={uploadPostKey}
           uploadUserId={uploadUserId}
-          onOpenSettings={() => setActiveTab('settings')}
-          onLegacy={() => setActiveTab('dashboard')}
+          keys={{ setApiKey, setUploadPostKey, setUploadUserId }}
         />
       </div>
     );

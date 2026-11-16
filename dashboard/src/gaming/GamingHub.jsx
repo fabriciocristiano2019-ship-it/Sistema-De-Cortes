@@ -52,7 +52,7 @@ const stored = (k, fallback, allowed) => {
 // OpenShorts Gaming Edition — Sede Virtual. One screen: the eight agents are
 // the real pipeline stages of the backend, the console is its real output, and
 // the twelve modules reuse the same endpoints as the rest of the dashboard.
-export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenSettings, onLegacy }) {
+export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
   const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
   const [view, setView] = useState(() => stored('os_sede_view', 'hq', VIEWS.map((v) => v.id)));
   const [section, setSection] = useState(() => stored('os_gaming_section', 'dashboard', MODULES.map((m) => m.id)));
@@ -274,7 +274,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
     social: <SocialSection clips={clips} pubs={pubs} meta={meta} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />,
     schedule: <ScheduleSection clips={clips} pubs={pubs} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} />,
     history: <HistorySection dash={dash} pubs={pubs} clips={clips} />,
-    config: <ConfigSection meta={meta} apiKey={apiKey} uploadPostKey={uploadPostKey} onOpenSettings={onOpenSettings} />,
+    config: <ConfigSection meta={meta} apiKey={apiKey} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} keys={keys} />,
   }[mod.id];
 
   const closeToast = useCallback(() => setToast(null), []);
@@ -326,11 +326,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
             <button type="button" aria-pressed={theme === 'classic'} onClick={() => pickTheme('classic')}><Moon size={13} aria-hidden="true" /> Clássica</button>
             <button type="button" aria-pressed={theme === 'nova'} onClick={() => pickTheme('nova')}><Sun size={13} aria-hidden="true" /> Nova</button>
           </div>
-          {onLegacy && (
-            <button type="button" onClick={onLegacy} className="ml-auto text-[11.5px] text-muted underline-offset-2 hover:text-ink hover:underline">
-              Ferramentas originais do OpenShorts →
-            </button>
-          )}
         </div>
       </header>
 
@@ -363,10 +358,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, onOpenS
                   className="grid h-10 w-10 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink hover:border-brass">
                   <MoreVertical size={20} aria-hidden="true" />
                 </button>
-                <span className="flex items-center gap-2 text-sm font-extrabold text-ink">
-                  <mod.icon size={16} className="text-brass" aria-hidden="true" /> {modIndex}. {mod.label}
-                </span>
-                <span className="text-xs text-muted">módulo {modIndex} de {MODULES.length}</span>
+                <span className="text-xs font-bold text-muted">Módulos · {modIndex} de {MODULES.length}</span>
                 {menuOpen && (
                   <nav aria-label="Módulos" role="menu"
                     className="absolute left-0 top-12 z-30 flex w-72 max-w-[calc(100vw-48px)] flex-col gap-0.5 rounded-2xl border border-rule2 bg-paper2 p-2 shadow-2xl">

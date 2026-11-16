@@ -199,7 +199,7 @@ export function HistorySection({ dash, pubs, clips }) {
 /* 12 · Configurações ------------------------------------------------------ */
 const gb = (b) => `${(b / 1073741824).toFixed(1)} GB`;
 
-export function ConfigSection({ meta, apiKey, uploadPostKey, onOpenSettings }) {
+export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys }) {
   const [sys, setSys] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => { apiJson('/api/gaming/system').then(setSys).catch((e) => setErr(errText(e))); }, []);
@@ -210,9 +210,27 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, onOpenSettings }) {
   return (
     <div>
       <Header ord="12 · CONFIGURAÇÕES" title="Configurações" hint="As chaves ficam no arquivo .env do servidor ou só neste navegador; nunca são gravadas nos vídeos nem nos registros.">
-        <button className="btn-ghost" onClick={onOpenSettings}>Gerenciar chaves de API</button>
       </Header>
       {err && <div className="mb-4"><Notice tone="error">{err}</Notice></div>}
+      {keys && (
+        <section className="card p-5 mb-5" aria-label="Chaves opcionais">
+          <h2 className="text-sm text-ink mb-1">Chaves opcionais</h2>
+          <p className="text-xs text-muted mb-4 max-w-3xl">
+            O sistema funciona sem nenhuma chave. Elas ficam guardadas só neste navegador e são enviadas apenas ao servidor local quando necessário.
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Field label="Chave do Upload-Post (publicar e ver resultados)" hint="Serviço de terceiros; pode ter custo.">
+              <input id="cfg-upload-key" type="password" autoComplete="off" className="input-field w-full" value={uploadPostKey || ''} onChange={(e) => keys.setUploadPostKey(e.target.value.trim())} />
+            </Field>
+            <Field label="Nome do perfil no Upload-Post" hint="O perfil onde suas redes estão conectadas.">
+              <input id="cfg-upload-user" type="text" autoComplete="off" className="input-field w-full" value={uploadUserId || ''} onChange={(e) => keys.setUploadUserId(e.target.value.trim())} />
+            </Field>
+            <Field label="Chave do Gemini (motor alternativo)" hint="Opcional. Cobrado pelo Google conforme o uso.">
+              <input id="cfg-gemini-key" type="password" autoComplete="off" className="input-field w-full" value={apiKey || ''} onChange={(e) => keys.setApiKey(e.target.value.trim())} />
+            </Field>
+          </div>
+        </section>
+      )}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card p-5">
           <h2 className="text-sm text-ink mb-1">Processamento local (gratuito)</h2>
