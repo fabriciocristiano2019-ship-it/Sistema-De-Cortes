@@ -78,6 +78,9 @@ SIGNAL_LABELS = {
 }
 
 TITLE_TEMPLATES = {
+    # Extra windows that only complete the requested count: neutral copy, no
+    # claimed scare/kill/win the clip may not contain.
+    "extra": ["Gameplay de {game}", "Mais um trecho de {game}", "{game}: partida sem cortes"],
     "eliminacao": ["Eliminação brabíssima no {game}", "Ninguém escapa: kill no {game}", "Que eliminação no {game}!"],
     "headshot": ["HEADSHOT INSANO no {game}", "Um tiro, uma capa: {game}", "Mira absurda no {game}"],
     "vitoria": ["VITÓRIA no {game}!", "Ganhamos no {game} assim", "O final dessa partida de {game}"],
@@ -95,6 +98,7 @@ TITLE_TEMPLATES = {
 }
 
 HOOKS = {
+    "extra": "GAMEPLAY",
     "eliminacao": "QUE KILL!", "headshot": "HEADSHOT!", "vitoria": "VITÓRIA!", "derrota": "NÃO ACREDITO",
     "clutch": "CLUTCH!", "jogada": "QUE JOGADA!", "engracado": "KKKKKK", "susto": "QUE SUSTO!",
     "reacao": "OLHA ISSO", "perseguicao": "CORRE!", "conquista": "CONSEGUI!", "descoberta": "OLHA O QUE ACHEI",
@@ -102,6 +106,7 @@ HOOKS = {
 }
 
 MOMENT_TAGS = {
+    "extra": "gameplay",
     "eliminacao": "kill", "headshot": "headshot", "vitoria": "vitoria", "derrota": "derrota", "clutch": "clutch",
     "jogada": "jogada", "engracado": "engracado", "susto": "susto", "reacao": "reacao", "perseguicao": "perseguicao",
     "conquista": "conquista", "descoberta": "segredo", "inesperado": "inesperado", "tensao": "tensao",
@@ -235,7 +240,7 @@ def build_copy(game_name, moment, excerpt, seed):
     """Template titles/descriptions in PT-BR. Deterministic per clip."""
     g = game_name or "game"
     title = _pick(TITLE_TEMPLATES.get(moment, TITLE_TEMPLATES["reacao"]), seed).format(game=g)
-    label = profiles.MOMENTS.get(moment, {}).get("label", "Momento")
+    label = "Gameplay" if moment == "extra" else profiles.MOMENTS.get(moment, {}).get("label", "Momento")
     tags = [f"#{_slug_tag(g)}", f"#{MOMENT_TAGS.get(moment, 'gaming')}", "#gaming", "#gameplay", "#cortes"]
     quote = f' "{excerpt[:90]}"' if excerpt else ""
     desc = f"{label} em {g}.{quote}".strip()
@@ -389,7 +394,9 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
             if relaxed:
                 evidence.insert(0, "Trecho para completar a quantidade pedida (sem pico forte)")
             excerpt = _excerpt(words, start, end)
-            copy = build_copy(game.get("name"), moment, excerpt, f"{game.get('id')}-{start:.1f}")
+            if relaxed:
+                moment = "jogada"     # a valid category for the rest of the app; copy stays neutral
+            copy = build_copy(game.get("name"), "extra" if relaxed else moment, excerpt, f"{game.get('id')}-{start:.1f}")
             clip = {
                 "start": round(float(start), 3),
                 "end": round(float(end), 3),

@@ -236,6 +236,9 @@ def test_fill_delivers_the_requested_count_marking_the_extras():
     assert all("completar" in c["evidence"][0] and c["moment_label"] == "Trecho extra" for c in extras), \
         "extras are labelled honestly"
     assert full["analysis"]["filled"] == 7
+    for c in extras:   # neutral copy: no claimed scare, kill or win
+        assert c["viral_hook_text"] == "GAMEPLAY" and c["description"].startswith("Gameplay em")
+        assert "Free Fire" in c["video_title_for_youtube_short"] and c["moment_category"] in moments.profiles.MOMENTS
 
 
 def test_fill_never_exceeds_what_the_video_holds():
