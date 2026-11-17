@@ -15,7 +15,7 @@
   "postStartCommand": "bash .devcontainer/iniciar.sh",
   "forwardPorts": [5173],
   "portsAttributes": {
-    "5173": { "label": "Painel OpenShorts", "onAutoForward": "openPreview" },
+    "5173": { "label": "Painel OpenShorts", "onAutoForward": "openBrowser" },
     "8000": { "label": "Servidor (interno)", "onAutoForward": "ignore" }
   },
   "containerEnv": {

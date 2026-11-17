@@ -7,7 +7,9 @@ celular. Nada é instalado no seu PC.
 
 1. No repositório, toque em **Code** → aba **Codespaces** → **Create codespace on main**.
 2. Espere a instalação terminar (aparece "Pronto" no terminal).
-3. O painel abre sozinho. Se não abrir: aba **PORTAS** → linha **Painel OpenShorts (5173)** → ícone do globo.
+3. O painel abre sozinho numa aba do navegador. Se não abrir: aba **PORTAS** → linha **Painel OpenShorts (5173)** → ícone do globo.
+   Se ele aparecer numa janelinha dentro do editor com um ícone de proibido, clique no **↗** ao lado do endereço:
+   por segurança o painel só abre em uma aba própria do navegador.
 
 ## Nas próximas vezes
 
