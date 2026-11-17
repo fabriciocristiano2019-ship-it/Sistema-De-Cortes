@@ -12,20 +12,23 @@ fi
 
 # setsid + nohup: os processos ficam ligados mesmo depois que este script
 # termina (sem isso o Codespaces os encerra junto com o comando de início).
+# Every background process gets its own output files: none may keep this
+# script's output open, or whoever reads it (the Codespaces start step) waits
+# forever.
 if ! pgrep -f "uvicorn app:app" >/dev/null; then
   setsid nohup .venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 \
     > .logs/servidor.log 2>&1 < /dev/null &
 fi
 if ! pgrep -f "vite --port 5173" >/dev/null; then
-  (cd dashboard && VITE_PROXY_TARGET=http://127.0.0.1:8000 setsid nohup npx vite --port 5173 --host 127.0.0.1 \
-    > ../.logs/painel.log 2>&1 < /dev/null &)
+  (cd dashboard && VITE_PROXY_TARGET=http://127.0.0.1:8000 exec setsid nohup npx vite --port 5173 --host 127.0.0.1) \
+    > .logs/painel.log 2>&1 < /dev/null &
 fi
 
 echo "Conferindo o servidor e o painel (liga o que estiver desligado)..."
 ok_api=""; ok_web=""
 for _ in $(seq 1 60); do
-  [ -z "$ok_api" ] && curl -s -o /dev/null http://127.0.0.1:8000/health && ok_api=1
-  [ -z "$ok_web" ] && curl -s -o /dev/null http://127.0.0.1:5173/ && ok_web=1
+  [ -z "$ok_api" ] && curl -s -m 3 -o /dev/null http://127.0.0.1:8000/health && ok_api=1
+  [ -z "$ok_web" ] && curl -s -m 3 -o /dev/null http://127.0.0.1:5173/ && ok_web=1
   [ -n "$ok_api" ] && [ -n "$ok_web" ] && break
   sleep 2
 done

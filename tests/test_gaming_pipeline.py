@@ -215,3 +215,12 @@ def test_other_download_errors_in_portuguese():
     ]:
         agent, text, level = pipeline.classify(line)
         assert expect in text and level == "error" and agent == "ingest", line
+
+
+def test_unreachable_host_is_explained_once():
+    log = ["socket.gaierror: [Errno -2] Name or service not known",
+           "security_utils.UnsafeURLError: Could not resolve host 'www.youtube.com': [Errno -2] Name or service not known",
+           "Process failed with exit code 1"]
+    texts = [c["text"] for c in pipeline.snapshot(log, "failed")["console"]]
+    assert sum("Não foi possível acessar o site do link" in t for t in texts) == 1
+    assert not any("gaierror" in t or "UnsafeURLError" in t for t in texts)

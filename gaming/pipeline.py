@@ -76,6 +76,9 @@ _RULES = [
     ("ingest", r"Private video|Video unavailable|This video is unavailable|members-only",
      "O vídeo do link é privado, exclusivo para membros ou não está disponível.", "error"),
     ("ingest", r"Unsupported URL", "Este link não é de um vídeo que o sistema consiga baixar.", "error"),
+    ("ingest", r"Could not resolve host|Name or service not known|getaddrinfo failed|Failed to resolve",
+     "Não foi possível acessar o site do link (endereço errado ou servidor sem acesso a esse site).", "error"),
+    ("ingest", r"UnsafeURLError", "Este link aponta para um endereço que o sistema não permite acessar.", "error"),
     ("ingest", r"(?i)HTTP Error 429|Too Many Requests",
      "O site do vídeo limitou os downloads deste servidor. Tente mais tarde ou envie o arquivo.", "error"),
     # Python traceback noise: kept in the full log, not in the agents' diary.
@@ -192,6 +195,8 @@ def snapshot(logs, status, times=None, clips_ready=None):
             continue
         if level in ("detail", "raw"):   # kept for the full log view, not the console
             continue
+        if console and console[-1]["agent"] == agent and console[-1]["text"] == text:
+            continue                     # same message repeated (e.g. one per download attempt)
         console.append({"t": t, "agent": agent, "level": level, "text": text})
     if segments:
         # Place the running total right after the last whisper line.
