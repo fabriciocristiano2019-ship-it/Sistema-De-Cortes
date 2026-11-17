@@ -33,7 +33,7 @@ Sem chave: motor local gratuito. Com chave do Google Gemini: IA assiste melhores
 
 1. **aistudio.google.com** → entre com conta Google → **Get API key** → **Create API key**.
 2. Painel: **Módulos** → **12. Configurações** → campo **Chave do Gemini** → cole.
-   (Mais seguro: github.com/settings/codespaces → **Secrets** → `GEMINI_API_KEY`, liberado para o CORTES.)
+   (Mais seguro: github.com/settings/codespaces → **Secrets** → `GEMINI_API_KEY`, liberado para o Sistema-De-Cortes.)
 3. Pronto: próximos vídeos usam IA. Diário dos agentes mostra "IA profissional (Gemini) assistindo…".
 
 Custo: Google tem cota gratuita com limites; acima pode cobrar. Confira valores no AI Studio. Quadros e fala dos momentos candidatos vão ao Google. Chave falhou ou cota acabou: programa avisa e segue no motor local.
@@ -43,7 +43,7 @@ Custo: Google tem cota gratuita com limites; acima pode cobrar. Confira valores 
 1. Conta em **postiz.com** (Postiz Cloud pago, com teste grátis; confira preços) e conecte YouTube, Instagram e TikTok.
 2. No Postiz: **Settings → Public API** → copie chave.
 3. Painel: **Módulos → 12. Configurações → Postiz** → cole → **Testar conexão**.
-   (Mais seguro: secret `POSTIZ_API_KEY` em github.com/settings/codespaces, liberado para o CORTES.)
+   (Mais seguro: secret `POSTIZ_API_KEY` em github.com/settings/codespaces, liberado para o Sistema-De-Cortes.)
 4. Com chave, **Aprovar e enviar** publica pelo Postiz. Sem ela, segue pelo Upload-Post.
 
 Postiz no seu servidor também funciona (campo "Endereço do Postiz"), mas exige app de desenvolvedor em cada rede.
@@ -55,7 +55,7 @@ YouTube costuma bloquear downloads de servidores na nuvem como Codespaces ("Sign
 Opcional, por sua conta: cookies da sua conta do YouTube.
 
 1. No navegador do PC, exporte cookies de `youtube.com` em formato Netscape (`cookies.txt`).
-2. github.com/settings/codespaces → **Secrets** → **New secret**: nome `YOUTUBE_COOKIES`, cole conteúdo, libere para repositório **CORTES**.
+2. github.com/settings/codespaces → **Secrets** → **New secret**: nome `YOUTUBE_COOKIES`, cole conteúdo, libere para repositório **Sistema-De-Cortes**.
 3. Pare e abra de novo o codespace.
 
 Atenção: cookies dão acesso à conta. Nunca cole em chat nem em arquivo do repositório. Prefira conta secundária: YouTube pode restringir contas que baixam vídeos.

@@ -4,7 +4,7 @@
 
 Cortes automáticos de gameplay com 8 agentes de IA, em português.
 
-<a href="https://codespaces.new/fabriciocristiano2019-ship-it/CORTES?quickstart=1"><img src="assets/abrir-sistema.svg" alt="Abrir sistema" width="320"></a>
+<a href="https://codespaces.new/fabriciocristiano2019-ship-it/Sistema-De-Cortes?quickstart=1"><img src="assets/abrir-sistema.svg" alt="Abrir sistema" width="320"></a>
 
 </div>
 
