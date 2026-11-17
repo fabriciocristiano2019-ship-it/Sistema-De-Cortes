@@ -36,6 +36,21 @@ login do GitHub: a porta é **privada**. Não mude para "Pública".
 - **Pare o codespace quando terminar** (github.com/codespaces → ⋯ → Stop):
   ligado, ele gasta horas mesmo parado.
 
+## IA profissional (Gemini): cortes e títulos melhores
+
+Sem chave, o programa usa o motor local gratuito. Com a chave do Google Gemini, uma IA profissional
+assiste aos melhores momentos, escolhe os cortes, ajusta início e fim, escreve título, descrição,
+hashtags e gancho em português e corrige palavras erradas das legendas.
+
+1. Acesse **aistudio.google.com**, entre com sua conta Google e clique em **Get API key** → **Create API key**.
+2. No painel: **Módulos** → **12. Configurações** → campo **Chave do Gemini** → cole a chave.
+   (Ou, mais seguro: github.com/settings/codespaces → **Secrets** → `GEMINI_API_KEY`, liberado para o CORTES.)
+3. Pronto: os próximos vídeos já usam a IA. O Diário dos agentes mostra "IA profissional (Gemini) assistindo…".
+
+Custo: o Google oferece uma cota gratuita com limites; acima dela pode cobrar. Confira os valores e
+limites atuais no próprio AI Studio. Os quadros e a fala dos momentos candidatos são enviados ao Google.
+Se a chave falhar ou a cota acabar, o programa avisa e continua com o motor local.
+
 ## Links do YouTube
 
 O YouTube costuma bloquear downloads vindos de servidores na nuvem, como o Codespaces

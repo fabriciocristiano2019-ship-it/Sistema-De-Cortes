@@ -154,8 +154,23 @@ def run_whisper_transcription(media_path, **params):
         return _run_whisper_once(media_path, **params)
 
 
+def whisper_params():
+    """Decode params plus the optional per-job hints set by the caller:
+    WHISPER_LANGUAGE (skip language detection, e.g. "pt") and
+    WHISPER_INITIAL_PROMPT (vocabulary the speaker is likely to use, such as
+    the game's name and terms, which steers spelling of those words)."""
+    params = dict(WHISPER_TRANSCRIBE_PARAMS)
+    lang = os.environ.get("WHISPER_LANGUAGE", "").strip()
+    if lang:
+        params["language"] = lang
+    prompt = os.environ.get("WHISPER_INITIAL_PROMPT", "").strip()
+    if prompt:
+        params["initial_prompt"] = prompt[:600]
+    return params
+
+
 def _transcribe_with_whisper(media_path):
-    segments, info = run_whisper_transcription(media_path, **WHISPER_TRANSCRIBE_PARAMS)
+    segments, info = run_whisper_transcription(media_path, **whisper_params())
 
     out_segments = []
     text_parts = []

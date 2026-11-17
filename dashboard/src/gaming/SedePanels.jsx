@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Check, CheckCircle2, Download, Loader2, Plus, Scissors, Terminal, Upload, X, XCircle, Zap,
+  Check, CheckCircle2, Download, Loader2, Plus, Scissors, Sparkles, Terminal, Upload, X, XCircle, Zap,
 } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtClock, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
@@ -19,6 +19,7 @@ const LAYOUT_HINT = {
 
 export function OrchestratorPanel({
   meta, games, form, setForm, job, starting, startError, cancelling, onStartFile, onStartUrl, onCancel, onAddGame, onImportLink,
+  proAI = false, onProAI,
 }) {
   const fileRef = useRef(null);
   const active = job && ACTIVE.includes(job.status);
@@ -54,10 +55,21 @@ export function OrchestratorPanel({
         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-extrabold tracking-wider ${badge.cls}`}>{badge.label}</span>
       </div>
       {!active && (
-        <p className="-mt-2 mb-4 text-[11.5px] leading-snug text-muted">
+        <p className="-mt-2 mb-3 text-[11.5px] leading-snug text-muted">
           Escolha as opções e envie o vídeo. O J.A.R.V.I.S. e os 8 agentes fazem o resto.
         </p>
       )}
+      {!active && (proAI && form.engine !== 'local' ? (
+        <p className="mb-4 flex items-center gap-2 rounded-xl border border-ok/35 bg-ok/10 px-3 py-2 text-[11px] font-bold text-ok">
+          <Sparkles size={14} aria-hidden="true" /> IA profissional ligada (Gemini)
+        </p>
+      ) : (
+        <button type="button" onClick={onProAI}
+          className="mb-4 flex w-full items-center gap-2 rounded-xl border border-dashed border-brass/50 px-3 py-2 text-left text-[11px] text-ink2 hover:border-brass">
+          <Sparkles size={14} className="shrink-0 text-brass" aria-hidden="true" />
+          <span><b className="text-ink">Ativar IA profissional (Gemini)</b>: cortes, títulos e legendas melhores. Coloque a chave em Configurações.</span>
+        </button>
+      ))}
 
       <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-game"><span className="sede-step">1</span>Qual jogo?</label>
       <div className="flex gap-2 mb-3">

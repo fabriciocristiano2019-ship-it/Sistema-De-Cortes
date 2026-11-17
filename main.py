@@ -1635,6 +1635,50 @@ def get_viral_clips(transcript_result, video_duration):
 
 
 # --- Gaming Edition ---------------------------------------------------------
+def gaming_transcription_hints(game, library_dir=None):
+    """Language + vocabulary for Whisper on a gameplay: the game's name, its
+    aliases and the category's moment words, in PT-BR by default."""
+    from gaming import library as game_library
+    from gaming import profiles as game_profiles
+    os.environ.setdefault("WHISPER_LANGUAGE", os.environ.get("GAMING_LANGUAGE", "pt"))
+    terms = []
+    if game.get("name"):
+        terms.append(game["name"])
+    if game.get("id") and library_dir:
+        g = game_library.get(library_dir, game["id"]) or {}
+        terms += [a for a in g.get("aliases") or [] if len(a) > 2][:8]
+    boost = game_profiles.category(game.get("category") or "other").get("boost") or []
+    terms += [game_profiles.MOMENTS[m]["label"].lower() for m in boost if m in game_profiles.MOMENTS]
+    terms += ["gameplay", "partida", "clutch", "headshot", "kill", "rush", "loot"]
+    seen, uniq = set(), []
+    for t in terms:
+        if t.lower() not in seen:
+            seen.add(t.lower())
+            uniq.append(t)
+    os.environ["WHISPER_INITIAL_PROMPT"] = (
+        f"Gameplay de {game.get('name') or 'videogame'} comentada em português do Brasil. "
+        f"Termos: {', '.join(uniq)}.")
+
+
+def gaming_auto_layout(cfg, input_video):
+    """Layout "auto" for gameplay: webcam overlay found -> B (game + webcam),
+    otherwise A (full screen, HUD kept). The generic reframe tracks faces and
+    crops, which on gameplay cuts the HUD and the action."""
+    if (cfg.get("layout") or "auto") != "auto" or os.environ.get("FORCE_STRATEGY"):
+        return None
+    strategy = "WIDE"
+    try:
+        import camera_inset
+        if camera_inset.detect(input_video, samples=8):
+            strategy = "INSET"
+    except Exception as e:  # noqa: BLE001 - detection is a hint, never fatal
+        print(f"⚠️ Detecção de webcam indisponível ({e}); usando tela inteira.")
+    os.environ["FORCE_STRATEGY"] = strategy
+    label = "B · jogo + webcam (webcam detectada)" if strategy == "INSET" else "A · tela inteira, HUD preservado"
+    print(f"🖼️ Enquadramento automático: {label}.")
+    return strategy
+
+
 def gaming_preflight(cfg, input_video):
     """Gaming Edition: validate the source and try to name the game BEFORE the
     slow transcription, so the panel can show both right away.
@@ -1699,6 +1743,33 @@ def gaming_detect(cfg, input_video, transcript, duration):
     if engine == "gemini" and not has_key:
         print("⚠️ Motor Gemini escolhido sem GEMINI_API_KEY — usando o motor local gratuito.")
         use_gemini = False
+
+    # Professional mode: the local engine proposes a wide pool of candidates
+    # (more clips, lower bar) and Gemini, looking at frames + speech, picks the
+    # best and writes the copy. Any failure falls back to the local selection.
+    if use_gemini and transcript is not None:
+        from gaming import gemini_judge
+        pool_settings = {**settings, "max_clips": gemini_judge.MAX_CANDIDATES,
+                         "min_score": min(15.0, float(settings.get("min_score") or 30))}
+        print("🎮 Motor local de momentos (áudio + visual + fala) propondo candidatos para a IA.")
+        pool = detect_moments(input_video, transcript, duration, game, pool_settings)
+        pool_shorts = sorted(pool.get("shorts") or [], key=lambda c: -float(c.get("relevance_score") or 0))
+        picked = gemini_judge.judge(input_video, transcript, duration, game, settings, pool_shorts)
+        if picked:
+            for c in picked:
+                c["start_timecode"], c["end_timecode"] = fmt_ts(c["start"]), fmt_ts(c["end"])
+            clips_data = {"shorts": picked, "analysis": pool.get("analysis")}
+        else:
+            local_max = int(settings.get("max_clips") or 8)
+            local_min = float(settings.get("min_score") if settings.get("min_score") is not None else 30)
+            keep = [c for c in pool_shorts if float(c.get("relevance_score") or 0) >= local_min][:local_max]
+            clips_data = {"shorts": sorted(keep, key=lambda c: c["start"]), "analysis": pool.get("analysis")}
+        clips_data["gaming"] = {
+            "game_id": game.get("id"), "game_name": game.get("name"), "category": game.get("category"),
+            "engine": "gemini" if picked else "local", "identification": identification,
+            "settings": settings, "analysis": clips_data.pop("analysis", None),
+        }
+        return clips_data
 
     clips_data = None
     if use_gemini:
@@ -1906,6 +1977,11 @@ if __name__ == '__main__':
         with open(args.gaming_config, 'r', encoding='utf-8') as f:
             gaming_cfg = json.load(f)
         gaming_preflight(gaming_cfg, input_video)
+        try:
+            gaming_transcription_hints(gaming_cfg.get("game") or {}, gaming_cfg.get("library_dir"))
+            gaming_auto_layout(gaming_cfg, input_video)
+        except Exception as e:  # noqa: BLE001 - hints only
+            print(f"⚠️ Ajustes automáticos ignorados ({e}).")
 
     # Layout choice is per SOURCE video, not per clip: one upload and one call
     # instead of one per clip, and the answer is a property of the material

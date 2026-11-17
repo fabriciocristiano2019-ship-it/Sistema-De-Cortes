@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3, CalendarClock, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, MoreVertical, Scissors, Settings,
-  Share2, SlidersHorizontal, Sun, Terminal, Type, Upload,
+  Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
 import { errText, JOB_KEY } from './util';
@@ -9,6 +9,7 @@ import { ModuleCtx } from './ctx';
 import { Notice } from './ui';
 import SedeMap from './SedeMap';
 import JarvisOrb from './JarvisOrb';
+import { iniciarZumbido, pararZumbido, setSom, somConcluido, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
 import { AnalysisSection, DashboardSection, GamesSection, ImportSection } from './SectionsCore';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
@@ -39,7 +40,7 @@ const VIEWS = [
 
 const DEFAULT_FORM = {
   file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'auto',
-  engine: 'local', max_clips: 8, min_score: 30, captions: true, zoom: true, auto_hook: true,
+  engine: 'auto', max_clips: 8, min_score: 30, captions: true, zoom: true, auto_hook: true,
   acknowledged: false,
 };
 
@@ -208,6 +209,36 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }, [snap, meta, system]);
   const roles = useMemo(() => Object.fromEntries(agents.map((a) => [a.id, a.role])), [agents]);
   const working = agents.filter((a) => a.state === 'working').length;
+
+  // Sounds: react to real state changes of the tracked job (never on the
+  // first snapshot, so reopening a finished job stays silent).
+  const [som, setSomState] = useState(somLigado);
+  const prevStates = useRef(null);
+  const prevStatus = useRef(null);
+  useEffect(() => {
+    const now = Object.fromEntries(agents.map((a) => [a.id, a.state]));
+    const before = prevStates.current;
+    prevStates.current = now;
+    if (!before || !som) return;
+    for (const a of agents) {
+      if (a.state === before[a.id]) continue;
+      if (a.state === 'working') somInicio(a.id);
+      else if (a.state === 'done' && before[a.id] === 'working') somConcluido(a.id);
+    }
+  }, [agents, som]);
+  useEffect(() => {
+    if (som && working > 0) iniciarZumbido(); else pararZumbido();
+  }, [working, som]);
+  useEffect(() => () => pararZumbido(), []);
+  useEffect(() => {
+    const st = job?.status;
+    const before = prevStatus.current;
+    prevStatus.current = st;
+    if (!som || !before || before === st) return;
+    if (st === 'completed' && ACTIVE.includes(before)) somFinal();
+    if (st === 'failed' && ACTIVE.includes(before)) somFalha();
+  }, [job?.status, som]);
+  const toggleSom = () => { const v = !som; setSom(v); setSomState(v); };
   const core = job?.status === 'queued' ? 'queued' : jobActive ? 'working' : job?.status === 'failed' ? 'failed' : 'idle';
 
   const details = useMemo(() => {
@@ -318,6 +349,11 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
               <span className="text-muted" aria-hidden="true">·</span>
               <span className="text-muted">{queueText}</span>
             </p>
+            <button type="button" onClick={toggleSom} aria-pressed={som}
+              aria-label={som ? 'Desligar os sons dos agentes' : 'Ligar os sons dos agentes'} title={som ? 'Sons ligados' : 'Sons desligados'}
+              className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
+              {som ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+            </button>
             <button type="button" onClick={() => pickTheme(theme === 'nova' ? 'classic' : 'nova')}
               aria-label={theme === 'nova' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} title={theme === 'nova' ? 'Tema escuro' : 'Tema claro'}
               className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
@@ -330,7 +366,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4 lg:sticky lg:top-[72px]">
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
-            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
+            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
         </aside>
 

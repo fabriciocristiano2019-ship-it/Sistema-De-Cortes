@@ -83,7 +83,7 @@ def parse_gaming(raw):
             raise HTTPException(status_code=400, detail="Campo 'gaming' não é um JSON válido")
     if not isinstance(raw, dict):
         raise HTTPException(status_code=400, detail="Campo 'gaming' deve ser um objeto")
-    engine = str(raw.get("engine") or "local").lower()
+    engine = str(raw.get("engine") or "auto").lower()
     if engine not in ENGINES:
         raise HTTPException(status_code=400, detail=f"engine inválido: {engine}")
     layout = str(raw.get("layout") or "auto").lower()
@@ -161,8 +161,10 @@ def job_env(req):
     if strategy:
         env["FORCE_STRATEGY"] = strategy
         env["AUTO_LAYOUT"] = "0"   # an explicit layout replaces the Gemini picker
-    elif req["engine"] == "local":
-        env["AUTO_LAYOUT"] = "0"   # the picker calls Gemini; the local engine stays free
+    else:
+        # The generic picker is tuned for talking heads; gameplay "auto" is
+        # decided in main.gaming_auto_layout (webcam -> B, else A), for free.
+        env["AUTO_LAYOUT"] = "0"
     if req.get("inset_box"):
         env["INSET_BOX"] = req["inset_box"]
     if req.get("zoom"):

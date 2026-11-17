@@ -20,9 +20,10 @@ def test_plain_openshorts_jobs_are_untouched():
     assert gaming_api.parse_gaming("") is None
 
 
-def test_defaults_are_free_and_local():
+def test_defaults_use_gemini_only_when_a_key_exists():
+    # "auto": Gemini when the job has a key, the free local engine otherwise.
     req = gaming_api.parse_gaming("{}")
-    assert req["engine"] == "local" and req["layout"] == "auto"
+    assert req["engine"] == "auto" and req["layout"] == "auto"
     assert req["game"] == {"id": "auto"}
     assert req["settings"]["clip_seconds"] == 30
 
