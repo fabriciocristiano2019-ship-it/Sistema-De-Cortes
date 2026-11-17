@@ -1,0 +1,40 @@
+{
+  // OpenShorts Gaming Edition no GitHub Codespaces: o painel roda na nuvem e
+  // abre no navegador (computador ou celular), sem instalar nada no PC.
+  // Versão leve, sem Docker: motor de IA só para processador, para caber nos
+  // 15 GB da cota gratuita.
+  "name": "OpenShorts Gaming Edition",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  // 2 núcleos e 8 GB: o menor que roda a transcrição e a edição.
+  // Na cota gratuita (120 horas de núcleo) isso rende cerca de 60 horas por mês.
+  "hostRequirements": { "cpus": 2, "memory": "8gb" },
+  "postCreateCommand": "bash .devcontainer/instalar.sh",
+  "postStartCommand": "bash .devcontainer/iniciar.sh",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Painel OpenShorts", "onAutoForward": "openPreview" },
+    "8000": { "label": "Servidor (interno)", "onAutoForward": "ignore" }
+  },
+  "containerEnv": {
+    "MAX_CONCURRENT_JOBS": "1",
+    "WHISPER_MODEL": "small",
+    "WHISPER_DEVICE": "cpu",
+    "WHISPER_COMPUTE": "int8",
+    "FFMPEG_ENCODER": "x264",
+    "JOB_RETENTION_SECONDS": "0",
+    "OUTPUT_MAX_GB": "0",
+    "UPLOADS_MAX_GB": "0",
+    "MAX_FILE_SIZE_MB": "8192",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": { "workbench.startupEditor": "readme" },
+      "extensions": ["ms-python.python"]
+    },
+    "codespaces": { "openFiles": [".devcontainer/LEIA-ME.md"] }
+  }
+}

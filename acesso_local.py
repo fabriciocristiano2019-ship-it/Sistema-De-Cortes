@@ -183,6 +183,10 @@ def pedido_de_outro_site(metodo, h, permitidas):
     site = h.get("sec-fetch-site")
     if site == "cross-site":
         return True
+    if site in ("same-origin", "none"):
+        # The browser itself says the page and the request share an origin
+        # (e.g. the panel behind the Codespaces / dev-server proxy).
+        return False
     origem = (h.get("origin") or "").rstrip("/")
     if not origem or origem == "null":
         # Sem Origin: ferramenta de linha de comando ou chamada interna.

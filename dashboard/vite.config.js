@@ -25,6 +25,8 @@ export default defineConfig({
       'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
     },
     allowedHosts: [
+      // GitHub Codespaces: the panel is opened at <name>-5173.app.github.dev
+      '.app.github.dev',
       'openshorts.app',
       'www.openshorts.app'
     ],

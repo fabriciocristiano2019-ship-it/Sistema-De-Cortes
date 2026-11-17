@@ -102,6 +102,7 @@ def test_writes_from_other_sites_are_refused(client, headers):
     {},                                                               # curl / internal call
     {"Sec-Fetch-Site": "same-origin", "Origin": "http://localhost:5175"},
     {"Origin": "http://localhost:5175"},
+    {"Sec-Fetch-Site": "same-origin", "Origin": "https://meu-codespace-5173.app.github.dev"},
 ])
 def test_writes_from_the_panel_pass(client, headers):
     r = client.post("/api/games", json={"name": "Jogo Y"}, headers=headers)
