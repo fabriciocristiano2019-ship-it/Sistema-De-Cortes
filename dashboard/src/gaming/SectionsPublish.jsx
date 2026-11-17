@@ -13,7 +13,7 @@ function PubRow({ p, clips, onApprove, onCancel, busy }) {
   const last = p.log?.[p.log.length - 1];
   return (
     <li className="py-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[13rem] flex-1">
         <p className="text-ink truncate">{p.title || clipLabel(clips, p)}</p>
         <p className="text-xs text-muted">
           {clipLabel(clips, p)} · {p.platforms.map((x) => PLATFORMS.find((k) => k.id === x)?.label || x).join(', ')}
