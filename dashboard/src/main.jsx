@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import AcessoGate from './gaming/AcessoGate.jsx'
+import TermosLGPD from './gaming/TermosLGPD.jsx'
 const Landing = lazy(() => import('./Landing.jsx'))
 const Legal = lazy(() => import('./Legal.jsx'))
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -106,7 +107,7 @@ function Root() {
   if (view === 'auth') {
     return <div className="min-h-screen flex items-center justify-center bg-background text-zinc-400">Signing you in…</div>;
   }
-  if (view === 'app') return <AcessoGate><App /></AcessoGate>;
+  if (view === 'app') return <AcessoGate><TermosLGPD><App /></TermosLGPD></AcessoGate>;
   return <Landing onLaunchApp={handleLaunchApp} />;
 }
 
