@@ -18,7 +18,7 @@ const LAYOUT_HINT = {
 /* Orquestrador ------------------------------------------------------------ */
 
 export function OrchestratorPanel({
-  meta, games, form, setForm, job, starting, startError, cancelling, onStartFile, onCancel, onAddGame, onImportLink,
+  meta, games, form, setForm, job, starting, startError, cancelling, onStartFile, onStartUrl, onCancel, onAddGame, onImportLink,
 }) {
   const fileRef = useRef(null);
   const active = job && ACTIVE.includes(job.status);
@@ -27,6 +27,10 @@ export function OrchestratorPanel({
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const durations = meta?.durations || [15, 30, 45, 60];
   const customDur = !durations.includes(Number(form.clip_seconds));
+  const link = (form.url || '').trim();
+  const linkOk = /^https?:\/\/\S+\.\S+/i.test(link);
+  const ytOnCloud = linkOk && /(^|\.)(youtube\.com|youtu\.be)\//i.test(link.replace(/^https?:\/\//i, '').replace(/^www\./i, ''))
+    && /\.app\.github\.dev$/i.test(window.location.hostname);
 
   const pickGame = (id) => {
     const g = (games || []).find((x) => x.id === id);
@@ -132,8 +136,25 @@ export function OrchestratorPanel({
             {starting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             {starting ? 'Enviando o vídeo…' : 'Escolher vídeo e começar'}
           </button>
+          <div className="my-3 flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wider text-muted" aria-hidden="true">
+            <span className="h-px flex-1 bg-rule2" /> ou cole um link <span className="h-px flex-1 bg-rule2" />
+          </div>
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (linkOk) onStartUrl(); }}>
+            <label htmlFor="sede-url" className="sr-only">Link do vídeo</label>
+            <input id="sede-url" type="url" inputMode="url" placeholder="https://youtube.com/watch?v=…" value={form.url || ''}
+              onChange={(e) => set('url', e.target.value)} disabled={starting}
+              className="sede-select !bg-none min-w-0 flex-1 !pr-3 font-normal" />
+            <button type="submit" disabled={!linkOk || starting} title="Baixar o vídeo do link e começar"
+              className="sede-btn-accent shrink-0 disabled:opacity-50">Começar</button>
+          </form>
+          {ytOnCloud && (
+            <p className="mt-2 text-[10.5px] leading-snug text-warn">
+              No Codespaces o YouTube costuma bloquear downloads (pede login). Se falhar, envie o arquivo do vídeo
+              ou configure os cookies do YouTube (guia LEIA-ME).
+            </p>
+          )}
           <button type="button" onClick={onImportLink} className="mt-2 w-full text-center text-[11px] text-muted underline-offset-2 hover:text-ink hover:underline">
-            Usar um link (YouTube, Twitch) ou mais opções
+            Mais opções de importação
           </button>
         </>
       )}

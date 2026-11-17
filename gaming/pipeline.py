@@ -67,7 +67,20 @@ _STRATEGY_PT = {
 
 # (agent, regex, PT-BR text | callable(match) | None to keep the original line, level)
 # First match wins. ``\g<name>`` groups are substituted into the text.
+_YT_BOT = ("O YouTube bloqueou o download neste servidor (pede login para provar que não é robô). "
+           "Envie o arquivo do vídeo em vez do link, ou configure os cookies do YouTube (guia LEIA-ME).")
+
 _RULES = [
+    # Download failures first: the yt-dlp error line also matches the generic rules below.
+    ("ingest", r"confirm you.?re not a bot|Sign in to confirm", _YT_BOT, "error"),
+    ("ingest", r"Private video|Video unavailable|This video is unavailable|members-only",
+     "O vídeo do link é privado, exclusivo para membros ou não está disponível.", "error"),
+    ("ingest", r"Unsupported URL", "Este link não é de um vídeo que o sistema consiga baixar.", "error"),
+    ("ingest", r"(?i)HTTP Error 429|Too Many Requests",
+     "O site do vídeo limitou os downloads deste servidor. Tente mais tarde ou envie o arquivo.", "error"),
+    # Python traceback noise: kept in the full log, not in the agents' diary.
+    ("core", r'^\s*(Traceback \(most recent call last\)|File "|raise |return |\^+\s*$|~+[\s^~]*$|_format_err|self\.\w+\()',
+     None, "raw"),
     ("ingest", r"Arquivo validado", None, "ok"),
     ("ingest", r"Downloading video from YouTube", "Baixando o vídeo do link informado…", "info"),
     ("ingest", r"Direct file URL", "Baixando o arquivo do link direto…", "info"),
@@ -114,7 +127,9 @@ _RULES = [
     ("core", r"Job started by worker", "J.A.R.V.I.S. recebeu a gameplay. Delegando aos agentes…", "info"),
     ("core", r"Process finished successfully", "Processamento finalizado. Cortes prontos para revisão.", "ok"),
     ("core", r"Cancelamento solicitado|Processamento cancelado", None, "warn"),
-    ("core", r"Process failed with exit code|Execution error|No metadata file generated", None, "error"),
+    ("core", r"Process failed with exit code (?P<a>\d+)",
+     r"O processamento parou com erro (código \g<a>). O motivo está na mensagem acima.", "error"),
+    ("core", r"Execution error|No metadata file generated", None, "error"),
     ("core", r"Job recovered from disk", "Trabalho recuperado do disco após reinício do servidor.", "info"),
     ("core", r"Nenhum momento com evidência", None, "error"),
 ]

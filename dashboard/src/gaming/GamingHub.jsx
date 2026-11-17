@@ -330,7 +330,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4 lg:sticky lg:top-[72px]">
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
-            cancelling={cancelling} onStartFile={start} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
+            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
         </aside>
 

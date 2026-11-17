@@ -179,3 +179,39 @@ def test_probe_description_is_readable():
     assert "sem faixa de áudio" in pipeline.describe_probe(
         {"width": 1280, "height": 720, "fps": 30.0, "duration": 10, "vcodec": "h264", "acodec": None,
          "sample_rate": None, "channels": None})
+
+
+# ---- download errors in plain Portuguese -------------------------------------
+YT_BOT_LOG = [
+    "📥 Downloading video from YouTube...",
+    "Traceback (most recent call last):",
+    '  File "/app/main.py", line 900, in download_youtube_video',
+    "    raise DownloadError(message, exc_info)",
+    "    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "    self.trouble(*args, **kwargs)",
+    "  _format_err('ERROR:', self.Styles.ERROR)} {message}', *args, **kwargs)",
+    "yt_dlp.utils.DownloadError: ERROR: [youtube] 3JUboYgqlxc: Sign in to confirm you're not a bot. "
+    "Use --cookies-from-browser or --cookies for the authentication.",
+    "Process failed with exit code 1",
+]
+
+
+def test_youtube_bot_check_is_explained_and_traceback_hidden():
+    snap = pipeline.snapshot(YT_BOT_LOG, "failed")
+    texts = [c["text"] for c in snap["console"]]
+    assert any("O YouTube bloqueou o download" in t for t in texts)
+    assert any("parou com erro (código 1)" in t for t in texts)
+    assert not any("Traceback" in t or "raise " in t or "_format_err" in t or "^^^" in t for t in texts)
+    bot = next(c for c in snap["console"] if "YouTube bloqueou" in c["text"])
+    assert bot["agent"] == "ingest" and bot["level"] == "error"
+
+
+def test_other_download_errors_in_portuguese():
+    for line, expect in [
+        ("ERROR: [youtube] abc: Private video. Sign in if you've been granted access", "privado"),
+        ("ERROR: [youtube] abc: Video unavailable", "não está disponível"),
+        ("ERROR: Unsupported URL: https://exemplo.com/x", "não é de um vídeo"),
+        ("ERROR: unable to download video data: HTTP Error 429: Too Many Requests", "limitou os downloads"),
+    ]:
+        agent, text, level = pipeline.classify(line)
+        assert expect in text and level == "error" and agent == "ingest", line

@@ -13,6 +13,8 @@ from scenedetect.detectors import ContentDetector
 from ultralytics import YOLO
 import torch
 import os
+import shutil
+import tempfile
 import numpy as np
 from tqdm import tqdm
 import yt_dlp
@@ -720,13 +722,18 @@ def download_youtube_video(url, output_dir="."):
     print("📥 Downloading video from YouTube...")
     step_start_time = time.time()
 
-    cookies_path = '/app/cookies.txt'
+    # /app only exists in the Docker image; elsewhere (Codespaces, bare
+    # install) the file goes to the temp dir. Owner-only permissions: it holds
+    # a live YouTube session.
+    cookies_path = '/app/cookies.txt' if os.path.isdir('/app') and os.access('/app', os.W_OK) \
+        else os.path.join(tempfile.gettempdir(), f'openshorts_cookies_{os.getpid()}.txt')
     cookies_env = os.environ.get("YOUTUBE_COOKIES")
     if cookies_env:
         print("🍪 Found YOUTUBE_COOKIES env var, creating cookies file inside container...")
         try:
-            with open(cookies_path, 'w') as f:
-                f.write(cookies_env)
+            fd = os.open(cookies_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                f.write(cookies_env.replace('\r\n', '\n'))
             if os.path.exists(cookies_path):
                  # Never print file CONTENT here: with a headerless cookies
                  # blob this would leak live YouTube session cookies to logs.
@@ -794,6 +801,14 @@ def download_youtube_video(url, output_dir="."):
                 'best[height<=1080][ext=mp4]/best[ext=mp4]/best')
     fallback_fmt = 'best[ext=mp4]/best'
 
+    def _js_runtime_opts():
+        # yt-dlp needs a JavaScript runtime for YouTube's challenges. Deno is
+        # its default (the Docker image ships it); without Deno, fall back to
+        # Node.js, which Codespaces and most PCs already have.
+        if shutil.which('deno') or not shutil.which('node'):
+            return {}
+        return {'js_runtimes': {'node': {}}}
+
     def _base_opts(extractor_args, proxy):
         return {
             'quiet': False, 'verbose': True, 'no_warnings': False,
@@ -801,6 +816,7 @@ def download_youtube_video(url, output_dir="."):
             'proxy': proxy, 'socket_timeout': 30, 'retries': 10, 'fragment_retries': 10,
             'nocheckcertificate': True, 'cachedir': False,
             'extractor_args': extractor_args,
+            **_js_runtime_opts(),
             'http_headers': {
                 'User-Agent': (
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '

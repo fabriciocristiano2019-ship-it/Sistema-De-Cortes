@@ -36,6 +36,22 @@ login do GitHub: a porta é **privada**. Não mude para "Pública".
 - **Pare o codespace quando terminar** (github.com/codespaces → ⋯ → Stop):
   ligado, ele gasta horas mesmo parado.
 
+## Links do YouTube
+
+O YouTube costuma bloquear downloads vindos de servidores na nuvem, como o Codespaces
+("Sign in to confirm you're not a bot"). O jeito mais seguro é **enviar o arquivo do vídeo**
+pelo botão "Escolher vídeo e começar".
+
+Opcional, por sua conta: usar os cookies da sua conta do YouTube.
+
+1. No navegador do PC, exporte os cookies de `youtube.com` em formato Netscape (`cookies.txt`).
+2. Em github.com/settings/codespaces → **Secrets** → **New secret**: nome `YOUTUBE_COOKIES`,
+   cole o conteúdo do arquivo e libere para o repositório **CORTES**.
+3. Pare e abra de novo o codespace.
+
+Atenção: os cookies dão acesso à sua conta. Nunca cole em chat nem em arquivo do repositório,
+e prefira uma conta secundária, porque o YouTube pode restringir contas usadas para baixar vídeos.
+
 ## Se algo der errado
 
 - **O painel não abre / aba PORTAS vazia:** no terminal, rode `bash .devcontainer/iniciar.sh`.
