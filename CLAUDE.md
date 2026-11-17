@@ -149,3 +149,7 @@ Every push to `main` redeploys API container. Coolify starts NEW container befor
 - `main.py` leaves `.transcript_checkpoint.json` in job dir so re-run job skips paid transcription (download and Gemini repeat).
 
 Before pushing, batch small commits (tests, docs) with next real change: every deploy is ~5 min build plus handover.
+
+## Project skills
+
+`.claude/skills/` vendors third-party skills (ffmpeg-skill, ponytail, hyperframes); origin, license and evaluated-but-rejected repos in `.claude/skills/LEIA-ME.md`. HyperFrames: run `npx hyperframes telemetry disable` first; never run `events`/`feedback`; no paid HeyGen features. Never ask for API keys in chat.

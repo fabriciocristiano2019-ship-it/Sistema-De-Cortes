@@ -271,7 +271,7 @@ class TestAutoCaptionDefaults:
         from subtitles import SAFE_MARGIN_V, generate_ass
         # PlayResY is 288, so the margin must be a meaningful share of it —
         # the old hardcoded 25 (8.7%) sat under TikTok's own bottom chrome.
-        assert SAFE_MARGIN_V / 288 >= 0.12
+        assert SAFE_MARGIN_V / 288 >= 0.22  # above TikTok's bottom UI band
         out = tmp_path / "subs.ass"
         words = [_w(" hola", 0.0, 0.5)]
         assert generate_ass(self._t(words), 0, 10, str(out)) is True

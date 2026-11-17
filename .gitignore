@@ -36,7 +36,8 @@ output/
 # Multi-agent Skills
 .agents/
 .agent/
-.claude/
+.claude/*
+!.claude/skills/
 # skills/ holds third-party installs (symlinks); our own published skill is versioned
 skills/*
 !skills/openshorts/

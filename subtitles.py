@@ -225,8 +225,11 @@ def generate_srt(transcript, clip_start, clip_end, output_path, max_chars=20, ma
 # frame height). The old hardcoded 25 (8.7%) put captions underneath TikTok's
 # and Reels' own bottom UI — the caption/username block and the music ticker —
 # where they were partly covered on the platform even though the exported file
-# looked fine.
-SAFE_MARGIN_V = 43
+# looked fine. 43 (15%) was still inside TikTok's own bottom band: TikTok covers
+# about 22% of the bottom, Reels 20%, Shorts 18% (safe-zone table of
+# kajisho5/ffmpeg-skill, references/gotchas.md#platform-safe-zones). 66 = 22.9%
+# keeps the caption baseline above all three.
+SAFE_MARGIN_V = 66
 
 
 # The caption look applied automatically to every generated clip. Chosen by
