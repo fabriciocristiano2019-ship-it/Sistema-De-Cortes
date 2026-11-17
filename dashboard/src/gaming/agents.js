@@ -9,5 +9,5 @@ export const LOOK = {
   slicer: { x: 87, y: 50, color: '#f59e0b' },
   editor916: { x: 18, y: 81, color: '#10b981' },
   captions: { x: 50, y: 87.5, color: '#ec4899' },
-  social: { x: 82, y: 81, color: '#6366f1' },
+  social: { x: 82, y: 81, color: '#4f46e5' },
 };

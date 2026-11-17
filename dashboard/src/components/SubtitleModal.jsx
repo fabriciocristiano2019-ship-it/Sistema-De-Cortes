@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import RemotionPreview from './RemotionPreview';
+// Remotion + mediabunny are ~2 MB: load the preview only when a modal opens.
+const RemotionPreviewLazy = lazy(() => import('./RemotionPreview'));
+const RemotionPreview = (props) => (
+  <Suspense fallback={<div className="aspect-[9/16] w-full animate-pulse rounded-lg bg-black/40" />}>
+    <RemotionPreviewLazy {...props} />
+  </Suspense>
+);
 import Modal from './ui/Modal';
 import SegmentedControl from './ui/SegmentedControl';
 

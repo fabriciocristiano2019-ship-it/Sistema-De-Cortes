@@ -4,6 +4,17 @@ import Wave from './Wave';
 import JarvisOrb from './JarvisOrb';
 import { LOOK } from './agents';
 
+// Black or white text, whichever contrasts more with the badge colour (WCAG
+// relative luminance): white on the light cyan/blue badges read at 2.4:1.
+function inkOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#fff';
+  const lin = (i) => { const c = parseInt(m[1].slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+  return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? '#0b1020' : '#fff';
+}
+
+
 
 const BADGE = {
   idle: { label: 'PRONTO', cls: 'text-brass border-brass/30 bg-brass/10' },
@@ -58,14 +69,14 @@ function AgentRoom({ agent, onOpen, detail, className = '', style }) {
         className="flex items-center gap-2 rounded-xl border border-rule px-2 py-2 mb-2"
         style={{ background: `linear-gradient(100deg, color-mix(in oklab, ${look.color} 17%, var(--color-paper)) 0%, var(--color-paper) 88%)` }}
       >
-        <span className="grid place-items-center h-6 w-7 rounded-md text-[10px] font-extrabold text-white shrink-0" style={{ background: look.color }}>IA</span>
+        <span className="grid place-items-center h-6 w-7 rounded-md text-[10px] font-extrabold shrink-0" style={{ background: look.color, color: inkOn(look.color) }}>IA</span>
         <span className="flex-1 min-w-0 flex items-center">
           <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={14} height={18}
             color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
         </span>
         <Maximize2 size={12} className="text-muted shrink-0" aria-hidden="true" />
       </span>
-      <span className="block text-[12px] font-extrabold tracking-tight text-ink leading-tight truncate">{agent.name}</span>
+      <span className="block text-[12px] font-extrabold tracking-tight text-ink leading-tight line-clamp-2">{agent.name}</span>
       <span className="block text-[11px] text-muted truncate">{agent.role}</span>
     </button>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Gamepad2 } from 'lucide-react';
 import KeyInput from './components/KeyInput';
 import MediaInput from './components/MediaInput';
@@ -6,12 +6,24 @@ import McpConnectCard from './components/McpConnectCard';
 import ResultCard from './components/ResultCard';
 import ProcessingAnimation from './components/ProcessingAnimation';
 // import Gallery from './components/Gallery';
-import ThumbnailStudio from './components/ThumbnailStudio';
-import SaaShortsTab from './components/SaaShortsTab';
-import UGCGallery from './components/UGCGallery';
+// Tabs the Gaming Edition never opens load on demand. Each gets its own
+// Suspense: a lazy component without one would suspend the root and remount
+// the whole app, dropping uploads in progress and open modals.
+const onDemand = (load) => {
+  const Lazy = lazy(load);
+  const OnDemand = (props) => (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-zinc-500">Carregando…</div>}>
+      <Lazy {...props} />
+    </Suspense>
+  );
+  return OnDemand;
+};
+const ThumbnailStudio = onDemand(() => import('./components/ThumbnailStudio'));
+const SaaShortsTab = onDemand(() => import('./components/SaaShortsTab'));
+const UGCGallery = onDemand(() => import('./components/UGCGallery'));
 import ScheduleWeekModal from './components/ScheduleWeekModal';
-import ClipEditor from './components/ClipEditor';
-import ReframeEditor from './components/ReframeEditor';
+const ClipEditor = onDemand(() => import('./components/ClipEditor'));
+const ReframeEditor = onDemand(() => import('./components/ReframeEditor'));
 import UsageMeter from './components/UsageMeter';
 import TopUpModal from './components/TopUpModal';
 import StarBanner from './components/StarBanner';
@@ -20,7 +32,7 @@ import TrialUpgradeModal from './components/TrialUpgradeModal';
 import LoginModal from './components/LoginModal';
 import TrialGate from './components/TrialGate';
 import AdvancedBanner from './components/AdvancedBanner';
-import HistoryTab from './components/HistoryTab';
+const HistoryTab = onDemand(() => import('./components/HistoryTab'));
 import GamingHub from './gaming/GamingHub';
 import ProfileMenu from './components/ProfileMenu';
 import Modal from './components/ui/Modal';

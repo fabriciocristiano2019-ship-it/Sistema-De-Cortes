@@ -9,7 +9,8 @@ import Modal from './ui/Modal';
 import SegmentedControl from './ui/SegmentedControl';
 import WatermarkModal, { watermarkNoticeDismissed } from './WatermarkModal';
 import { useAuth } from '../contexts/AuthContext';
-import { renderInBrowser } from '../lib/renderInBrowser';
+// Loaded on first use: it pulls Remotion + mediabunny (~2 MB) into the page.
+const renderInBrowser = async (...args) => (await import('../lib/renderInBrowser')).renderInBrowser(...args);
 
 const QUIET_BTN = 'group flex flex-col items-center justify-center gap-1 py-2.5 sm:py-2 px-1 rounded-input border border-rule hover:bg-paper3 text-[11px] lowercase text-ink2 whitespace-nowrap transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 

@@ -1,16 +1,16 @@
-import { StrictMode, useState, useEffect } from 'react'
+import { StrictMode, useState, useEffect, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import AcessoGate from './gaming/AcessoGate.jsx'
-import Landing from './Landing.jsx'
-import Legal from './Legal.jsx'
+const Landing = lazy(() => import('./Landing.jsx'))
+const Legal = lazy(() => import('./Legal.jsx'))
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { capture as captureAttribution } from './lib/attribution'
-import PricingPage from './components/PricingPage'
-import AccountPage from './components/AccountPage'
+const PricingPage = lazy(() => import('./components/PricingPage'))
+const AccountPage = lazy(() => import('./components/AccountPage'))
 import LoginModal from './components/LoginModal'
-import OAuthConsent from './components/OAuthConsent'
+const OAuthConsent = lazy(() => import('./components/OAuthConsent'))
 
 function PageShell({ title, children }) {
   return (
@@ -79,8 +79,9 @@ function Root() {
     if (hash === '#legal') return 'legal';
     // #landing = explicit landing view (app logo); section anchors keep the landing mounted
     if (['#landing', '#features', '#how-it-works', '#pricing', '#comparison', '#faq'].includes(hash)) return 'landing';
-    if (hash === '#app' || localStorage.getItem('openshorts_skip_landing') === '1') return 'app';
-    return 'landing';
+    // Gaming Edition: the panel is the home page. The English marketing landing
+    // of the hosted product stays reachable only through its explicit anchors.
+    return 'app';
   };
 
   const [view, setView] = useState(resolveView);
@@ -116,7 +117,7 @@ captureAttribution();
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <Root />
+      <Suspense fallback={<div className="min-h-screen bg-background" />}><Root /></Suspense>
     </AuthProvider>
   </StrictMode>,
 )

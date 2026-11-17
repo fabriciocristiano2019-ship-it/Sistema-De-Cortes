@@ -218,7 +218,7 @@ export function ConsolePanel({ lines, roles }) {
           const lv = LEVEL[l.level] || LEVEL.info;
           return (
             <p key={i} className="break-words">
-              <span className="font-mono text-[10px] text-slate-500 mr-1.5">{l.t ? fmtClock(l.t) : '--:--:--'}</span>
+              <span className="font-mono text-[11px] text-slate-400 mr-1.5">{l.t ? fmtClock(l.t) : '--:--:--'}</span>
               <span className="font-extrabold mr-1.5" style={{ color }}>{who}</span>
               {(l.level === 'warn' || l.level === 'error') && (
                 <span className="mr-1.5 rounded px-1 text-[9.5px] font-extrabold uppercase" style={{ color: lv.color, boxShadow: `inset 0 0 0 1px ${lv.color}` }}>{lv.label}</span>
@@ -270,9 +270,11 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
             const ready = !!c.video_url;
             return (
               <li key={key}>
-                <div role="button" tabIndex={0} aria-pressed={on} onClick={() => onSelect(c)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c); } }}
-                  className={`flex h-full cursor-pointer flex-col rounded-2xl border p-3 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${on ? 'border-brass bg-brass/5' : 'border-rule2 hover:border-brass/50'}`}>
+                {/* The whole card is clickable for the mouse; keyboard and screen
+                    readers use the title button (a card with role=button cannot
+                    hold the Approve/Download controls: nested-interactive). */}
+                <div onClick={() => onSelect(c)}
+                  className={`flex h-full cursor-pointer flex-col rounded-2xl border p-3 transition focus-within:border-brass ${on ? 'border-brass bg-brass/5' : 'border-rule2 hover:border-brass/50'}`}>
                   <div className="flex items-start gap-2.5 mb-2.5">
                     <span title={`Pontuação de relevância ${c.relevance_score}/100, calculada das evidências de áudio, imagem e fala`}
                       className="rounded-md border border-ok/40 bg-ok/10 px-2 py-1 text-center text-[10px] font-extrabold leading-tight text-ok">
@@ -283,7 +285,12 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
                     </span>
                   </div>
                   <p className="text-[10.5px] font-extrabold uppercase tracking-wide text-brass">{c.moment_label}{c.game_name ? ` · ${c.game_name}` : ''}</p>
-                  <h3 className="mt-1 text-[13px] font-extrabold uppercase leading-snug text-ink">{c.video_title_for_youtube_short}</h3>
+                  <h3 className="mt-1 text-[13px] font-extrabold uppercase leading-snug text-ink">
+                    <button type="button" aria-pressed={on} onClick={(e) => { e.stopPropagation(); onSelect(c); }}
+                      className="text-left uppercase rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass">
+                      {c.video_title_for_youtube_short}
+                    </button>
+                  </h3>
                   <p className="mt-1.5 text-xs text-ink2 line-clamp-2">{c.description}</p>
                   {Array.isArray(c.evidence) && c.evidence.length > 0 && (
                     <p className="mt-1.5 text-[11px] text-muted line-clamp-2" title={c.evidence.join(' · ')}>Evidências: {c.evidence.join(' · ')}</p>
@@ -451,7 +458,7 @@ export function PipelineView({ agents, jobId, jobStatus, system }) {
 
       <section className="rounded-[20px] border border-rule2 bg-paper2 p-5" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
         <h2 className="text-[15px] font-extrabold text-ink mb-3">Etapas do fluxo e agente responsável</h2>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabela das etapas do fluxo (role para o lado no celular)">
           <table className="w-full text-left text-[12.5px]">
             <thead>
               <tr className="text-muted">
