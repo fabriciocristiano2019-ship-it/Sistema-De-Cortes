@@ -1,19 +1,8 @@
 import React from 'react';
 import { Eye, Maximize2, Radio } from 'lucide-react';
+import Wave from './Wave';
+import { LOOK } from './agents';
 
-// Where each room sits on the map (% of the map box) and its signature colour.
-// The pipeline order and the agents themselves come from the backend
-// (gaming/pipeline.py): this file only draws them.
-const LOOK = {
-  library: { x: 18, y: 19, color: '#3b82f6' },
-  ingest: { x: 50, y: 12.5, color: '#06b6d4' },
-  whisper: { x: 82, y: 19, color: '#a855f7' },
-  vision: { x: 13, y: 50, color: '#f43f5e' },
-  slicer: { x: 87, y: 50, color: '#f59e0b' },
-  editor916: { x: 18, y: 81, color: '#10b981' },
-  captions: { x: 50, y: 87.5, color: '#ec4899' },
-  social: { x: 82, y: 81, color: '#6366f1' },
-};
 
 const BADGE = {
   idle: { label: 'PRONTO', cls: 'text-brass border-brass/30 bg-brass/10' },
@@ -69,9 +58,9 @@ function AgentRoom({ agent, onOpen, detail, className = '', style }) {
         style={{ background: `linear-gradient(100deg, color-mix(in oklab, ${look.color} 17%, var(--color-paper)) 0%, var(--color-paper) 88%)` }}
       >
         <span className="grid place-items-center h-6 w-7 rounded-md text-[10px] font-extrabold text-white shrink-0" style={{ background: look.color }}>IA</span>
-        <span className="flex-1 space-y-1">
-          <span className={`block h-1.5 w-9 rounded-full ${working ? 'animate-pulse' : 'bg-muted/45'}`} style={working ? { background: look.color } : undefined} />
-          <span className={`block h-1 w-5 rounded-full ${working ? 'animate-pulse' : ''} bg-muted/30`} />
+        <span className="flex-1 min-w-0 flex items-center">
+          <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={14} height={18}
+            color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
         </span>
         <Maximize2 size={12} className="text-muted shrink-0" aria-hidden="true" />
       </span>
@@ -127,13 +116,15 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         </svg>
 
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className={`relative grid h-32 w-32 place-items-center rounded-full bg-paper2 sede-core-ring transition-transform duration-500 ${busy ? 'scale-105' : ''}`}>
+          <div className={`relative grid h-36 w-36 place-items-center rounded-full bg-paper2 sede-core-ring transition-transform duration-500 ${busy ? 'scale-105' : ''}`}>
+            {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
             <span className={`absolute inset-2 rounded-full border border-dashed border-brass/45 ${busy ? 'sede-orbit' : ''}`} aria-hidden="true" />
             <span className="relative flex flex-col items-center">
-              <span className="sede-core-chip grid h-11 w-11 place-items-center rounded-full">
-                <Eye size={21} className={busy ? 'animate-pulse' : ''} aria-hidden="true" />
+              <span className="sede-core-chip grid h-10 w-10 place-items-center rounded-full">
+                <Eye size={19} className={busy ? 'animate-pulse' : ''} aria-hidden="true" />
               </span>
               <span className="mt-1 text-[11px] font-extrabold tracking-wider text-ink">J.A.R.V.I.S.</span>
+              <Wave mode={busy ? 'on' : 'idle'} bars={11} height={14} color="var(--color-accent)" className="my-0.5" />
               <span className={`mt-0.5 rounded-full px-2 py-px text-[8.5px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
             </span>
           </div>

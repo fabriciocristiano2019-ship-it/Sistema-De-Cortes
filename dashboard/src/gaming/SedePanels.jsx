@@ -4,8 +4,16 @@ import {
 } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtClock, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
+import { LOOK } from './agents';
 
 const ACTIVE = ['queued', 'processing'];
+
+const LAYOUT_HINT = {
+  auto: 'O sistema escolhe o melhor enquadramento para cada cena.',
+  full: 'Mostra a tela inteira do jogo, com vida, mapa e placar (HUD).',
+  webcam: 'Jogo em cima e a sua câmera embaixo, maior.',
+  vertical: 'Recorta o centro da tela para ocupar o celular todo.',
+};
 
 /* Orquestrador ------------------------------------------------------------ */
 
@@ -29,7 +37,7 @@ export function OrchestratorPanel({
     }));
   };
 
-  let badge = { label: 'NO AR', cls: 'text-ok border-ok/40 bg-ok/10' };
+  let badge = { label: 'PRONTO', cls: 'text-ok border-ok/40 bg-ok/10' };
   if (active) badge = { label: job.status === 'queued' ? 'NA FILA' : 'PROCESSANDO', cls: 'text-warn border-warn/40 bg-warn/10' };
   else if (job?.status === 'failed') badge = { label: 'FALHOU', cls: 'text-danger border-danger/40 bg-danger/10' };
 
@@ -37,16 +45,21 @@ export function OrchestratorPanel({
     <section aria-label="Orquestrador Core AI" className="rounded-[20px] border border-rule2 bg-paper2 p-4" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
       <div className="flex items-center justify-between gap-2 mb-4">
         <h2 className="flex items-center gap-2 text-[13px] font-extrabold tracking-wide text-brass">
-          <Zap size={16} aria-hidden="true" /> ORQUESTRADOR J.A.R.V.I.S.
+          <Zap size={16} aria-hidden="true" /> NOVO CORTE
         </h2>
         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-extrabold tracking-wider ${badge.cls}`}>{badge.label}</span>
       </div>
+      {!active && (
+        <p className="-mt-2 mb-4 text-[11.5px] leading-snug text-muted">
+          Escolha as opções e envie o vídeo. O J.A.R.V.I.S. e os 8 agentes fazem o resto.
+        </p>
+      )}
 
-      <label className="block text-xs font-semibold text-ink2 mb-1.5" htmlFor="sede-game">Perfil Multi-Games Intelligence:</label>
+      <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-game"><span className="sede-step">1</span>Qual jogo?</label>
       <div className="flex gap-2 mb-3">
         <select id="sede-game" className="sede-select flex-1 min-w-0" value={form.game_id}
           title="Detecção automática: reconhece o jogo pelo nome do arquivo e pelo que é dito no vídeo" disabled={active} onChange={(e) => pickGame(e.target.value)}>
-          <option value="auto">Detecção Automática</option>
+          <option value="auto">Descobrir sozinho</option>
           {(games || []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
         <button type="button" onClick={onAddGame} title="Cadastrar um jogo na biblioteca" aria-label="Cadastrar um jogo na biblioteca"
@@ -55,9 +68,11 @@ export function OrchestratorPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      {!active && <p className="-mt-2 mb-3 text-[10.5px] text-muted">Reconhece pelo nome do arquivo e pelo que é falado.</p>}
+
+      <div className="grid grid-cols-2 gap-2 mb-1">
         <div>
-          <label className="block text-xs font-semibold text-ink2 mb-1.5" htmlFor="sede-dur">Duração Alvo:</label>
+          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-dur"><span className="sede-step">2</span>Tamanho do corte</label>
           <select id="sede-dur" className="sede-select w-full" disabled={active} value={customDur ? 'custom' : String(form.clip_seconds)}
             onChange={(e) => (e.target.value === 'other' ? onImportLink() : set('clip_seconds', Number(e.target.value)))}>
             {durations.map((d) => <option key={d} value={d}>{d} segundos</option>)}
@@ -66,24 +81,27 @@ export function OrchestratorPanel({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-ink2 mb-1.5" htmlFor="sede-layout">Formato 9:16:</label>
+          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-layout"><span className="sede-step">3</span>Enquadramento</label>
           <select id="sede-layout" className="sede-select w-full" disabled={active} value={form.layout} onChange={(e) => set('layout', e.target.value)}>
             <option value="auto">Automático</option>
-            <option value="full">A. Tela Inteira</option>
-            <option value="webcam">B. Com Webcam</option>
-            <option value="vertical">C. Vertical Adaptado</option>
+            <option value="full">Tela inteira</option>
+            <option value="webcam">Jogo + webcam</option>
+            <option value="vertical">Vertical recortado</option>
           </select>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-ink2">
+      {!active && <p className="mb-3 text-[10.5px] leading-snug text-muted">{LAYOUT_HINT[form.layout] || LAYOUT_HINT.auto}</p>}
+
+      <p className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5"><span className="sede-step">4</span>Extras</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 pl-[26px] text-xs text-ink2">
         <label className="flex items-center gap-1.5">
           <input type="checkbox" className="accent-[var(--color-accent)]" checked={!!form.captions} disabled={active} onChange={(e) => set('captions', e.target.checked)} />
-          D. Legendas animadas
+          Legendas animadas
         </label>
         <label className="flex items-center gap-1.5">
           <input type="checkbox" className="accent-[var(--color-accent)]" checked={!!form.zoom} disabled={active} onChange={(e) => set('zoom', e.target.checked)} />
-          Zoom nos picos
+          Zoom nos melhores momentos
         </label>
       </div>
 
@@ -112,10 +130,10 @@ export function OrchestratorPanel({
           <button type="button" onClick={() => fileRef.current?.click()} disabled={starting}
             className="sede-cta flex w-full items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[12px] font-extrabold whitespace-nowrap transition hover:brightness-110 disabled:opacity-60">
             {starting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {starting ? 'Enviando gameplay…' : 'Importar Gameplay & Iniciar'}
+            {starting ? 'Enviando o vídeo…' : 'Escolher vídeo e começar'}
           </button>
           <button type="button" onClick={onImportLink} className="mt-2 w-full text-center text-[11px] text-muted underline-offset-2 hover:text-ink hover:underline">
-            ou importar por endereço e ajustar todas as opções
+            Usar um link (YouTube, Twitch) ou mais opções
           </button>
         </>
       )}
@@ -129,37 +147,44 @@ export function OrchestratorPanel({
 
 /* Console ----------------------------------------------------------------- */
 
-const TAG = {
-  core: ['J.A.R.V.I.S.', '#22d3ee'], agent: ['AGENTE', '#a5b4fc'], ok: ['OK', '#34d399'], info: ['INFO', '#60a5fa'],
-  warn: ['AVISO', '#fbbf24'], error: ['ERRO', '#fb7185'],
+const LEVEL = {
+  ok: { label: 'feito', color: '#34d399' },
+  info: { label: 'info', color: '#60a5fa' },
+  progress: { label: 'info', color: '#60a5fa' },
+  warn: { label: 'aviso', color: '#fbbf24' },
+  error: { label: 'erro', color: '#fb7185' },
 };
 
-export function ConsolePanel({ lines, roles, host }) {
+// Live diary of the agents: one line per step, the agent's codename in its own
+// colour (the same as its room on the map), then what it did.
+export function ConsolePanel({ lines, roles }) {
   const box = useRef(null);
   useEffect(() => {
     const el = box.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines.length]);
   return (
-    <section aria-label="Terminal local" className="sede-console rounded-[20px] border border-rule2 p-4 text-slate-200">
-      <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5 mb-2.5">
-        <h2 className="flex items-start gap-2 text-[12px] font-extrabold tracking-wide text-emerald-400">
-          <Terminal size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>TERMINAL LOCAL<br />(DOCKER/FFMPEG)</span>
+    <section aria-label="Diário dos agentes" className="sede-console rounded-[20px] border border-rule2 p-4 text-slate-200">
+      <div className="border-b border-white/10 pb-2.5 mb-2.5">
+        <h2 className="flex items-center gap-2 text-[12px] font-extrabold tracking-wide text-emerald-400">
+          <Terminal size={14} className="shrink-0" aria-hidden="true" /> DIÁRIO DOS AGENTES
         </h2>
-        <span className="font-mono text-[10px] text-slate-400 mt-0.5">{host}</span>
+        <p className="mt-0.5 text-[10.5px] text-slate-400">O que cada agente está fazendo, em tempo real.</p>
       </div>
-      <div ref={box} role="log" aria-live="polite" tabIndex={0} className="h-72 overflow-y-auto pr-1 font-mono text-[11px] leading-relaxed space-y-2 custom-scrollbar">
+      <div ref={box} role="log" aria-live="polite" tabIndex={0} className="h-72 overflow-y-auto pr-1 text-[11.5px] leading-snug space-y-2 custom-scrollbar">
         {lines.map((l, i) => {
           const isAgent = l.agent && l.agent !== 'core';
-          const key = l.level === 'error' ? 'error' : l.level === 'warn' ? 'warn' : isAgent ? 'agent' : l.agent === 'core' ? 'core' : l.level === 'ok' ? 'ok' : 'info';
-          const [tag, color] = TAG[key];
+          const who = l.agent === 'core' || !l.agent ? 'J.A.R.V.I.S.' : (roles[l.agent] || l.agent).split(' · ')[0];
+          const color = isAgent ? (LOOK[l.agent]?.color || '#a5b4fc') : '#22d3ee';
+          const lv = LEVEL[l.level] || LEVEL.info;
           return (
             <p key={i} className="break-words">
-              {l.t && <><span className="text-slate-500">[{fmtClock(l.t)}]</span>{' '}</>}
-              <span className="font-bold" style={{ color }}>{tag}:</span>{' '}
-              {isAgent && <span className="text-slate-100">[{roles[l.agent] || l.agent}] </span>}
-              <span>{l.text}</span>
+              <span className="font-mono text-[10px] text-slate-500 mr-1.5">{l.t ? fmtClock(l.t) : '--:--:--'}</span>
+              <span className="font-extrabold mr-1.5" style={{ color }}>{who}</span>
+              {(l.level === 'warn' || l.level === 'error') && (
+                <span className="mr-1.5 rounded px-1 text-[9.5px] font-extrabold uppercase" style={{ color: lv.color, boxShadow: `inset 0 0 0 1px ${lv.color}` }}>{lv.label}</span>
+              )}
+              <span className={l.level === 'ok' ? 'text-slate-100' : 'text-slate-300'}>{isAgent ? l.text : String(l.text).replace(/^J\.A\.R\.V\.I\.S\.:?\s*/, '')}</span>
             </p>
           );
         })}

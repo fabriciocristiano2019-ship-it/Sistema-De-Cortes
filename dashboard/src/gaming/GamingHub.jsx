@@ -31,9 +31,9 @@ const MODULES = [
 const MODULE_HINT = 'Módulo integrado ao fluxo local OpenShorts Gaming Edition (Windows + Docker Desktop).';
 
 const VIEWS = [
-  { id: 'hq', label: 'Sala Virtual (Sede)', icon: Cpu },
-  { id: 'modules', label: 'Módulos (12)', icon: Layers },
-  { id: 'pipeline', label: 'Fluxo & Registros', icon: Terminal },
+  { id: 'hq', label: 'Sede', icon: Cpu, hint: 'Sala virtual: os agentes trabalhando' },
+  { id: 'modules', label: 'Módulos', icon: Layers, hint: 'Os 12 módulos: cortes, editor, legendas, redes sociais…' },
+  { id: 'pipeline', label: 'Fluxo', icon: Terminal, hint: 'Etapas do processamento e registros completos' },
 ];
 
 const DEFAULT_FORM = {
@@ -227,13 +227,13 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const consoleLines = useMemo(() => {
     const boot = [];
     if (system && bootAt) {
-      boot.push({ t: bootAt, level: 'info', text: 'J.A.R.V.I.S. (núcleo) conectado ao servidor mo3y/openshorts.' });
+      boot.push({ t: bootAt, level: 'info', text: 'Conectado ao servidor. Agentes prontos.' });
       boot.push(system.ffmpeg
-        ? { t: bootAt, level: 'ok', text: `${system.ffmpeg.replace(/ Copyright.*/, '')} · codificador ${system.encoder}.` }
+        ? { t: bootAt, level: 'ok', text: `Editor de vídeo pronto (${system.ffmpeg.replace(/ Copyright.*/, '').replace(/^ffmpeg version /, 'FFmpeg ')}, ${system.encoder}).` }
         : { t: bootAt, level: 'error', text: 'FFmpeg não encontrado no servidor.' });
-      boot.push({ t: bootAt, level: 'ok', text: `Faster-Whisper configurado (modelo ${system.whisper_model}, ${system.whisper_device}).` });
-      boot.push({ t: bootAt, level: 'info', text: `${system.games} jogos na biblioteca. Motor local ativo, sem custo de API.` });
-      if (!snap) boot.push({ t: bootAt, level: 'info', text: 'Aguardando importação de gameplay para delegar aos agentes.' });
+      boot.push({ t: bootAt, level: 'ok', text: `Transcrição pronta (Whisper ${system.whisper_model}, ${system.whisper_device === 'cpu' ? 'processador' : system.whisper_device}).` });
+      boot.push({ t: bootAt, level: 'info', text: `${system.games} jogos na biblioteca. Tudo processado sem custo de API.` });
+      if (!snap) boot.push({ t: bootAt, level: 'info', text: 'Aguardando uma gameplay. Use o painel acima para começar.' });
     }
     const lines = [...boot, ...(snap?.console || [])];
     if (snap?.error && !ACTIVE.includes(snap.status)) lines.push({ t: null, level: 'error', text: snap.error });
@@ -255,8 +255,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const queueText = (() => {
     const a = snap && jobActive ? Math.max(1, snap.jobs_active || 0) : (system?.jobs_active || 0);
     const q = snap && jobActive ? (snap.jobs_queued || 0) : (system?.jobs_queued || 0);
-    if (!a && !q) return 'Fila: 0';
-    return `Fila: ${a} em curso${q ? ` · ${q} aguardando` : ''}`;
+    if (!a && !q) return 'fila vazia';
+    return `${a} em processamento${q ? ` · ${q} na fila` : ''}`;
   })();
 
   const mod = MODULES.find((m) => m.id === section) || MODULES[0];
@@ -291,49 +291,44 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
   return (
     <div className={`sede ${theme === 'nova' ? 'sede-nova' : 'sede-classic'} h-full overflow-y-auto`}>
-      <header className="sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="sede-core-chip grid h-10 w-10 shrink-0 place-items-center rounded-xl"><Eye size={20} aria-hidden="true" /></span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[15px] font-extrabold tracking-wide text-ink">OPENSHORTS GAMING EDITION</h1>
-                <span className="rounded-full border border-ok/50 bg-ok/10 px-2 py-0.5 text-[9.5px] font-extrabold tracking-wider text-ok">MOTOR LOCAL • CUSTO ZERO</span>
-              </div>
-              <p className="text-[11.5px] text-muted truncate">Base: mo3y/openshorts • Orquestração Multi-Agentes PT-BR</p>
+      <header className="sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+          <div className="mr-auto flex min-w-0 items-center gap-3">
+            <span className="sede-core-chip grid h-9 w-9 shrink-0 place-items-center rounded-xl"><Eye size={18} aria-hidden="true" /></span>
+            <div className="min-w-0 leading-tight">
+              <h1 className="text-[15px] font-extrabold tracking-tight text-ink">OpenShorts <span className="text-brass">Gaming</span></h1>
+              <p className="truncate text-[11px] text-muted">Cortes automáticos de gameplay com 8 agentes de IA</p>
             </div>
           </div>
-          <nav aria-label="Áreas do painel" className="sede-seg max-w-full overflow-x-auto">
+          <nav aria-label="Áreas do painel" className="sede-seg order-3 w-full overflow-x-auto md:order-none md:w-auto">
             {VIEWS.map((v) => (
-              <button key={v.id} type="button" aria-pressed={view === v.id} onClick={() => pickView(v.id)}>
+              <button key={v.id} type="button" aria-pressed={view === v.id} onClick={() => pickView(v.id)} title={v.hint}>
                 <v.icon size={14} aria-hidden="true" /> {v.label}
               </button>
             ))}
           </nav>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="flex items-center gap-3 rounded-full border border-rule2 bg-paper2 px-3.5 py-1.5 text-[12px] text-ink2" aria-live="polite">
-            <span className="flex items-center gap-2 font-extrabold text-ink">
-              <span className={`h-2 w-2 rounded-full ${working ? 'bg-warn animate-pulse' : 'bg-brass'}`} aria-hidden="true" />
-              {working ? `${working} ativo${working > 1 ? 's' : ''}` : `${agents.length} prontos`}
-            </span>
-            <span className="text-rule2" aria-hidden="true">|</span>
-            <span title={system ? `Transcrição: ${system.whisper_device} · vídeo: ${system.encoder}` : undefined}>GPU/CPU: Local</span>
-            <span className="text-rule2" aria-hidden="true">|</span>
-            <span>{queueText}</span>
-          </p>
-          <div className="sede-seg sede-seg-soft" role="group" aria-label="Tema do painel">
-            <button type="button" aria-pressed={theme === 'classic'} onClick={() => pickTheme('classic')}><Moon size={13} aria-hidden="true" /> Clássica</button>
-            <button type="button" aria-pressed={theme === 'nova'} onClick={() => pickTheme('nova')}><Sun size={13} aria-hidden="true" /> Nova</button>
+          <div className="flex items-center gap-2">
+            <p className="flex items-center gap-2 rounded-full border border-rule2 bg-paper2 px-3 py-1.5 text-[12px] text-ink2" aria-live="polite"
+              title={system ? `Transcrição: ${system.whisper_device} · vídeo: ${system.encoder}` : undefined}>
+              <span className={`h-2 w-2 rounded-full ${working ? 'bg-warn animate-pulse' : 'bg-ok'}`} aria-hidden="true" />
+              <span className="font-bold text-ink">{working ? `${working} agente${working > 1 ? 's' : ''} trabalhando` : `${agents.length} agentes prontos`}</span>
+              <span className="text-muted" aria-hidden="true">·</span>
+              <span className="text-muted">{queueText}</span>
+            </p>
+            <button type="button" onClick={() => pickTheme(theme === 'nova' ? 'classic' : 'nova')}
+              aria-label={theme === 'nova' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} title={theme === 'nova' ? 'Tema escuro' : 'Tema claro'}
+              className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
+              {theme === 'nova' ? <Moon size={16} aria-hidden="true" /> : <Sun size={16} aria-hidden="true" />}
+            </button>
           </div>
         </div>
       </header>
 
       <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
-        <aside className="space-y-4 lg:sticky lg:top-[124px]">
+        <aside className="space-y-4 lg:sticky lg:top-[72px]">
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
             cancelling={cancelling} onStartFile={start} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
-          <ConsolePanel lines={consoleLines} roles={roles} host={window.location.host} />
+          <ConsolePanel lines={consoleLines} roles={roles} />
         </aside>
 
         <main className="min-w-0 space-y-4">
