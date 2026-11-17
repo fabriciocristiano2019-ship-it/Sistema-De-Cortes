@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from gaming import profiles
 
 MAX_CANDIDATES = 12
+MAX_POOL = 36
 FRAMES_PER_CANDIDATE = 3
 FRAME_WIDTH = 512
 MAX_SHIFT = 12.0          # seconds Gemini may move a cut point
@@ -128,9 +129,35 @@ def _frames(video_path, times):
     return out
 
 
-def build_candidates(pool, transcript):
+def pool_size(settings):
+    """Candidates the AI sees: 12 by default, more when more cuts are asked
+    (2 spare per cut). Cost grows with the requested count, not the video."""
+    want = int((settings or {}).get("max_clips") or 8)
+    return max(MAX_CANDIDATES, min(MAX_POOL, want + 2 * max(1, want // 5)))
+
+
+def top_up(picked, pool, max_clips):
+    """Fill the AI's picks up to max_clips with the best remaining pool clips
+    that do not overlap (used when the panel asks for an exact count)."""
+    out = list(picked)
+    for c in sorted(pool, key=lambda x: -float(x.get("relevance_score") or 0)):
+        if len(out) >= max_clips:
+            break
+        if any(min(c["end"], o["end"]) - max(c["start"], o["start"]) > 0 for o in out):
+            continue
+        extra = dict(c)
+        extra["evidence"] = ["Trecho para completar a quantidade pedida"] + [
+            e for e in (c.get("evidence") or []) if "completar" not in e]
+        extra["filler"] = True
+        extra["moment_label"] = "Trecho extra"
+        out.append(extra)
+    out.sort(key=lambda c: c["start"])
+    return out
+
+
+def build_candidates(pool, transcript, limit=MAX_CANDIDATES):
     cands = []
-    for i, c in enumerate(pool[:MAX_CANDIDATES]):
+    for i, c in enumerate(pool[:limit]):
         start, end = float(c["start"]), float(c["end"])
         peak = float(c.get("peak_time") or (start + end) / 2)
         cands.append({
@@ -237,7 +264,7 @@ def judge(video_path, transcript, duration, game, settings, pool, api_key=None, 
         if client is None:
             from google import genai
             client = genai.Client(api_key=api_key)
-        cands = build_candidates(pool, transcript)
+        cands = build_candidates(pool, transcript, pool_size(settings))
         cat = profiles.category(game.get("category") or "other")
         prompt = PROMPT.format(
             game=game.get("name") or "Gameplay", category=cat["label"],

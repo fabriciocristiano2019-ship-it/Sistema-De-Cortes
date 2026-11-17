@@ -216,3 +216,30 @@ def test_unknown_duration_fails_safely():
     out = moments.detect_moments("/nonexistent/file.mp4", None, 0, {}, {}, log=lambda *_: None,
                                  features=quiet_features())
     assert out["shorts"] == [] and "error" in out["analysis"]
+
+
+# --- "Quantidade de cortes": fill up to the requested count ---------------- #
+
+def test_fill_delivers_the_requested_count_marking_the_extras():
+    # 300 s, one real event: without fill only 1 clip; with fill the 8 asked.
+    feats = add_event(quiet_features(), 150.0)
+    plain = run(feats, clip_seconds=30, max_clips=8)
+    assert len(plain["shorts"]) == 1
+    full = run(add_event(quiet_features(), 150.0), clip_seconds=30, max_clips=8, fill=True)
+    clips = sorted(full["shorts"], key=lambda c: c["start"])
+    assert len(clips) == 8
+    for a, b in zip(clips, clips[1:]):
+        assert a["end"] <= b["start"] + 0.01, "extras never overlap"
+    real = [c for c in clips if not c["filler"]]
+    extras = [c for c in clips if c["filler"]]
+    assert len(real) == 1 and real[0]["start"] < 150 < real[0]["end"]
+    assert all("completar" in c["evidence"][0] and c["moment_label"] == "Trecho extra" for c in extras), \
+        "extras are labelled honestly"
+    assert full["analysis"]["filled"] == 7
+
+
+def test_fill_never_exceeds_what_the_video_holds():
+    out = run(quiet_features(), clip_seconds=60, max_clips=30, fill=True)
+    assert 1 <= len(out["shorts"]) <= int(DURATION // 60) + 1
+    total = sum(c["end"] - c["start"] for c in out["shorts"])
+    assert total <= DURATION + 0.01

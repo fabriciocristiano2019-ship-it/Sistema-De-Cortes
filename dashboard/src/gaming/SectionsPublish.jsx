@@ -201,6 +201,49 @@ export function HistorySection({ dash, pubs, clips }) {
 /* 12 · Configurações ------------------------------------------------------ */
 const gb = (b) => `${(b / 1073741824).toFixed(1)} GB`;
 
+// Cookies of the person's own YouTube account, for when YouTube asks the
+// cloud server to sign in. Saved on the server (owner-only file, outside the
+// repo); the content never comes back to the browser.
+function YoutubeCookiesCard() {
+  const [st, setSt] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  useEffect(() => { apiJson('/api/gaming/youtube-cookies').then(setSt).catch(() => {}); }, []);
+  const send = async (method, body) => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await apiJson('/api/gaming/youtube-cookies', { method, headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+      setSt(r); setText('');
+      setMsg({ tone: 'ok', text: method === 'DELETE' ? 'Cookies apagados.' : `Cookies salvos (${r.cookies} do YouTube). Tente o link de novo.` });
+    } catch (e) { setMsg({ tone: 'error', text: errText(e) }); }
+    setBusy(false);
+  };
+  return (
+    <section className="card p-5 mb-5" aria-labelledby="yt-cookies-h">
+      <h2 id="yt-cookies-h" className="text-sm text-ink mb-1">Cookies do YouTube (para links que dão erro)</h2>
+      <p className="text-xs text-muted mb-3 max-w-3xl">
+        O YouTube costuma pedir login a servidores na nuvem ("confirme que não é um robô"). Com os cookies da sua conta o download funciona.
+        No navegador do PC, exporte os cookies de <code>youtube.com</code> no formato Netscape (<code>cookies.txt</code>) e cole o arquivo inteiro aqui.
+        Ficam num arquivo protegido do servidor, fora do repositório, e não voltam para a tela. Prefira uma conta secundária.
+      </p>
+      <p className="text-xs mb-3" aria-live="polite">
+        Situação: {st == null ? '…' : st.configured
+          ? <span className="text-ok">configurados ({st.source === 'secret' ? 'Secret do Codespaces' : `${st.cookies} cookies, salvos em ${(st.saved_at || '').replace('T', ' ')}`})</span>
+          : <span className="text-muted">não configurados</span>}
+      </p>
+      <label htmlFor="yt-cookies" className="sr-only">Conteúdo do cookies.txt</label>
+      <textarea id="yt-cookies" rows={4} spellCheck={false} autoComplete="off" className="input-field w-full font-mono text-xs"
+        placeholder="# Netscape HTTP Cookie File ..." value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="btn-primary" disabled={busy || !text.trim()} onClick={() => send('PUT', { cookies: text })}>Salvar cookies</button>
+        {st?.source === 'painel' && <button type="button" className="btn-ghost" disabled={busy} onClick={() => send('DELETE')}>Apagar cookies</button>}
+      </div>
+      {msg && <div className="mt-3"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
+    </section>
+  );
+}
+
 export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys }) {
   const [sys, setSys] = useState(null);
   const [err, setErr] = useState('');
@@ -211,7 +254,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
   const yes = (b, okText, noText) => <span className={b ? 'text-ok' : 'text-muted'}>{b ? okText : noText}</span>;
   return (
     <div>
-      <Header ord="12 · CONFIGURAÇÕES" title="Configurações" hint="As chaves ficam no arquivo .env do servidor ou só neste navegador; nunca são gravadas nos vídeos nem nos registros.">
+      <Header ord="12 · CHAVES E INTEGRAÇÕES" title="Chaves e Integrações" hint="As chaves ficam no arquivo .env do servidor ou só neste navegador; nunca são gravadas nos vídeos nem nos registros.">
       </Header>
       {err && <div className="mb-4"><Notice tone="error">{err}</Notice></div>}
       {keys && (
@@ -235,6 +278,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
         </section>
       )}
       {keys && <PostizCard />}
+      {keys && <YoutubeCookiesCard />}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card p-5">
           <h2 className="text-sm text-ink mb-1">Processamento local (gratuito)</h2>

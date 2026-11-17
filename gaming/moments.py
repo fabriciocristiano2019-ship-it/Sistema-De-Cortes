@@ -266,6 +266,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     max_clips = int(settings.get("max_clips") or 8)
     min_score = float(settings.get("min_score") if settings.get("min_score") is not None else DEFAULT_MIN_SCORE)
     allowed = set(settings.get("moments") or [])
+    fill = bool(settings.get("fill"))
     duration = float(duration or signals.media_duration(video_path) or 0)
     if duration <= 0:
         return {"shorts": [], "analysis": {"error": "duração do vídeo desconhecida"}}
@@ -322,88 +323,95 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     shorts = []
     rejected_low = 0
     rejected_single = 0
-    for idx in order:
-        if len(shorts) >= max_clips:
-            break
-        peak_t = idx * STEP
-        if any(abs(peak_t - t) < clip_len * 0.8 for t in taken):
-            continue
-        val = float(combined[idx])
-        if evidence_max[idx] < EVIDENCE_NORM:
-            continue
-        # One lone signal is not a moment: a sentence starting after silence is
-        # an "audio rise" too, and a scene cut is "motion" and "flash" at once.
-        # See has_evidence for what does count.
-        strong = [k for k in feats if k != "cut" and feats[k][idx] >= EVIDENCE_NORM]
-        lo, hi = max(0, idx - spread), min(n, idx + spread + 1)
-        sustained = int(np.sum(raw["motion"][lo:hi] >= EVIDENCE_NORM)) >= 2
-        if not has_evidence(strong, audio_usable, sustained, float(feats["audio_peak"][idx])):
-            rejected_single += 1
-            continue
-        # Category: transcript words near the peak win; else the dominant signal.
-        moment, moment_score, quote = None, 0.0, None
-        if len(hit_times):
-            near = np.where((hit_times >= peak_t - 6) & (hit_times <= peak_t + 4))[0]
-            # Every nearby cue votes: "meu deus, que susto, socorro" is three
-            # votes for a scare and outweighs one stray "não acredito".
-            votes, quotes = {}, {}
-            for j in near:
-                _, m, txt = hits[j]
-                votes[m] = votes.get(m, 0.0) + SPECIFICITY.get(m, 0.5)
-                quotes.setdefault(m, txt)
-            for m, v in votes.items():
-                s = min(v, 2.5) + (0.3 if m in boost else 0)
-                if s > moment_score:
-                    moment, moment_score, quote = m, s, quotes[m]
-        contrib = {k: weights.get(k, 0) * feats[k][idx] for k in feats}
-        dominant = max((k for k in contrib if k != "keyword"), key=lambda k: contrib[k])
-        if moment is None:
-            moment = profiles.SIGNAL_MOMENT.get(dominant, "reacao")
-        if moment in boost:
-            val += 0.05
-        score = int(round(min(100, val / 0.5 * 100)))
-        if score < min_score:
-            rejected_low += 1
-            continue
-        if allowed and moment not in allowed:
-            continue
+    # Pass 1 keeps only moments with real evidence. With fill on (the panel's
+    # "completar a quantidade"), pass 2 tops up to max_clips with the best
+    # remaining non-overlapping windows, labelled as such, never as peaks.
+    for relaxed in ((False, True) if fill else (False,)):
+        for idx in order:
+            if len(shorts) >= max_clips:
+                break
+            peak_t = idx * STEP
+            if any(abs(peak_t - t) < clip_len * 0.8 for t in taken):
+                continue
+            val = float(combined[idx])
+            if not relaxed and evidence_max[idx] < EVIDENCE_NORM:
+                continue
+            # One lone signal is not a moment: a sentence starting after silence is
+            # an "audio rise" too, and a scene cut is "motion" and "flash" at once.
+            # See has_evidence for what does count.
+            strong = [k for k in feats if k != "cut" and feats[k][idx] >= EVIDENCE_NORM]
+            lo, hi = max(0, idx - spread), min(n, idx + spread + 1)
+            sustained = int(np.sum(raw["motion"][lo:hi] >= EVIDENCE_NORM)) >= 2
+            if not relaxed and not has_evidence(strong, audio_usable, sustained, float(feats["audio_peak"][idx])):
+                rejected_single += 1
+                continue
+            # Category: transcript words near the peak win; else the dominant signal.
+            moment, moment_score, quote = None, 0.0, None
+            if len(hit_times):
+                near = np.where((hit_times >= peak_t - 6) & (hit_times <= peak_t + 4))[0]
+                # Every nearby cue votes: "meu deus, que susto, socorro" is three
+                # votes for a scare and outweighs one stray "não acredito".
+                votes, quotes = {}, {}
+                for j in near:
+                    _, m, txt = hits[j]
+                    votes[m] = votes.get(m, 0.0) + SPECIFICITY.get(m, 0.5)
+                    quotes.setdefault(m, txt)
+                for m, v in votes.items():
+                    s = min(v, 2.5) + (0.3 if m in boost else 0)
+                    if s > moment_score:
+                        moment, moment_score, quote = m, s, quotes[m]
+            contrib = {k: weights.get(k, 0) * feats[k][idx] for k in feats}
+            dominant = max((k for k in contrib if k != "keyword"), key=lambda k: contrib[k])
+            if moment is None:
+                moment = profiles.SIGNAL_MOMENT.get(dominant, "reacao")
+            if moment in boost:
+                val += 0.05
+            score = int(round(min(100, val / 0.5 * 100)))
+            if not relaxed and score < min_score:
+                rejected_low += 1
+                continue
+            if not relaxed and allowed and moment not in allowed:
+                continue
 
-        start = peak_t - clip_len * CONTEXT_BEFORE
-        start = max(0.0, min(start, duration - clip_len))
-        start = max(0.0, _snap(start, words, seg_starts, start - 2.0, min(start + 1.5, peak_t - 1.0), "start"))
-        end = min(duration, start + clip_len)
-        end = _snap(end, words, seg_starts, max(peak_t + 1.0, end - 1.5), min(duration, end + 2.0), "end")
-        end = min(duration, max(end, start + min(clip_len, 5.0)))
-        if any(not (end <= s["start"] or start >= s["end"]) for s in shorts):
-            continue
+            start = peak_t - clip_len * CONTEXT_BEFORE
+            start = max(0.0, min(start, duration - clip_len))
+            start = max(0.0, _snap(start, words, seg_starts, start - 2.0, min(start + 1.5, peak_t - 1.0), "start"))
+            end = min(duration, start + clip_len)
+            end = _snap(end, words, seg_starts, max(peak_t + 1.0, end - 1.5), min(duration, end + 2.0), "end")
+            end = min(duration, max(end, start + min(clip_len, 5.0)))
+            if any(not (end <= s["start"] or start >= s["end"]) for s in shorts):
+                continue
 
-        evidence = []
-        for k, v in sorted(contrib.items(), key=lambda kv: -kv[1]):
-            if feats[k][idx] >= EVIDENCE_NORM and len(evidence) < 4:
-                evidence.append(SIGNAL_LABELS[k] + (f': "{quote}"' if k == "keyword" and quote else ""))
-        excerpt = _excerpt(words, start, end)
-        copy = build_copy(game.get("name"), moment, excerpt, f"{game.get('id')}-{start:.1f}")
-        clip = {
-            "start": round(float(start), 3),
-            "end": round(float(end), 3),
-            "peak_time": round(float(peak_t), 2),
-            "start_timecode": fmt_ts(start),
-            "end_timecode": fmt_ts(end),
-            "predicted_score": score,
-            "relevance_score": score,
-            "moment_category": moment,
-            "moment_label": profiles.MOMENTS.get(moment, {}).get("label", moment),
-            "evidence": evidence,
-            "transcript_excerpt": excerpt,
-            "game_id": game.get("id"),
-            "game_name": game.get("name"),
-            "game_category": cat_id,
-            "analysis_engine": "local",
-            "approved": None,
-        }
-        clip.update(copy)
-        shorts.append(clip)
-        taken.append(peak_t)
+            evidence = []
+            for k, v in sorted(contrib.items(), key=lambda kv: -kv[1]):
+                if feats[k][idx] >= EVIDENCE_NORM and len(evidence) < 4:
+                    evidence.append(SIGNAL_LABELS[k] + (f': "{quote}"' if k == "keyword" and quote else ""))
+            if relaxed:
+                evidence.insert(0, "Trecho para completar a quantidade pedida (sem pico forte)")
+            excerpt = _excerpt(words, start, end)
+            copy = build_copy(game.get("name"), moment, excerpt, f"{game.get('id')}-{start:.1f}")
+            clip = {
+                "start": round(float(start), 3),
+                "end": round(float(end), 3),
+                "peak_time": round(float(peak_t), 2),
+                "start_timecode": fmt_ts(start),
+                "end_timecode": fmt_ts(end),
+                "predicted_score": score,
+                "relevance_score": score,
+                "moment_category": moment,
+                "moment_label": "Trecho extra" if relaxed else profiles.MOMENTS.get(moment, {}).get("label", moment),
+                "evidence": evidence,
+                "transcript_excerpt": excerpt,
+                "game_id": game.get("id"),
+                "game_name": game.get("name"),
+                "game_category": cat_id,
+                "analysis_engine": "local",
+                "approved": None,
+                "filler": relaxed,
+            }
+            clip.update(copy)
+            shorts.append(clip)
+            taken.append(peak_t)
 
     shorts.sort(key=lambda c: c["start"])
     analysis = {
@@ -418,6 +426,9 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         "weights": weights,
         "clip_seconds": clip_len,
         "min_score": min_score,
+        "filled": sum(1 for c in shorts if c.get("filler")),
     }
-    log(f"🎮 {len(shorts)} momento(s) com evidência encontrados.")
+    n_fill = analysis["filled"]
+    log(f"🎮 {len(shorts) - n_fill} momento(s) com evidência encontrados."
+        + (f" {n_fill} trecho(s) extra(s) para completar os {max_clips} pedidos." if n_fill else ""))
     return {"shorts": shorts, "analysis": analysis}

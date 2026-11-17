@@ -7,12 +7,28 @@
 // context is created on the first click/keypress; until then nothing plays.
 
 const KEY = 'os_sede_som';
+const VOL_KEY = 'os_sede_volume';
 let ctx = null;
 let master = null;
 let hum = null;
 
 export function somLigado() {
   try { return localStorage.getItem(KEY) !== '0'; } catch (_) { return true; }
+}
+
+// Volume of the agents' sounds, 0-100 (Settings panel). 50 = the original level.
+export function volume() {
+  try {
+    const v = Number(localStorage.getItem(VOL_KEY));
+    return localStorage.getItem(VOL_KEY) !== null && Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 50;
+  } catch (_) { return 50; }
+}
+
+export function setVolume(v) {
+  const n = Math.min(100, Math.max(0, Math.round(Number(v) || 0)));
+  try { localStorage.setItem(VOL_KEY, String(n)); } catch (_) { /* private mode */ }
+  if (master && ctx) master.gain.setTargetAtTime(n / 100, ctx.currentTime, 0.02);
+  return n;
 }
 
 export function setSom(on) {
@@ -28,7 +44,7 @@ function audio() {
     try {
       ctx = new AC();
       master = ctx.createGain();
-      master.gain.value = 0.5;
+      master.gain.value = volume() / 100;
       master.connect(ctx.destination);
     } catch (_) { return null; }
   }

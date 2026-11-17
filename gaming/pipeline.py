@@ -68,7 +68,8 @@ _STRATEGY_PT = {
 # (agent, regex, PT-BR text | callable(match) | None to keep the original line, level)
 # First match wins. ``\g<name>`` groups are substituted into the text.
 _YT_BOT = ("O YouTube bloqueou o download neste servidor (pede login para provar que não é robô). "
-           "Envie o arquivo do vídeo em vez do link, ou configure os cookies do YouTube (guia LEIA-ME).")
+           "Cole os cookies da sua conta em Módulos → 12. Chaves e Integrações → Cookies do YouTube "
+           "e tente de novo, ou envie o arquivo do vídeo em vez do link.")
 
 _RULES = [
     # Download failures first: the yt-dlp error line also matches the generic rules below.

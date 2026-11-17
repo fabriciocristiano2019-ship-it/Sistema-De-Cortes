@@ -6,6 +6,8 @@ import { apiJson } from '../lib/api';
 import { errText, fmtClock, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
 import { LOOK } from './agents';
 
+const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
+
 const ACTIVE = ['queued', 'processing'];
 
 const LAYOUT_HINT = {
@@ -109,7 +111,22 @@ export function OrchestratorPanel({
 
       {!active && <p className="mb-3 text-[10.5px] leading-snug text-muted">{LAYOUT_HINT[form.layout] || LAYOUT_HINT.auto}</p>}
 
-      <p className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5"><span className="sede-step">4</span>Extras</p>
+      <div className="mb-3">
+        <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-qtd"><span className="sede-step">4</span>Quantidade de cortes</label>
+        <select id="sede-qtd" className="sede-select w-full" disabled={active} value={String(form.max_clips)}
+          onChange={(e) => set('max_clips', Number(e.target.value))}>
+          {CLIP_COUNTS.map((n) => <option key={n} value={n}>{n === 1 ? '1 corte' : `${n} cortes de uma vez`}</option>)}
+        </select>
+        <label className="mt-2 flex items-start gap-1.5 pl-[26px] text-xs text-ink2">
+          <input type="checkbox" className="mt-px" checked={form.fill !== false} disabled={active} onChange={(e) => set('fill', e.target.checked)} />
+          <span>Entregar sempre essa quantidade (se faltarem momentos fortes, usa os melhores trechos que sobrarem)</span>
+        </label>
+        {!active && <p className="mt-1 pl-[26px] text-[10.5px] leading-snug text-muted">
+          Os cortes não se repetem: {Number(form.max_clips)} cortes de {Number(form.clip_seconds) || 30} s precisam de um vídeo com pelo menos {Math.ceil(Number(form.max_clips) * (Number(form.clip_seconds) || 30) / 60)} min. Um vídeo de 1 hora dá conta.
+        </p>}
+      </div>
+
+      <p className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5"><span className="sede-step">5</span>Extras</p>
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 pl-[26px] text-xs text-ink2">
         <label className="flex items-center gap-1.5">
           <input type="checkbox" className="accent-[var(--color-accent)]" checked={!!form.captions} disabled={active} onChange={(e) => set('captions', e.target.checked)} />

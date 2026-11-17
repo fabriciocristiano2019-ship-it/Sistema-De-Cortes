@@ -48,7 +48,7 @@ def _stub_probe(monkeypatch, duration, max_height=1080):
 
 def test_short_url_source_is_rejected(dirs, monkeypatch):
     _stub_probe(monkeypatch, duration=24)
-    resp = _post_process({"url": "https://www.youtube.com/watch?v=short", "acknowledged": True})
+    resp = _post_process({"url": "https://www.youtube.com/watch?v=shortVideo1", "acknowledged": True})
     assert resp.status_code == 400
     assert "24s" in resp.json()["detail"]
 
@@ -56,28 +56,28 @@ def test_short_url_source_is_rejected(dirs, monkeypatch):
 def test_short_url_rejected_even_with_force_low_quality(dirs, monkeypatch):
     """force_low_quality skips the quality confirm, not the short-source gate."""
     _stub_probe(monkeypatch, duration=24, max_height=360)
-    resp = _post_process({"url": "https://www.youtube.com/watch?v=short",
+    resp = _post_process({"url": "https://www.youtube.com/watch?v=shortVideo1",
                           "acknowledged": True, "force_low_quality": True})
     assert resp.status_code == 400
 
 
 def test_unknown_duration_fails_open(dirs, monkeypatch):
     _stub_probe(monkeypatch, duration=0)
-    resp = _post_process({"url": "https://www.youtube.com/watch?v=ok", "acknowledged": True})
+    resp = _post_process({"url": "https://www.youtube.com/watch?v=okVideo0001", "acknowledged": True})
     assert resp.status_code == 200
     assert "job_id" in resp.json()
 
 
 def test_long_url_source_passes(dirs, monkeypatch):
     _stub_probe(monkeypatch, duration=600)
-    resp = _post_process({"url": "https://www.youtube.com/watch?v=ok", "acknowledged": True})
+    resp = _post_process({"url": "https://www.youtube.com/watch?v=okVideo0001", "acknowledged": True})
     assert resp.status_code == 200
 
 
 def test_gate_disabled_lets_short_sources_through(dirs, monkeypatch):
     _stub_probe(monkeypatch, duration=24)
     monkeypatch.setattr(app_module, "MIN_SOURCE_SECONDS", 0)
-    resp = _post_process({"url": "https://www.youtube.com/watch?v=short", "acknowledged": True})
+    resp = _post_process({"url": "https://www.youtube.com/watch?v=shortVideo1", "acknowledged": True})
     assert resp.status_code == 200
 
 

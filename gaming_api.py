@@ -127,7 +127,9 @@ def parse_gaming(raw):
         "fallback_category": fallback_category,
         "fallback_name": str(raw.get("game_name") or "Gameplay")[:80],
         "settings": {"clip_seconds": clip_seconds, "max_clips": max_clips,
-                     "min_score": min_score, "moments": moments},
+                     "min_score": min_score, "moments": moments,
+                     # True = always deliver max_clips when the video is long enough.
+                     "fill": raw.get("fill") is True},
         "zoom": bool(raw.get("zoom", True)),
         "inset_box": inset_box,
     }
@@ -661,6 +663,35 @@ async def postiz_check(request: Request):
     return {"configured": True, "ok": True, "accounts": [
         {"network": str(i.get("identifier") or i.get("providerIdentifier") or ""), "name": i.get("name"),
          "active": not i.get("disabled") and not i.get("refreshNeeded")} for i in items]}
+
+
+@router.get("/api/gaming/youtube-cookies")
+async def yt_cookies_status():
+    """Whether YouTube cookies exist (never their content)."""
+    import youtube_cookies
+    return youtube_cookies.status()
+
+
+@router.put("/api/gaming/youtube-cookies")
+async def yt_cookies_save(request: Request):
+    import youtube_cookies
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Envie {\"cookies\": \"conteúdo do cookies.txt\"}")
+    text = body.get("cookies") if isinstance(body, dict) else None
+    if isinstance(text, str) and len(text) > youtube_cookies.MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Arquivo grande demais (máximo 1 MB).")
+    try:
+        return await asyncio.to_thread(youtube_cookies.save, text)
+    except youtube_cookies.CookieError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/api/gaming/youtube-cookies")
+async def yt_cookies_delete():
+    import youtube_cookies
+    return await asyncio.to_thread(youtube_cookies.remove)
 
 
 @router.post("/api/gaming/publications/{pub_id}/approve")

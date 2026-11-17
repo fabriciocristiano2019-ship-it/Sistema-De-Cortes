@@ -138,3 +138,21 @@ def test_whisper_hints_from_env(monkeypatch):
 def test_error_messages_in_portuguese():
     assert "chave do Gemini inválida" in gj.explain_error(RuntimeError("400 INVALID_ARGUMENT API key not valid."))
     assert "cota" in gj.explain_error(RuntimeError("429 RESOURCE_EXHAUSTED"))
+
+
+def test_pool_grows_with_the_requested_count():
+    from gaming import gemini_judge as gj
+    assert gj.pool_size({"max_clips": 8}) == gj.MAX_CANDIDATES
+    assert gj.pool_size({"max_clips": 10}) >= 12 and gj.pool_size({"max_clips": 20}) > 20
+    assert gj.pool_size({"max_clips": 30}) <= gj.MAX_POOL
+
+
+def test_top_up_fills_without_overlap():
+    from gaming import gemini_judge as gj
+    picked = [{"start": 0.0, "end": 30.0, "relevance_score": 90}]
+    pool = [{"start": s, "end": s + 30.0, "relevance_score": 50 - s / 100, "evidence": ["Grito"]}
+            for s in (10.0, 40.0, 80.0, 120.0)]
+    out = gj.top_up(picked, pool, 3)
+    assert len(out) == 3 and out[0]["start"] == 0.0
+    assert all(a["end"] <= b["start"] for a, b in zip(out, out[1:]))
+    assert out[1]["filler"] and "completar" in out[1]["evidence"][0]

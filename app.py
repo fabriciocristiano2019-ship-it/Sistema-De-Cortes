@@ -2216,6 +2216,15 @@ async def process_endpoint(
     if not url and not file and not thumb_session and not upload_slot:
         raise HTTPException(status_code=400, detail="Must provide URL, File or upload_id")
 
+    # A YouTube link becomes the one video it points at; channel/playlist links
+    # get a clear answer now instead of a failed job later.
+    if url:
+        from youtube_links import LinkError, normalize_video_url
+        try:
+            url = normalize_video_url(url)
+        except LinkError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
     # Completion callback: reject unsafe targets NOW (clear 400) — delivery
     # re-validates anyway, but failing at submit is the debuggable behavior.
     if webhook_url:

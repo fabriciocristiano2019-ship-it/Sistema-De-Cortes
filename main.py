@@ -712,6 +712,10 @@ def download_youtube_video(url, output_dir="."):
     # SSRF guard: block non-http(s) schemes and private/loopback/metadata hosts
     # before handing the URL to yt-dlp.
     from security_utils import assert_public_url
+    # One video, canonical link: a pasted channel link with &list=... would
+    # otherwise make yt-dlp try the whole playlist (youtube_links).
+    from youtube_links import normalize_video_url
+    url = normalize_video_url(url)
     assert_public_url(url)
     # Throwaway hosts agents fall back to (tmpfiles.org) hand out short-lived
     # signed links; refresh through the host's page so yt-dlp gets the file.
@@ -742,8 +746,11 @@ def download_youtube_video(url, output_dir="."):
             print(f"⚠️ Failed to write cookies file: {e}")
             cookies_path = None
     else:
-        cookies_path = None
-        print("⚠️ YOUTUBE_COOKIES env var not found.")
+        # Cookies saved from the panel (Chaves e Integrações), if any.
+        import youtube_cookies
+        cookies_path = youtube_cookies.saved_file()
+        print("🍪 Using YouTube cookies saved in the panel." if cookies_path
+              else "⚠️ No YouTube cookies (YOUTUBE_COOKIES secret or panel).")
     
     # Optional HTTP proxy. Set PROXY_URL to route downloads through it; unset
     # (self-host) goes direct as before.
@@ -813,6 +820,7 @@ def download_youtube_video(url, output_dir="."):
         return {
             'quiet': False, 'verbose': True, 'no_warnings': False,
             'cookiefile': cookies_path if cookies_path else None,
+            'noplaylist': True,
             'proxy': proxy, 'socket_timeout': 30, 'retries': 10, 'fragment_retries': 10,
             'nocheckcertificate': True, 'cachedir': False,
             'extractor_args': extractor_args,
@@ -1749,12 +1757,17 @@ def gaming_detect(cfg, input_video, transcript, duration):
     # best and writes the copy. Any failure falls back to the local selection.
     if use_gemini and transcript is not None:
         from gaming import gemini_judge
-        pool_settings = {**settings, "max_clips": gemini_judge.MAX_CANDIDATES,
+        # Enough candidates for the requested count (10 cuts need more than 12
+        # options to choose from); the pool fills itself when evidence runs out.
+        pool_size = gemini_judge.pool_size(settings)
+        pool_settings = {**settings, "max_clips": pool_size,
                          "min_score": min(15.0, float(settings.get("min_score") or 30))}
         print("🎮 Motor local de momentos (áudio + visual + fala) propondo candidatos para a IA.")
         pool = detect_moments(input_video, transcript, duration, game, pool_settings)
         pool_shorts = sorted(pool.get("shorts") or [], key=lambda c: -float(c.get("relevance_score") or 0))
         picked = gemini_judge.judge(input_video, transcript, duration, game, settings, pool_shorts)
+        if picked and settings.get("fill"):
+            picked = gemini_judge.top_up(picked, pool_shorts, int(settings.get("max_clips") or 8))
         if picked:
             for c in picked:
                 c["start_timecode"], c["end_timecode"] = fmt_ts(c["start"]), fmt_ts(c["end"])
@@ -1762,7 +1775,8 @@ def gaming_detect(cfg, input_video, transcript, duration):
         else:
             local_max = int(settings.get("max_clips") or 8)
             local_min = float(settings.get("min_score") if settings.get("min_score") is not None else 30)
-            keep = [c for c in pool_shorts if float(c.get("relevance_score") or 0) >= local_min][:local_max]
+            keep = ([c for c in pool_shorts if float(c.get("relevance_score") or 0) >= local_min
+                     or settings.get("fill")][:local_max])
             clips_data = {"shorts": sorted(keep, key=lambda c: c["start"]), "analysis": pool.get("analysis")}
         clips_data["gaming"] = {
             "game_id": game.get("id"), "game_name": game.get("name"), "category": game.get("category"),

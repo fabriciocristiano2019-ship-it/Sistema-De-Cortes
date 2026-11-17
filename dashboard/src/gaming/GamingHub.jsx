@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, MoreVertical, Scissors, Settings,
+  BarChart3, CalendarClock, KeyRound, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, MoreVertical, Scissors, Settings,
   Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
@@ -9,6 +9,8 @@ import { ModuleCtx } from './ctx';
 import { enviarVideo, mensagemHttp } from './envio';
 import { Notice } from './ui';
 import SedeMap from './SedeMap';
+import Configuracoes from './Configuracoes';
+import { NOME_KEY, nomeSalvo } from './nome';
 import JarvisOrb from './JarvisOrb';
 import { iniciarZumbido, pararZumbido, setSom, somConcluido, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
@@ -29,7 +31,7 @@ const MODULES = [
   { id: 'social', label: 'Redes Sociais', icon: Share2 },
   { id: 'schedule', label: 'Agendamentos', icon: CalendarClock },
   { id: 'history', label: 'Histórico & Registros', icon: History },
-  { id: 'config', label: 'Configurações (.env)', icon: Settings },
+  { id: 'config', label: 'Chaves e Integrações', icon: KeyRound },
 ];
 const MODULE_HINT = 'Módulo integrado ao fluxo local OpenShorts Gaming Edition (Windows + Docker Desktop).';
 
@@ -41,7 +43,7 @@ const VIEWS = [
 
 const DEFAULT_FORM = {
   file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'auto',
-  engine: 'auto', max_clips: 8, min_score: 30, captions: true, zoom: true, auto_hook: true,
+  engine: 'auto', max_clips: 10, fill: true, min_score: 30, captions: true, zoom: true, auto_hook: true,
   acknowledged: false,
 };
 
@@ -57,7 +59,7 @@ const stored = (k, fallback, allowed) => {
 // the twelve modules reuse the same endpoints as the rest of the dashboard.
 export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
   const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
-  const [view, setView] = useState(() => stored('os_sede_view', 'hq', VIEWS.map((v) => v.id)));
+  const [view, setView] = useState(() => stored('os_sede_view', 'hq', [...VIEWS.map((v) => v.id), 'settings']));
   const [section, setSection] = useState(() => stored('os_gaming_section', 'dashboard', MODULES.map((m) => m.id)));
   const [meta, setMeta] = useState(null);
   const [system, setSystem] = useState(null);
@@ -155,7 +157,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       const gaming = {
         game_id: form.game_id, category: form.category, engine: form.engine, layout: form.layout,
         clip_seconds: Number(form.clip_seconds), max_clips: Number(form.max_clips),
-        min_score: Number(form.min_score), zoom: !!form.zoom,
+        min_score: Number(form.min_score), zoom: !!form.zoom, fill: form.fill !== false,
       };
       const headers = { 'Content-Type': 'application/json', ...(apiKey ? { 'X-Gemini-Key': apiKey } : {}) };
       const common = {
@@ -210,6 +212,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   // Sounds: react to real state changes of the tracked job (never on the
   // first snapshot, so reopening a finished job stays silent).
   const [som, setSomState] = useState(somLigado);
+  const [nome, setNome] = useState(nomeSalvo);
+  const pickNome = (n) => { setNome(n); try { localStorage.setItem(NOME_KEY, n); } catch (_) { /* private mode */ } };
+  const pickSom = (v) => { setSom(v); setSomState(v); };
+  useEffect(() => { document.title = nome; }, [nome]);
   const prevStates = useRef(null);
   const prevStatus = useRef(null);
   useEffect(() => {
@@ -327,8 +333,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
               <JarvisOrb size={40} busy={working > 0} />
             </span>
             <div className="min-w-0 leading-tight">
-              <h1 className="text-[15px] font-extrabold tracking-tight text-ink">OpenShorts <span className="text-brass">Gaming</span></h1>
-              <p className="truncate text-[11px] text-muted">Cortes automáticos de gameplay com 8 agentes de IA</p>
+              <h1 className="truncate text-[17px] font-extrabold tracking-tight text-ink">{nome}</h1>
             </div>
           </div>
           <nav aria-label="Áreas do painel" className="sede-seg order-3 w-full overflow-x-auto md:order-none md:w-auto">
@@ -342,7 +347,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
             <p className="flex items-center gap-2 rounded-full border border-rule2 bg-paper2 px-3 py-1.5 text-[12px] text-ink2" aria-live="polite"
               title={system ? `Transcrição: ${system.whisper_device} · vídeo: ${system.encoder}` : undefined}>
               <span className={`h-2 w-2 rounded-full ${working ? 'bg-warn animate-pulse' : 'bg-ok'}`} aria-hidden="true" />
-              <span className="font-bold text-ink">{working ? `${working} agente${working > 1 ? 's' : ''} trabalhando` : `${agents.length} agentes prontos`}</span>
+              <span className="font-bold text-ink">{working ? 'Trabalhando' : 'Pronto'}</span>
               <span className="text-muted" aria-hidden="true">·</span>
               <span className="text-muted">{queueText}</span>
             </p>
@@ -351,17 +356,17 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
               className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
               {som ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
             </button>
-            <button type="button" onClick={() => pickTheme(theme === 'nova' ? 'classic' : 'nova')}
-              aria-label={theme === 'nova' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} title={theme === 'nova' ? 'Tema escuro' : 'Tema claro'}
-              className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
-              {theme === 'nova' ? <Moon size={16} aria-hidden="true" /> : <Sun size={16} aria-hidden="true" />}
+            <button type="button" onClick={() => pickView('settings')} aria-label="Configurações: nome, tema, áudio, termos e privacidade"
+              aria-pressed={view === 'settings'} title="Configurações"
+              className={`grid h-9 w-9 place-items-center rounded-xl border text-ink2 hover:border-brass hover:text-ink ${view === 'settings' ? 'border-brass bg-brass/15 text-ink' : 'border-rule2 bg-paper2'}`}>
+              <Settings size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
       </header>
 
       <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
-        <aside className="space-y-4 lg:sticky lg:top-[72px]">
+        <aside className={`space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' ? 'hidden lg:block' : ''}`}>
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
             cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
@@ -409,6 +414,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           )}
 
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}
+          {view === 'settings' && (
+            <Configuracoes nome={nome} onNome={pickNome} theme={theme} onTheme={pickTheme} som={som} onSom={pickSom}
+              onAbrirChaves={() => go('config')} />
+          )}
         </main>
       </div>
 
