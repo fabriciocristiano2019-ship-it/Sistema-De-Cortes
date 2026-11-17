@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64" role="img" aria-label="Abrir sistema">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <radialGradient id="o" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e0fbff"/>
+      <stop offset="0.45" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#0b1a33" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="318" height="62" rx="16" fill="#071224"/>
+  <rect x="5" y="5" width="310" height="54" rx="13" fill="url(#g)"/>
+  <circle cx="38" cy="32" r="17" fill="#071224"/>
+  <circle cx="38" cy="32" r="13" fill="url(#o)"/>
+  <g stroke="#bff3ff" stroke-width="0.8" fill="none" opacity="0.9">
+    <circle cx="38" cy="32" r="9"/>
+    <ellipse cx="38" cy="32" rx="9" ry="3.6"/>
+    <ellipse cx="38" cy="32" rx="3.6" ry="9"/>
+  </g>
+  <text x="70" y="40" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="800" fill="#071224" letter-spacing="1.5">ABRIR SISTEMA</text>
+  <path d="M286 22 L298 32 L286 42" stroke="#071224" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

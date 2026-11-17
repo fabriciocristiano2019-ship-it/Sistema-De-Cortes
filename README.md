@@ -1,3 +1,27 @@
+<div align="center">
+
+# OpenShorts Gaming Edition
+
+Cortes automáticos de gameplay com 8 agentes de IA, em português.
+
+<a href="https://codespaces.new/fabriciocristiano2019-ship-it/CORTES?quickstart=1"><img src="assets/abrir-sistema.svg" alt="Abrir sistema" width="320"></a>
+
+</div>
+
+### Como abrir
+
+1. Clique no botão **Abrir sistema** acima.
+2. Na página que abrir, clique em **Create new codespace** (primeira vez) ou em **Resume** no codespace que já existe.
+3. Na primeira vez, espere a instalação (10 a 15 minutos). Nas próximas, ele abre o mesmo sistema já instalado.
+4. O painel abre numa aba do navegador. Se não abrir: aba **PORTAS** → porta **5173** → ícone do globo.
+
+Ao terminar, pare o codespace em [github.com/codespaces](https://github.com/codespaces) (**⋯ → Stop**) para não gastar as horas grátis.
+Guia completo: [`.devcontainer/LEIA-ME.md`](.devcontainer/LEIA-ME.md).
+
+---
+
+<sub>Abaixo, a documentação original do projeto base (mo3y/openshorts), em inglês.</sub>
+
 # OpenShorts.app
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
