@@ -49,3 +49,10 @@ skills-lock.json
 
 # Codespaces logs
 .logs/
+
+# graphify: share the map, not the machine-specific cache
+graphify-out/cache/
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_*.json
+!graphify-out/.graphify_labels.json
