@@ -35,6 +35,9 @@ login do GitHub: a porta é **privada**. Não mude para "Pública".
 
 ## Se algo der errado
 
+- **O painel não abre / aba PORTAS vazia:** no terminal, rode `bash .devcontainer/iniciar.sh`.
+  Ele liga tudo, espera ficar pronto e mostra o endereço do painel para clicar.
+
 - Registros: pasta `.logs/` (`servidor.log` e `painel.log`).
 - Religar tudo: no terminal, `bash .devcontainer/iniciar.sh`.
 - Reinstalar: no terminal, `bash .devcontainer/instalar.sh`.
