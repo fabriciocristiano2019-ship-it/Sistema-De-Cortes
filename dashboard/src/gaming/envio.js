@@ -1,0 +1,57 @@
+import { apiFetch } from '../lib/api';
+
+// Sends a video in small parts. GitHub Codespaces (and other proxies) refuse
+// a whole gameplay in one request with "413 Request Entity Too Large"; parts
+// of 8 MB always pass. Each part is retried a few times; the server ignores a
+// part it already has, so a retry never duplicates data.
+const PARTE = 8 * 1024 * 1024;
+
+export function mensagemHttp(status, text) {
+  let d = {};
+  try { d = JSON.parse(text); } catch { /* not JSON */ }
+  if (typeof d.detail === 'string') return d.detail;
+  if (status === 413) return 'O vídeo é grande demais para o servidor aceitar de uma vez.';
+  if (status === 502 || status === 503 || status === 504) return 'O servidor não respondeu (ele pode estar reiniciando). Tente de novo em alguns segundos.';
+  if (/^\s*</.test(text || '')) return `O servidor respondeu com erro ${status}.`;
+  return text || `Erro ${status}`;
+}
+
+async function pedir(path, opts) {
+  const res = await apiFetch(path, opts);
+  const text = await res.text();
+  if (!res.ok) {
+    const err = new Error(mensagemHttp(res.status, text));
+    err.status = res.status;
+    throw err;
+  }
+  return text ? JSON.parse(text) : {};
+}
+
+export async function enviarVideo(file, onProgresso = () => {}) {
+  const slot = await pedir('/api/uploads', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name }),
+  });
+  const id = slot.upload_id;
+  let offset = 0;
+  onProgresso(0);
+  while (offset < file.size) {
+    const fim = Math.min(file.size, offset + PARTE);
+    let tentativa = 0;
+    for (;;) {
+      try {
+        await pedir(`/api/uploads/${id}/parte?offset=${offset}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: file.slice(offset, fim),
+        });
+        break;
+      } catch (e) {
+        tentativa += 1;
+        if (tentativa >= 4 || (e.status && e.status < 500 && e.status !== 409)) throw e;
+        await new Promise((r) => setTimeout(r, 1500 * tentativa));
+      }
+    }
+    offset = fim;
+    onProgresso(Math.round((offset / file.size) * 100));
+  }
+  await pedir(`/api/uploads/${id}/concluir`, { method: 'POST' });
+  return id;
+}

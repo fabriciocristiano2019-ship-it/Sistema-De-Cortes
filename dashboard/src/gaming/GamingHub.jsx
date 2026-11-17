@@ -6,6 +6,7 @@ import {
 import { apiFetch, apiJson } from '../lib/api';
 import { errText, JOB_KEY } from './util';
 import { ModuleCtx } from './ctx';
+import { enviarVideo, mensagemHttp } from './envio';
 import { Notice } from './ui';
 import SedeMap from './SedeMap';
 import JarvisOrb from './JarvisOrb';
@@ -146,8 +147,9 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     return () => { stop = true; clearInterval(t); };
   }, [jobId, jobActive, loadClips, reloadAll]);
 
+  const [uploadPct, setUploadPct] = useState(null);
   const start = async (file) => {
-    setStarting(true); setStartError('');
+    setStarting(true); setStartError(''); setUploadPct(null);
     try {
       const f = file || form.file;
       const gaming = {
@@ -155,29 +157,24 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
         clip_seconds: Number(form.clip_seconds), max_clips: Number(form.max_clips),
         min_score: Number(form.min_score), zoom: !!form.zoom,
       };
-      const headers = apiKey ? { 'X-Gemini-Key': apiKey } : {};
-      let body;
+      const headers = { 'Content-Type': 'application/json', ...(apiKey ? { 'X-Gemini-Key': apiKey } : {}) };
+      const common = {
+        acknowledged: true, output_format: 'vertical', captions: form.captions,
+        auto_hook: form.auto_hook ? '1' : '0', force_low_quality: true, gaming,
+      };
+      let source;
       if (f) {
-        body = new FormData();
-        body.append('file', f);
-        body.append('acknowledged', 'true');
-        body.append('output_format', 'vertical');
-        body.append('captions', form.captions ? 'true' : 'false');
-        body.append('auto_hook', form.auto_hook ? '1' : '0');
-        body.append('force_low_quality', 'true');
-        body.append('gaming', JSON.stringify(gaming));
+        // In parts: one big request is refused by Codespaces ("413").
+        const uploadId = await enviarVideo(f, setUploadPct);
+        source = { upload_id: uploadId };
       } else {
-        headers['Content-Type'] = 'application/json';
-        body = JSON.stringify({
-          url: form.url.trim(), acknowledged: true, output_format: 'vertical',
-          captions: form.captions, auto_hook: form.auto_hook ? '1' : '0', force_low_quality: true, gaming,
-        });
+        source = { url: form.url.trim() };
       }
-      const res = await apiFetch('/api/process', { method: 'POST', headers, body });
+      const res = await apiFetch('/api/process', { method: 'POST', headers, body: JSON.stringify({ ...source, ...common }) });
       const text = await res.text();
       let d = {};
       try { d = JSON.parse(text); } catch { /* non-JSON error body */ }
-      if (!res.ok) throw new Error(typeof d.detail === 'string' ? d.detail : text || `Erro ${res.status}`);
+      if (!res.ok) throw new Error(mensagemHttp(res.status, text));
       localStorage.setItem(JOB_KEY, d.job_id);
       lastReady.current = 0;
       watching.current = true;
@@ -185,7 +182,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       setJob({ id: d.job_id, status: 'queued', snap: null });
       setForm((p) => ({ ...p, file: null, url: '' }));
       goHQ();
-    } catch (e) { setStartError(errText(e)); } finally { setStarting(false); }
+    } catch (e) { setStartError(errText(e)); } finally { setStarting(false); setUploadPct(null); }
   };
 
   const cancel = async () => {
@@ -366,7 +363,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4 lg:sticky lg:top-[72px]">
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
-            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
+            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
         </aside>
 

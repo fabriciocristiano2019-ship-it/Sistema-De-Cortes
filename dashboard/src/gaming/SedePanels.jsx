@@ -19,7 +19,7 @@ const LAYOUT_HINT = {
 
 export function OrchestratorPanel({
   meta, games, form, setForm, job, starting, startError, cancelling, onStartFile, onStartUrl, onCancel, onAddGame, onImportLink,
-  proAI = false, onProAI,
+  proAI = false, onProAI, uploadPct = null,
 }) {
   const fileRef = useRef(null);
   const active = job && ACTIVE.includes(job.status);
@@ -146,7 +146,7 @@ export function OrchestratorPanel({
           <button type="button" onClick={() => fileRef.current?.click()} disabled={starting}
             className="sede-cta flex w-full items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[12px] font-extrabold whitespace-nowrap transition hover:brightness-110 disabled:opacity-60">
             {starting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {starting ? 'Enviando o vídeo…' : 'Escolher vídeo e começar'}
+            {starting ? (uploadPct != null ? `Enviando o vídeo… ${uploadPct}%` : 'Enviando…') : 'Escolher vídeo e começar'}
           </button>
           <div className="my-3 flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wider text-muted" aria-hidden="true">
             <span className="h-px flex-1 bg-rule2" /> ou cole um link <span className="h-px flex-1 bg-rule2" />
@@ -169,6 +169,12 @@ export function OrchestratorPanel({
             Mais opções de importação
           </button>
         </>
+      )}
+      {starting && uploadPct != null && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper3" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={uploadPct} aria-label="Envio do vídeo">
+          <div className="h-full rounded-full bg-brass transition-[width] duration-300" style={{ width: `${Math.max(2, uploadPct)}%` }} />
+        </div>
       )}
       {startError && <p role="alert" className="mt-2 text-xs text-danger">{startError}</p>}
       {!active && job?.status === 'failed' && job.snap?.error && (

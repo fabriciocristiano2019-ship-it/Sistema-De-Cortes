@@ -2016,6 +2016,55 @@ async def put_upload(upload_id: str, request: Request):
             "hint": "Now call /api/process with upload_id."}
 
 
+# Chunked upload for proxies that cap the request size (GitHub Codespaces'
+# port forwarding answers "413 Request Entity Too Large" for a whole gameplay
+# in one request). The panel sends small parts in order; `offset` makes a
+# retried part idempotent instead of duplicating bytes.
+UPLOAD_PART_MAX_BYTES = 32 * 1024 * 1024
+
+
+@app.put("/api/uploads/{upload_id}/parte")
+async def put_upload_part(upload_id: str, request: Request, offset: int = 0):
+    slot = pending_uploads.get(upload_id)
+    if not slot or time.time() - slot["created"] > UPLOAD_TTL_SECONDS:
+        pending_uploads.pop(upload_id, None)
+        raise HTTPException(status_code=404, detail="Envio expirado ou desconhecido. Envie o vídeo de novo.")
+    if BILLING_ENABLED and slot.get("user_id") != await _owner_id(request):
+        raise HTTPException(status_code=404, detail="Unknown or expired upload_id")
+    if slot.get("complete"):
+        raise HTTPException(status_code=409, detail="Este envio já foi concluído.")
+    current = os.path.getsize(slot["path"]) if os.path.exists(slot["path"]) else 0
+    body = await request.body()
+    if len(body) == 0 or len(body) > UPLOAD_PART_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Pedaço vazio ou grande demais.")
+    if offset + len(body) <= current:
+        return {"upload_id": upload_id, "bytes": current, "repetido": True}   # retry of a part we have
+    if offset != current:
+        raise HTTPException(status_code=409, detail=f"Pedaço fora de ordem: esperado a partir do byte {current}.")
+    if current + len(body) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"Arquivo grande demais. Tamanho máximo: {MAX_FILE_SIZE_MB} MB")
+    with open(slot["path"], "ab") as out:
+        out.write(body)
+    slot["bytes"] = current + len(body)
+    return {"upload_id": upload_id, "bytes": slot["bytes"]}
+
+
+@app.post("/api/uploads/{upload_id}/concluir")
+async def finish_upload_parts(upload_id: str, request: Request):
+    slot = pending_uploads.get(upload_id)
+    if not slot or (BILLING_ENABLED and slot.get("user_id") != await _owner_id(request)):
+        raise HTTPException(status_code=404, detail="Envio expirado ou desconhecido. Envie o vídeo de novo.")
+    if not os.path.exists(slot["path"]) or os.path.getsize(slot["path"]) == 0:
+        raise HTTPException(status_code=400, detail="Nenhum dado recebido.")
+    duration = await asyncio.get_event_loop().run_in_executor(None, _media_duration_seconds, slot["path"])
+    if duration <= 0:
+        os.remove(slot["path"])
+        pending_uploads.pop(upload_id, None)
+        raise HTTPException(status_code=400, detail="O arquivo enviado não é um vídeo válido (sem duração legível).")
+    slot.update({"bytes": os.path.getsize(slot["path"]), "complete": True})
+    return {"upload_id": upload_id, "bytes": slot["bytes"], "duration_seconds": round(duration, 1)}
+
+
 @app.delete("/api/uploads/{upload_id}")
 async def delete_upload(upload_id: str, request: Request):
     """Drop a slot and its file before it expires (owner only in cloud mode)."""
@@ -2385,7 +2434,8 @@ async def process_endpoint(
             shutil.rmtree(job_output_dir, ignore_errors=True)
             raise HTTPException(status_code=400,
                                 detail="O arquivo enviado não é um vídeo válido (sem duração legível).")
-        source_name = (getattr(file, "filename", None) or url or input_path or "")
+        source_name = (getattr(file, "filename", None) or (upload_slot or {}).get("filename")
+                       or url or input_path or "")
         cfg_path = _write_gaming_job(job_output_dir, gaming_req, source_name)
         cmd.extend(["--gaming-config", cfg_path])
         env.update(_gaming_env(gaming_req))
