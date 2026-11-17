@@ -2,7 +2,7 @@
 
 ## Corpus Check
 - 272 files · ~277,468 words
-- Verdict: corpus is large enough that graph structure adds value.
+- Verdict: graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: (none) 11, .css 4, .bat 4)
 
 ## Summary
@@ -823,27 +823,27 @@ Nodes (3): run_background_whisper(), transcribe_video(), analyze_video_for_title
 
 ## Knowledge Gaps
 - **26 isolated node(s):** `openshorts`, `Codespaces Free Account Limits`, `Private Dashboard Port 5173`, `Free Local Engine (fallback)`, `GEMINI_API_KEY Codespaces Secret` (+21 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1174 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  ≤1 connection: missing edges or undocumented parts. (Symbols only; 1174 node(s) total ≤1 connection with file/concept/rationale nodes.)
+- **29 thin communities (<3 nodes) omitted from report** — explore with `graphify query`.
 
 ## Suggested Questions
-_Questions this graph is uniquely positioned to answer:_
+_Questions graph can answer:_
 
 - **Why does `VideoEditor` connect `Editor` to `Testes: ffmpeg_utils`, `Servidor e fila de jobs`, `Downloads, hooks e ZIP de cortes`, `Testes: gemini_retry (2)`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+  _Cross-community bridge, betweenness 0.017._
 - **Are the 5 inferred relationships involving `session()` (e.g. with `get_current_user_optional()` and `get_me()`) actually correct?**
-  _`session()` has 5 INFERRED edges - model-reasoned connections that need verification._
+  _`session()` has 5 INFERRED edges: verify._
 - **What connects `openshorts`, `Codespaces Free Account Limits`, `Private Dashboard Port 5173` to the rest of the system?**
-  _26 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _26 weakly-connected nodes: doc gaps or missing edges._
 - **Should `Pipeline de vídeo (main.py)` be split into smaller, more focused modules?**
-  _Cohesion score 0.03557422969187675 - nodes in this community are weakly interconnected._
+  _Cohesion 0.03557422969187675: weakly interconnected._
 - **Why does `get_current_user_required()` connect `Autenticação (nuvem)` to `Servidor e fila de jobs`, `Downloads, hooks e ZIP de cortes`, `Vídeos e retenção (nuvem)`, `Social profiles`, `Migrações do banco (nuvem)`, `Chaves de API osk_`, `Login OAuth do MCP (nuvem)`, `Cobrança Stripe (nuvem)`, `Testes: account_erasure`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+  _Cross-community bridge, betweenness 0.013._
 
 ### Low-confidence Hints
-_AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._
+_AMBIGUOUS edges: extractor unsure. Verify before acting._
 
 - **What is the exact relationship between `faster-whisper Transcription (word-level timestamps)` and `py3langid 0.3.0`?**
-  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
+  _AMBIGUOUS edge (conceptually_related_to), low confidence._
 - **What is the exact relationship between `Closed-choice Decision over Continuous Measurement` and `SCREENCAST / WIDE Modes (screencast_layout.py)`?**
-  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
+  _AMBIGUOUS edge (conceptually_related_to), low confidence._
