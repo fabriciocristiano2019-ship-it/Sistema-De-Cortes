@@ -8,6 +8,7 @@ import { errText, JOB_KEY } from './util';
 import { ModuleCtx } from './ctx';
 import { Notice } from './ui';
 import SedeMap from './SedeMap';
+import JarvisOrb from './JarvisOrb';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
 import { AnalysisSection, DashboardSection, GamesSection, ImportSection } from './SectionsCore';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
@@ -294,7 +295,9 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       <header className="sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
           <div className="mr-auto flex min-w-0 items-center gap-3">
-            <span className="sede-core-chip grid h-9 w-9 shrink-0 place-items-center rounded-xl"><Eye size={18} aria-hidden="true" /></span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl" style={{ background: '#06101f' }}>
+              <JarvisOrb size={40} busy={working > 0} />
+            </span>
             <div className="min-w-0 leading-tight">
               <h1 className="text-[15px] font-extrabold tracking-tight text-ink">OpenShorts <span className="text-brass">Gaming</span></h1>
               <p className="truncate text-[11px] text-muted">Cortes automáticos de gameplay com 8 agentes de IA</p>

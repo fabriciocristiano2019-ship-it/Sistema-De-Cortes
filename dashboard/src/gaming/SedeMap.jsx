@@ -1,6 +1,7 @@
 import React from 'react';
-import { Eye, Maximize2, Radio } from 'lucide-react';
+import { Maximize2, Radio } from 'lucide-react';
 import Wave from './Wave';
+import JarvisOrb from './JarvisOrb';
 import { LOOK } from './agents';
 
 
@@ -116,16 +117,13 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         </svg>
 
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className={`relative grid h-36 w-36 place-items-center rounded-full bg-paper2 sede-core-ring transition-transform duration-500 ${busy ? 'scale-105' : ''}`}>
+          <div className={`relative h-44 w-44 rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
+            style={{ background: 'radial-gradient(circle, var(--sede-map) 55%, transparent 72%)' }}>
             {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
-            <span className={`absolute inset-2 rounded-full border border-dashed border-brass/45 ${busy ? 'sede-orbit' : ''}`} aria-hidden="true" />
-            <span className="relative flex flex-col items-center">
-              <span className="sede-core-chip grid h-10 w-10 place-items-center rounded-full">
-                <Eye size={19} className={busy ? 'animate-pulse' : ''} aria-hidden="true" />
-              </span>
-              <span className="mt-1 text-[11px] font-extrabold tracking-wider text-ink">J.A.R.V.I.S.</span>
-              <Wave mode={busy ? 'on' : 'idle'} bars={11} height={14} color="var(--color-accent)" className="my-0.5" />
-              <span className={`mt-0.5 rounded-full px-2 py-px text-[8.5px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
+            <JarvisOrb size={176} busy={busy} theme={theme} className="absolute inset-0" />
+            <span className="absolute inset-x-0 -bottom-3 flex flex-col items-center">
+              <span className="text-[11px] font-extrabold tracking-[0.18em] text-ink" style={{ textShadow: '0 0 12px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
+              <span className={`mt-1 rounded-full px-2 py-px text-[8.5px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
             </span>
           </div>
         </div>
