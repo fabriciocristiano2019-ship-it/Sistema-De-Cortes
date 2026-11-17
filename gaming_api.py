@@ -27,17 +27,19 @@ process, so there is one publishing path. Nothing is ever published without
 an explicit approval call.
 """
 import glob
+from datetime import datetime
 import io
 import json
 import os
+import re
 import threading
 import time
 import uuid
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from gaming import library, pipeline, profiles
 from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
@@ -173,10 +175,23 @@ def job_env(req):
 # --------------------------------------------------------------------------- #
 # Library
 # --------------------------------------------------------------------------- #
+_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+def _check_id(value, what="job_id"):
+    """Ids reach the filesystem (job folders): letters, digits, - and _ only."""
+    if not isinstance(value, str) or not _ID_RE.fullmatch(value):
+        raise HTTPException(status_code=400, detail=f"{what} inválido")
+    return value
+
+
+Texto = lambda n: Field(default=None, max_length=n)
+
+
 class GameIn(BaseModel):
-    name: Optional[str] = None
-    category: Optional[str] = None
-    aliases: Optional[List[str]] = None
+    name: Optional[str] = Texto(80)
+    category: Optional[str] = Texto(40)
+    aliases: Optional[List[str]] = Field(default=None, max_length=20)
     preferences: Optional[dict] = None
 
 
@@ -225,6 +240,7 @@ async def create_game(body: GameIn):
 
 @router.put("/api/games/{game_id}")
 async def update_game(game_id: str, body: GameIn):
+    _check_id(game_id, "game_id")
     data = body.model_dump(exclude_none=True)
     if "name" in data and not data["name"].strip():
         raise HTTPException(status_code=400, detail="nome do jogo é obrigatório")
@@ -236,6 +252,7 @@ async def update_game(game_id: str, body: GameIn):
 
 @router.delete("/api/games/{game_id}")
 async def delete_game(game_id: str):
+    _check_id(game_id, "game_id")
     if not library.delete(_out(), game_id):
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
     return {"ok": True}
@@ -246,6 +263,7 @@ MAX_COVER_BYTES = 8 * 1024 * 1024
 
 @router.post("/api/games/{game_id}/cover")
 async def upload_cover(game_id: str, file: UploadFile = File(...)):
+    _check_id(game_id, "game_id")
     if not library.get(_out(), game_id):
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
     data = await file.read(MAX_COVER_BYTES + 1)
@@ -403,18 +421,17 @@ async def dashboard():
 
 class ClipPatch(BaseModel):
     approved: Optional[bool] = None
-    video_title_for_youtube_short: Optional[str] = None
-    video_description_for_tiktok: Optional[str] = None
-    video_description_for_instagram: Optional[str] = None
-    description: Optional[str] = None
-    hashtags: Optional[List[str]] = None
-    moment_category: Optional[str] = None
+    video_title_for_youtube_short: Optional[str] = Texto(300)
+    video_description_for_tiktok: Optional[str] = Texto(2200)
+    video_description_for_instagram: Optional[str] = Texto(2200)
+    description: Optional[str] = Texto(2200)
+    hashtags: Optional[List[Annotated[str, Field(max_length=60)]]] = Field(default=None, max_length=30)
+    moment_category: Optional[str] = Texto(40)
 
 
 @router.patch("/api/gaming/clips/{job_id}/{index}")
 async def patch_clip(job_id: str, index: int, body: ClipPatch):
-    if "/" in job_id or ".." in job_id:
-        raise HTTPException(status_code=400, detail="job_id inválido")
+    _check_id(job_id)
     metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
     if not metas:
         raise HTTPException(status_code=404, detail="Trabalho não encontrado")
@@ -445,7 +462,7 @@ async def patch_clip(job_id: str, index: int, body: ClipPatch):
 
 
 class ThumbIn(BaseModel):
-    text: Optional[str] = None
+    text: Optional[str] = Texto(90)
 
 
 def _clean_clip_file(job_dir, base, index, fallback_url):
@@ -467,8 +484,7 @@ def _clean_clip_file(job_dir, base, index, fallback_url):
 def make_thumbnail(job_id: str, index: int, body: ThumbIn):
     """Local thumbnail (best frame + title). Free: no model, no API."""
     from gaming import thumbs
-    if "/" in job_id or ".." in job_id:
-        raise HTTPException(status_code=400, detail="job_id inválido")
+    _check_id(job_id)
     metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
     if not metas:
         raise HTTPException(status_code=404, detail="Trabalho não encontrado")
@@ -490,7 +506,9 @@ def make_thumbnail(job_id: str, index: int, body: ThumbIn):
     try:
         info = thumbs.make(src, os.path.join(job_dir, name), text, at, tag=clip.get("game_name"))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Não foi possível gerar a thumbnail: {e}")
+        # Details (paths, library errors) go to the server log, not to the browser.
+        print(f"[gaming] thumbnail falhou ({job_id}/{index}): {e!r}")
+        raise HTTPException(status_code=500, detail="Não foi possível gerar a thumbnail. Veja o registro do servidor.")
     old = clip.get("thumbnail_url") or ""
     if old.startswith(f"/videos/{job_id}/thumb_"):
         try:
@@ -531,14 +549,14 @@ def _save_pubs(items):
 
 
 class PubIn(BaseModel):
-    job_id: str
-    clip_index: int
-    platforms: List[str]
-    title: Optional[str] = None
-    description: Optional[str] = None
-    user_id: Optional[str] = None        # Upload-Post profile name (self-host BYOK)
-    scheduled_at: Optional[str] = None   # ISO-8601 local time; empty = publish on approval
-    timezone: Optional[str] = "America/Sao_Paulo"
+    job_id: str = Field(..., pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    clip_index: int = Field(..., ge=0, le=999)
+    platforms: List[str] = Field(..., max_length=3)
+    title: Optional[str] = Texto(100)
+    description: Optional[str] = Texto(2200)
+    user_id: Optional[str] = Field(default=None, max_length=80)   # Upload-Post profile name (self-host BYOK)
+    scheduled_at: Optional[str] = Texto(40)   # ISO-8601; empty = publish on approval
+    timezone: Optional[str] = Field(default="America/Sao_Paulo", max_length=64, pattern=r"^[A-Za-z_+\-/0-9]*$")
 
 
 @router.get("/api/gaming/publications")
@@ -549,6 +567,11 @@ async def list_pubs():
 
 @router.post("/api/gaming/publications")
 async def queue_pub(body: PubIn):
+    if body.scheduled_at:
+        try:
+            datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Data de agendamento inválida")
     plats = [p for p in body.platforms if p in ("tiktok", "instagram", "youtube")]
     if not plats:
         raise HTTPException(status_code=400, detail="Escolha ao menos uma rede: tiktok, instagram, youtube")
@@ -566,6 +589,7 @@ async def queue_pub(body: PubIn):
 
 @router.post("/api/gaming/publications/{pub_id}/approve")
 async def approve_pub(pub_id: str, request: Request):
+    _check_id(pub_id, "pub_id")
     with _PUB_LOCK:
         items = _load_pubs()
         item = next((p for p in items if p["id"] == pub_id), None)
@@ -580,7 +604,7 @@ async def approve_pub(pub_id: str, request: Request):
         payload["scheduled_date"] = item["scheduled_at"]
         payload["timezone"] = item.get("timezone") or "America/Sao_Paulo"
     headers = {k: v for k, v in request.headers.items()
-               if k.lower() in ("x-upload-post-key", "authorization", "x-api-key")}
+               if k.lower() in ("x-upload-post-key", "authorization", "x-api-key", "cookie")}
     transport = httpx.ASGITransport(app=_STATE["app"])
     async with httpx.AsyncClient(transport=transport, base_url="http://internal", timeout=600) as c:
         r = await c.post("/api/social/post", json=payload, headers=headers)
@@ -607,6 +631,7 @@ async def approve_pub(pub_id: str, request: Request):
 
 @router.delete("/api/gaming/publications/{pub_id}")
 async def cancel_pub(pub_id: str):
+    _check_id(pub_id, "pub_id")
     with _PUB_LOCK:
         items = _load_pubs()
         for p in items:
@@ -684,7 +709,7 @@ async def queue_state():
 async def pipeline_state(job_id: str, request: Request):
     # Through /api/status in process: same ownership check, same disk fallback
     # for a job this instance no longer holds in memory.
-    headers = {k: v for k, v in request.headers.items() if k.lower() in ("authorization", "x-api-key")}
+    headers = {k: v for k, v in request.headers.items() if k.lower() in ("authorization", "x-api-key", "cookie")}
     transport = httpx.ASGITransport(app=_STATE["app"])
     async with httpx.AsyncClient(transport=transport, base_url="http://internal", timeout=30) as c:
         r = await c.get(f"/api/status/{job_id}", headers=headers)
@@ -792,7 +817,7 @@ async def social_metrics(request: Request, user: Optional[str] = None, days: int
     days = max(1, min(int(days), 365))
     since = time.strftime("%Y-%m-%d", time.gmtime(time.time() - days * 86400))
     headers = {k: v for k, v in request.headers.items()
-               if k.lower() in ("x-upload-post-key", "authorization", "x-api-key")}
+               if k.lower() in ("x-upload-post-key", "authorization", "x-api-key", "cookie")}
     rows, cursor = [], None
     transport = httpx.ASGITransport(app=_STATE["app"])
     async with httpx.AsyncClient(transport=transport, base_url="http://internal", timeout=60) as c:

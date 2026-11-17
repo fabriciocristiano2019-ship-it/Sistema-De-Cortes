@@ -60,3 +60,12 @@ export const PLATFORMS = [
 ];
 
 export const JOB_KEY = 'os_gaming_job';
+
+// Links that come from outside (social network APIs) only open when they are
+// plain http(s): a "javascript:" or "data:" address would run in the panel.
+export const safeHttpUrl = (url) => {
+  try {
+    const u = new URL(String(url || ''), window.location.origin);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch (_) { return null; }
+};

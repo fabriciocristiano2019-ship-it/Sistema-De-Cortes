@@ -15,6 +15,15 @@ export default defineConfig({
   // llms.txt. See vite-plugin-seo.js.
   plugins: [react(), seo()],
   server: {
+    // Same protections as the API (acesso_local.py): no framing, no MIME
+    // sniffing, no referrer leak, no camera/microphone/location.
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+      'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+    },
     allowedHosts: [
       'openshorts.app',
       'www.openshorts.app'

@@ -2,6 +2,7 @@ import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import AcessoGate from './gaming/AcessoGate.jsx'
 import Landing from './Landing.jsx'
 import Legal from './Legal.jsx'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -104,7 +105,7 @@ function Root() {
   if (view === 'auth') {
     return <div className="min-h-screen flex items-center justify-center bg-background text-zinc-400">Signing you in…</div>;
   }
-  if (view === 'app') return <App />;
+  if (view === 'app') return <AcessoGate><App /></AcessoGate>;
   return <Landing onLaunchApp={handleLaunchApp} />;
 }
 

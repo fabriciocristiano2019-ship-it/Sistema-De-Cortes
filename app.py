@@ -1590,10 +1590,13 @@ _write_gaming_job = gaming_api.write_job_config
 _gaming_env = gaming_api.job_env
 
 # Enable CORS for frontend. Cloud mode locks this down to the configured origins;
-# self-host keeps the permissive wildcard it has always used.
+# self-host (Gaming Edition) allows only the local dashboard origins plus
+# ALLOWED_ORIGINS: a wildcard with credentials let any open web page read the
+# API of the server running on the user's computer.
+import acesso_local
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cloud.settings.allowed_origins if BILLING_ENABLED else ["*"],
+    allow_origins=cloud.settings.allowed_origins if BILLING_ENABLED else acesso_local.origens_permitidas(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1602,6 +1605,13 @@ app.add_middleware(
     # they only become readable to JS once they are named here.
     expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
 )
+
+# Self-host: refuse writes coming from other sites (CSRF), add security headers,
+# keep internal files out of /videos and, when OPENSHORTS_SENHA_HASH is set,
+# require the access password (acesso_local.py). Outermost, so it runs first.
+if not BILLING_ENABLED:
+    app.add_middleware(acesso_local.ProtecaoLocal)
+    app.include_router(acesso_local.criar_router())
 
 # Mount static files for serving videos
 app.mount("/videos", StaticFiles(directory=OUTPUT_DIR), name="videos")

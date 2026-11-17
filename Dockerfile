@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt requirements-billing.txt ./
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip "setuptools>=84.1"
 RUN pip install --no-cache-dir -r requirements.txt
 # Cloud (paid mode) deps: installed always so one image serves both modes; they
 # are only imported when BILLING_ENABLED is set. Harmless/unused in self-host.

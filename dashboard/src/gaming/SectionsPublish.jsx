@@ -216,7 +216,8 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
         <section className="card p-5 mb-5" aria-label="Chaves opcionais">
           <h2 className="text-sm text-ink mb-1">Chaves opcionais</h2>
           <p className="text-xs text-muted mb-4 max-w-3xl">
-            O sistema funciona sem nenhuma chave. Elas ficam guardadas só neste navegador e são enviadas apenas ao servidor local quando necessário.
+            O sistema funciona sem nenhuma chave. Digitadas aqui, elas ficam só neste navegador, apenas embaralhadas (não é criptografia forte).
+            O lugar mais seguro é o arquivo <code>.env</code> do servidor (UPLOAD_POST_API_KEY, UPLOAD_POST_USER, GEMINI_API_KEY): assim a chave nunca passa pelo navegador.
           </p>
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Chave do Upload-Post (publicar e ver resultados)" hint="Serviço de terceiros; pode ter custo.">

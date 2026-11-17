@@ -26,6 +26,15 @@ export async function apiFetch(path, options = {}) {
 
   const res = await fetch(getApiUrl(path), { ...options, headers });
 
+  // Self-host with an access password: the session cookie expired or is
+  // missing. The access gate (AcessoGate.jsx) shows the password screen.
+  if (res.status === 401) {
+    try {
+      const body = await res.clone().json();
+      if (body?.code === 'acesso_necessario') window.dispatchEvent(new Event('os-acesso-necessario'));
+    } catch (_) { /* not JSON */ }
+  }
+
   if (res.status === 402) {
     let detail = {};
     try {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, Upload, ImagePlus, Save, X, Square, Play, RefreshCw } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { errText, fmtClock, fmtDate, jsonReq, mediaUrl, PLATFORMS, STATUS_LABEL } from './util';
+import { errText, fmtClock, fmtDate, jsonReq, mediaUrl, PLATFORMS, safeHttpUrl, STATUS_LABEL } from './util';
 import ResultsBoard from './ResultsBoard';
 import { Badge, BarList, DayColumns, Empty, Field, Header, Notice, StatTile } from './ui';
 
@@ -72,7 +72,7 @@ function SocialMetrics({ uploadPostKey, uploadUserId, go }) {
                     {m.top_posts.slice(0, 5).map((p, i) => (
                       <li key={i} className="py-2 flex items-center gap-3 text-sm">
                         <span className="min-w-0 flex-1 truncate text-ink2" title={p.title}>
-                          {p.url ? <a className="hover:text-ink underline-offset-2 hover:underline" href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}
+                          {safeHttpUrl(p.url) ? <a className="hover:text-ink underline-offset-2 hover:underline" href={safeHttpUrl(p.url)} target="_blank" rel="noopener noreferrer">{p.title}</a> : p.title}
                         </span>
                         <span className="text-xs text-muted shrink-0">{platLabel(p.platform)}</span>
                         <span className="font-mono text-xs text-ink tabular-nums shrink-0">{nf.format(p.views)} views · {nf.format(p.likes)} ♥</span>

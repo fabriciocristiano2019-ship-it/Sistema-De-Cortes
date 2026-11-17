@@ -62,6 +62,30 @@ def _new_id(name):
     return f"{slug}-{uuid.uuid4().hex[:6]}"
 
 
+# Accepted values per preference: anything else keeps the default, so a
+# crafted request cannot store an unexpected type or value in games.json.
+_PREF_RULES = {
+    "clip_seconds": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and 5 <= v <= 180,
+    "layout": lambda v: v in ("auto", "full", "webcam", "vertical"),
+    "captions": lambda v: isinstance(v, bool),
+    "caption_style": lambda v: isinstance(v, str) and re.fullmatch(r"[a-z_-]{1,20}", v) is not None,
+    "zoom": lambda v: isinstance(v, bool),
+    "auto_hook": lambda v: isinstance(v, bool),
+    "max_clips": lambda v: isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 30,
+    "min_score": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 100,
+}
+
+
+def clean_prefs(raw):
+    prefs = dict(DEFAULT_PREFS)
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            rule = _PREF_RULES.get(k)
+            if rule and rule(v):
+                prefs[k] = v
+    return prefs
+
+
 def _normalise(g):
     g = dict(g)
     g["name"] = str(g.get("name") or "").strip()[:80]
@@ -71,9 +95,7 @@ def _normalise(g):
     if isinstance(aliases, str):
         aliases = [a for a in re.split(r"[,;\n]", aliases)]
     g["aliases"] = sorted({a.strip().lower()[:40] for a in aliases if a and a.strip()})[:20]
-    prefs = dict(DEFAULT_PREFS)
-    prefs.update({k: v for k, v in (g.get("preferences") or {}).items() if k in DEFAULT_PREFS})
-    g["preferences"] = prefs
+    g["preferences"] = clean_prefs(g.get("preferences"))
     g["analysis_profile"] = g["category"]
     g.setdefault("cover", None)
     g.setdefault("created_at", time.time())
