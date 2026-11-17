@@ -13,11 +13,16 @@
   "hostRequirements": { "cpus": 2, "memory": "8gb" },
   "postCreateCommand": "bash .devcontainer/instalar.sh",
   "postStartCommand": "bash .devcontainer/iniciar.sh",
+  // Toda vez que o editor conecta: garante tudo ligado e mostra o endereço
+  // do painel no terminal (o script não liga nada em dobro).
+  "postAttachCommand": "bash .devcontainer/iniciar.sh",
   "forwardPorts": [5173],
   "portsAttributes": {
     "5173": { "label": "Painel OpenShorts", "onAutoForward": "openBrowser" },
     "8000": { "label": "Servidor (interno)", "onAutoForward": "ignore" }
   },
+  // Qualquer outra porta (ferramentas internas) não abre nada nem avisa.
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
   "containerEnv": {
     "MAX_CONCURRENT_JOBS": "1",
     "WHISPER_MODEL": "small",

@@ -21,7 +21,7 @@ if ! pgrep -f "vite --port 5173" >/dev/null; then
     > ../.logs/painel.log 2>&1 < /dev/null &)
 fi
 
-echo "Ligando o servidor e o painel..."
+echo "Conferindo o servidor e o painel (liga o que estiver desligado)..."
 ok_api=""; ok_web=""
 for _ in $(seq 1 60); do
   [ -z "$ok_api" ] && curl -s -o /dev/null http://127.0.0.1:8000/health && ok_api=1

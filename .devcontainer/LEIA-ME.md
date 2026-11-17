@@ -7,14 +7,17 @@ celular. Nada é instalado no seu PC.
 
 1. No repositório, toque em **Code** → aba **Codespaces** → **Create codespace on main**.
 2. Espere a instalação terminar (aparece "Pronto" no terminal).
-3. O painel abre sozinho numa aba do navegador. Se não abrir: aba **PORTAS** → linha **Painel OpenShorts (5173)** → ícone do globo.
+3. O painel abre sozinho numa aba do navegador. Se o navegador avisar que **bloqueou um pop-up**, clique em
+   **Sempre permitir** para `github.dev`: nas próximas vezes ele abre direto.
+   O endereço do painel também aparece no terminal ("Pronto! Abra o painel"): segure **Ctrl** e clique nele.
+   Outro jeito: aba **PORTAS** → linha **Painel OpenShorts (5173)** → ícone do globo.
    Se ele aparecer numa janelinha dentro do editor com um ícone de proibido, clique no **↗** ao lado do endereço:
    por segurança o painel só abre em uma aba própria do navegador.
 
 ## Nas próximas vezes
 
 1. github.com → **Codespaces** (menu do seu perfil) → abra o mesmo codespace.
-2. O servidor e o painel ligam sozinhos; abra pela aba **PORTAS** como acima.
+2. O servidor e o painel ligam sozinhos e o painel abre numa aba do navegador (ou clique no endereço do terminal).
 
 ## Pelo celular
 
