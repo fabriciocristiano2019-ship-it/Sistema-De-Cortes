@@ -51,6 +51,18 @@ Custo: o Google oferece uma cota gratuita com limites; acima dela pode cobrar. C
 limites atuais no próprio AI Studio. Os quadros e a fala dos momentos candidatos são enviados ao Google.
 Se a chave falhar ou a cota acabar, o programa avisa e continua com o motor local.
 
+## Publicar pelo Postiz (alternativa ao Upload-Post)
+
+1. Crie a conta em **postiz.com** (o Postiz Cloud é pago, com teste grátis; confira os preços lá)
+   e conecte nele seu YouTube, Instagram e TikTok.
+2. No Postiz: **Settings → Public API** → copie a chave.
+3. No painel: **Módulos → 12. Configurações → Postiz** → cole a chave → **Testar conexão**.
+   (Mais seguro: secret `POSTIZ_API_KEY` em github.com/settings/codespaces, liberado para o CORTES.)
+4. Com a chave, o botão **Aprovar e enviar** publica pelo Postiz. Sem ela, continua pelo Upload-Post.
+
+Postiz instalado no seu próprio servidor também funciona (campo "Endereço do Postiz"), mas exige
+criar um app de desenvolvedor em cada rede social.
+
 ## Links do YouTube
 
 O YouTube costuma bloquear downloads vindos de servidores na nuvem, como o Codespaces

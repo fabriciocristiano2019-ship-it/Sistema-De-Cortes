@@ -26,6 +26,7 @@ Publishing goes through the existing /api/social/post (Upload-Post) in
 process, so there is one publishing path. Nothing is ever published without
 an explicit approval call.
 """
+import asyncio
 import glob
 from datetime import datetime
 import io
@@ -41,7 +42,7 @@ import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
-from gaming import library, pipeline, profiles
+from gaming import library, pipeline, postiz, profiles
 from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
 from gaming.moments import fmt_ts
 
@@ -221,6 +222,7 @@ async def gaming_meta():
         "engines": [{"id": k, "label": v} for k, v in ENGINES.items()],
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
         "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
+        "postiz_configured": postiz.configured(),
         "defaults": library.DEFAULT_PREFS,
         "agents": pipeline.AGENTS,
     }
@@ -564,7 +566,8 @@ class PubIn(BaseModel):
 @router.get("/api/gaming/publications")
 async def list_pubs():
     items = sorted(_load_pubs(), key=lambda p: -p["created_at"])
-    return {"items": items, "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY"))}
+    return {"items": items, "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
+            "postiz_configured": postiz.configured()}
 
 
 @router.post("/api/gaming/publications")
@@ -589,6 +592,77 @@ async def queue_pub(body: PubIn):
     return item
 
 
+def _clip_file(job_id, index):
+    """Local path of the clip file a publication refers to, or None."""
+    from urllib.parse import unquote
+    metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
+    if not metas:
+        return None
+    with open(metas[0], "r", encoding="utf-8") as f:
+        shorts = json.load(f).get("shorts") or []
+    if not 0 <= index < len(shorts):
+        return None
+    url = _clip_url(job_id, metas[0], index, shorts[index])
+    if not url:
+        return None
+    path = os.path.join(os.path.dirname(metas[0]), unquote(url.rsplit("/", 1)[-1].split("?")[0]))
+    return path if os.path.isfile(path) else None
+
+
+def _postiz_url_from_header(value):
+    # Only an https address typed in Settings; anything else falls back to the env/default.
+    value = (value or "").strip()
+    return value if value.lower().startswith("https://") and len(value) < 300 else None
+
+
+async def _approve_with_postiz(pub_id, item, key, url_header):
+    path = _clip_file(item["job_id"], item["clip_index"])
+    ok, detail, result = False, None, None
+    if not path:
+        detail = "O vídeo deste corte não foi encontrado no disco."
+    else:
+        text = (item.get("description") or item.get("title") or "").strip()
+        try:
+            result = await asyncio.to_thread(postiz.publish, path, item["platforms"], item.get("title") or "",
+                                             text, item.get("scheduled_at"), key, _postiz_url_from_header(url_header))
+            ok = True
+        except postiz.PostizError as e:
+            detail = str(e)
+        except httpx.HTTPError as e:
+            detail = f"Não foi possível falar com o Postiz ({type(e).__name__})."
+    with _PUB_LOCK:
+        items = _load_pubs()
+        for p in items:
+            if p["id"] == pub_id:
+                p["status"] = ("agendado" if item.get("scheduled_at") else "enviado") if ok else "falhou"
+                p["approved_at"] = time.time()
+                p["provider"] = "postiz"
+                p["log"].append({"at": time.time(), "status": 200 if ok else 502, "provider": "postiz",
+                                 "detail": detail, "postiz": (result or {}).get("integrations")})
+                item = p
+        _save_pubs(items)
+    if not ok:
+        raise HTTPException(status_code=502, detail=detail or "Falha ao publicar pelo Postiz")
+    return item
+
+
+@router.post("/api/gaming/postiz/check")
+async def postiz_check(request: Request):
+    """Test the Postiz key and list which networks are connected there."""
+    key = request.headers.get("x-postiz-key")
+    if not postiz.configured(key):
+        return {"configured": False}
+    try:
+        items = await asyncio.to_thread(postiz.integrations, key, _postiz_url_from_header(request.headers.get("x-postiz-url")))
+    except postiz.PostizError as e:
+        return {"configured": True, "ok": False, "error": str(e)}
+    except httpx.HTTPError as e:
+        return {"configured": True, "ok": False, "error": f"Não foi possível falar com o Postiz ({type(e).__name__})."}
+    return {"configured": True, "ok": True, "accounts": [
+        {"network": str(i.get("identifier") or i.get("providerIdentifier") or ""), "name": i.get("name"),
+         "active": not i.get("disabled") and not i.get("refreshNeeded")} for i in items]}
+
+
 @router.post("/api/gaming/publications/{pub_id}/approve")
 async def approve_pub(pub_id: str, request: Request):
     _check_id(pub_id, "pub_id")
@@ -599,6 +673,9 @@ async def approve_pub(pub_id: str, request: Request):
             raise HTTPException(status_code=404, detail="Publicação não encontrada")
         if item["status"] not in ("aguardando_aprovacao", "falhou"):
             raise HTTPException(status_code=409, detail=f"Publicação já está '{item['status']}'")
+    pz_key = request.headers.get("x-postiz-key")
+    if postiz.configured(pz_key):
+        return await _approve_with_postiz(pub_id, item, pz_key, request.headers.get("x-postiz-url"))
     payload = {"job_id": item["job_id"], "clip_index": item["clip_index"], "platforms": item["platforms"],
                "title": item["title"] or None, "description": item["description"] or None,
                "user_id": item.get("user_id")}

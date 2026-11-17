@@ -3,6 +3,7 @@ import { CalendarClock, Loader2, Send, Trash2 } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtDate, jsonReq, PLATFORMS, STATUS_LABEL } from './util';
 import { Badge, Empty, Field, Header, Notice } from './ui';
+import { postizHeaders, postizKey, postizUrl, setPostizKey, setPostizUrl } from './postizConf';
 
 const clipLabel = (clips, p) => {
   const c = (clips || []).find((x) => x.job_id === p.job_id && x.clip_index === p.clip_index);
@@ -37,7 +38,7 @@ function PubRow({ p, clips, onApprove, onCancel, busy }) {
 
 function usePubActions({ reload, uploadPostKey, setErr }) {
   const [busy, setBusy] = useState('');
-  const headers = uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {};
+  const headers = { ...(uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {}), ...postizHeaders() };
   const approve = async (p) => {
     if (!window.confirm(`Publicar “${p.title || 'corte'}” em ${p.platforms.join(', ')}?\n\nEssa ação envia o vídeo para as redes sociais.`)) return;
     setBusy(p.id); setErr('');
@@ -62,7 +63,8 @@ export function SocialSection({ clips, pubs, meta, reload, uploadPostKey, upload
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const { busy, approve, cancel } = usePubActions({ reload, uploadPostKey, setErr });
-  const configured = !!uploadPostKey || meta?.upload_post_configured;
+  const viaPostiz = !!postizKey() || !!meta?.postiz_configured;
+  const configured = viaPostiz || !!uploadPostKey || meta?.upload_post_configured;
 
   useEffect(() => {
     const c = approved.find((x) => `${x.job_id}:${x.clip_index}` === sel);
@@ -95,7 +97,7 @@ export function SocialSection({ clips, pubs, meta, reload, uploadPostKey, upload
       {!configured && (
         <div className="mb-4">
           <Notice tone="warn">
-            Publicação automática desativada: falta a chave do Upload-Post (serviço externo; confira os limites do plano gratuito e os preços no site deles antes de usar).
+            Publicação automática desativada: falta a chave do Upload-Post ou do Postiz (serviços externos; confira limites e preços no site de cada um antes de usar).
             Sem a chave você ainda pode baixar o MP4 e copiar título, descrição e hashtags para postar manualmente.{' '}
             <button className="underline" onClick={() => go('config')}>Abrir Configurações</button>
           </Notice>
@@ -232,6 +234,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
           </div>
         </section>
       )}
+      {keys && <PostizCard />}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card p-5">
           <h2 className="text-sm text-ink mb-1">Processamento local (gratuito)</h2>
@@ -264,5 +267,54 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
         </div>
       </div>
     </div>
+  );
+}
+
+/* Postiz: alternative publisher ------------------------------------------- */
+function PostizCard() {
+  const [key, setKey] = useState(postizKey);
+  const [url, setUrl] = useState(postizUrl);
+  const [test, setTest] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const save = (k, u) => { setPostizKey(k); setPostizUrl(u); };
+  const check = async () => {
+    setBusy(true); setTest(null);
+    try { setTest(await jsonReq('/api/gaming/postiz/check', 'POST', {}, postizHeaders())); }
+    catch (e) { setTest({ ok: false, error: errText(e) }); }
+    finally { setBusy(false); }
+  };
+  const NET = { youtube: 'YouTube', instagram: 'Instagram', 'instagram-standalone': 'Instagram', tiktok: 'TikTok' };
+  return (
+    <section className="card p-5 mb-5" aria-label="Postiz">
+      <h2 className="text-sm text-ink mb-1">Postiz (alternativa ao Upload-Post para publicar)</h2>
+      <p className="text-xs text-muted mb-4 max-w-3xl">
+        Com a chave do Postiz, o botão “Aprovar e enviar” publica pelo Postiz em vez do Upload-Post.
+        Conecte suas contas do YouTube, Instagram e TikTok dentro do Postiz primeiro.
+        Custo: o Postiz Cloud é pago (tem teste grátis); instalado no seu próprio servidor é gratuito, mas exige configurar cada rede.
+        Confira os preços em postiz.com antes de assinar.
+      </p>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Field label="Chave da API do Postiz" hint="Postiz → Settings → Public API.">
+          <input id="cfg-postiz-key" type="password" autoComplete="off" className="input-field w-full" value={key}
+            onChange={(e) => { const v = e.target.value.trim(); setKey(v); save(v, url); }} />
+        </Field>
+        <Field label="Endereço do Postiz (opcional)" hint="Só se instalar o Postiz no seu servidor. Em branco: Postiz Cloud.">
+          <input id="cfg-postiz-url" type="url" placeholder="https://api.postiz.com" autoComplete="off" className="input-field w-full" value={url}
+            onChange={(e) => { const v = e.target.value.trim(); setUrl(v); save(key, v); }} />
+        </Field>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button className="btn-ghost btn-sm" disabled={busy} onClick={check}>
+          {busy ? <Loader2 size={14} className="inline animate-spin mr-1" /> : null}Testar conexão
+        </button>
+        {test && !test.configured && <span className="text-xs text-muted">Coloque a chave para testar.</span>}
+        {test && test.configured && test.ok === false && <span className="text-xs text-danger">{test.error}</span>}
+        {test && test.ok && (
+          <span className="text-xs text-ok">
+            Conectado. Contas no Postiz: {test.accounts.length ? test.accounts.map((a) => `${NET[a.network] || a.network}${a.name ? ` (${a.name})` : ''}${a.active ? '' : ' — reconectar'}`).join(', ') : 'nenhuma ainda'}.
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
