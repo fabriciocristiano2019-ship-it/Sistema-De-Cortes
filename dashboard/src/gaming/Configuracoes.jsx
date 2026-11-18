@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { FileText, KeyRound, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { FileText, KeyRound, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
 import { setVolume, somConcluido, volume as volumeAtual } from './sons';
 
 import { NOME_PADRAO } from './nome';
+import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 
 function Card({ icon, title, children, id }) {
   return (
-    <section aria-labelledby={id} className="rounded-[20px] border border-rule2 bg-paper2 p-5" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
+    <section aria-labelledby={id} className="min-w-0 rounded-[20px] border border-rule2 bg-paper2 p-5" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
       <h3 id={id} className="mb-3 flex items-center gap-2 text-[15px] font-extrabold text-ink">
         {React.createElement(icon, { size: 16, className: 'text-brass', 'aria-hidden': true })} {title}
       </h3>
@@ -24,6 +25,32 @@ function Opcao({ on, onClick, icon, children }) {
   );
 }
 
+function AppCelular() {
+  const [, atualizar] = useState(0);
+  useEffect(() => aoMudar(() => atualizar((n) => n + 1)), []);
+  return (
+    <Card icon={Smartphone} title="App no celular" id="cfg-app">
+      {instalado() ? (
+        <p className="text-sm text-ok">Você está usando o app instalado.</p>
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-ink2">
+            Instale o painel como app: ícone na tela inicial e tela cheia. O codespace precisa estar ligado para o app funcionar.
+          </p>
+          {podeInstalar() ? (
+            <button type="button" className="sede-btn-accent px-4" onClick={instalar}>Instalar no celular</button>
+          ) : (
+            <p className="text-xs leading-relaxed text-muted">
+              No Chrome do Android: menu <b className="text-ink2">⋮</b> → <b className="text-ink2">Instalar app</b> (ou &quot;Adicionar à tela inicial&quot;).
+              No Samsung Internet: menu <b className="text-ink2">≡</b> → <b className="text-ink2">Adicionar página a</b> → <b className="text-ink2">Tela inicial</b>.
+            </p>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves }) {
   const [vol, setVol] = useState(volumeAtual);
   const [rascunho, setRascunho] = useState(nome);
@@ -36,7 +63,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
         <p className="mt-1 text-sm text-ink2">Ajustes do programa. Ficam salvos neste navegador.</p>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card icon={User} title="Nome no topo" id="cfg-nome">
           <label htmlFor="cfg-nome-campo" className="mb-1.5 block text-xs font-bold text-ink">Nome exibido</label>
           <div className="flex gap-2">
@@ -73,6 +100,8 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
             <Play size={14} aria-hidden="true" /> Testar som
           </button>
         </Card>
+
+        <AppCelular />
 
         <Card icon={KeyRound} title="Chaves e integrações" id="cfg-chaves">
           <p className="mb-3 text-sm text-ink2">

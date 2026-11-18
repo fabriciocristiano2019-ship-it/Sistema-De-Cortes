@@ -365,8 +365,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
         </div>
       </header>
 
-      <div className="grid gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
-        <aside className={`space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' ? 'hidden lg:block' : ''}`}>
+      <div className="grid grid-cols-1 gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
+        <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' ? 'hidden lg:block' : ''}`}>
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
             cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
