@@ -32,18 +32,20 @@ function ClipPicker({ clips, selected, onSelect }) {
 const findClip = (clips, sel) => clips.find((c) => sel && c.job_id === sel.job_id && c.clip_index === sel.clip_index);
 
 /* 05 · Cortes encontrados ------------------------------------------------- */
-function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
+function ClipCard({ clip, meta, onPatched, onEdit, onSubs, publicacao }) {
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
 
   const patch = async (body, tag) => {
+    if (body.approved === true && publicacao && !publicacao.confirmar(clip)) return;
     setBusy(tag); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}`, 'PATCH', body);
       if (body.approved === true) somAprovado();
       await onPatched();
+      if (body.approved === true) publicacao?.publicar(clip);
       setEdit(false);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
@@ -169,7 +171,7 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
   );
 }
 
-export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, go }) {
+export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, go, publicacao }) {
   const [scope, setScope] = useState(job?.id ? 'job' : 'all');
   const list = useMemo(() => {
     const src = clips || [];
@@ -194,7 +196,7 @@ export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, g
         </Empty>
       ) : (
         <div className="grid xl:grid-cols-2 gap-4">
-          {list.map((c) => <ClipCard key={`${c.job_id}:${c.clip_index}`} clip={c} meta={meta} onPatched={reload} onEdit={openEditor} onSubs={openSubs} />)}
+          {list.map((c) => <ClipCard key={`${c.job_id}:${c.clip_index}`} clip={c} meta={meta} onPatched={reload} onEdit={openEditor} onSubs={openSubs} publicacao={publicacao} />)}
         </div>
       )}
     </div>

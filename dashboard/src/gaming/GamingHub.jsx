@@ -11,6 +11,8 @@ import { Notice } from './ui';
 import SedeMap from './SedeMap';
 import Configuracoes from './Configuracoes';
 import { NOME_KEY, nomeSalvo } from './nome';
+import { lerAutoPub, nomesRedes, textoDoCorte } from './autoPublicar';
+import { postizHeaders, postizKey } from './postizConf';
 import JarvisOrb from './JarvisOrb';
 import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
@@ -351,13 +353,49 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
   const mod = MODULES.find((m) => m.id === section) || MODULES[0];
   const modIndex = MODULES.indexOf(mod) + 1;
+  // "Publicar ao aprovar": the Approve click is the owner's approval; the clip
+  // goes through the same publication path as module 9/10 (Upload-Post or
+  // Postiz, whichever is configured).
+  const servicoPub = !!(uploadPostKey || meta?.upload_post_configured || postizKey());
+  const publicacao = useMemo(() => ({
+    confirmar: () => {
+      const cfg = lerAutoPub();
+      if (!cfg.ativo || !cfg.plataformas.length) return true;
+      if (!servicoPub) {
+        return window.confirm('A publicação automática está ligada, mas nenhum serviço de publicação (Upload-Post ou Postiz) está configurado.\n\nAprovar só o corte, sem publicar?');
+      }
+      return window.confirm(`Aprovar e publicar agora no ${nomesRedes(cfg.plataformas)}, como público?`);
+    },
+    publicar: async (clip) => {
+      const cfg = lerAutoPub();
+      if (!cfg.ativo || !cfg.plataformas.length || !servicoPub) return;
+      const redes = nomesRedes(cfg.plataformas);
+      setToast({ text: `Publicando no ${redes}…` });
+      const { titulo, desc } = textoDoCorte(clip);
+      const headers = { ...(uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {}), ...postizHeaders() };
+      try {
+        const pub = await apiJson('/api/gaming/publications', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_id: clip.job_id, clip_index: clip.clip_index, platforms: cfg.plataformas,
+            title: titulo, description: desc, user_id: uploadUserId || undefined, scheduled_at: null }),
+        });
+        await apiJson(`/api/gaming/publications/${pub.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: '{}' });
+        setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → 10. Agendamentos.` });
+      } catch (e) {
+        setToast({ tone: 'error', text: `O corte foi aprovado, mas a publicação no ${redes} falhou: ${errText(e)}` });
+      } finally {
+        loadPubs().catch(() => {}); loadDash().catch(() => {});
+      }
+    },
+  }), [servicoPub, uploadPostKey, uploadUserId, loadPubs, loadDash]);
+
   const moduleBody = {
     dashboard: <DashboardSection dash={dash} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} clips={clips} pubs={pubs}
       working={working} agentCount={agents.length} connected={!!(uploadPostKey || meta?.upload_post_configured)} />,
     games: <GamesSection meta={meta} games={games} reload={() => Promise.all([loadGames(), loadDash()])} />,
     import: <ImportSection meta={meta} games={games} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,
-    clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} />,
+    clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,
     editor: <EditorSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
     subtitles: <SubtitlesSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
     videos: <VideoLibrarySection clips={clips} games={games} openEditor={openEditor} />,
@@ -368,6 +406,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }[mod.id];
 
   const closeToast = useCallback(() => setToast(null), []);
+
 
   // The module list closes on Escape or a click anywhere else.
   useEffect(() => {
@@ -441,7 +480,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
             <>
               <SedeMap agents={agents} core={core} theme={theme} details={details} onOpen={(a) => go(a.module)} />
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-                <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia}
+                <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia} publicacao={publicacao}
                   onOpenEditor={() => (previewClip ? openEditor(previewClip) : go('editor'))} rendering={jobActive} />
                 <PreviewPanel clip={previewClip} obras={job?.snap?.construcao || []} jobId={job?.id} ativo={jobActive} tempo={job?.snap?.tempo} />
               </div>
@@ -478,7 +517,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}
           {view === 'settings' && (
             <Configuracoes nome={nome} onNome={pickNome} theme={theme} onTheme={pickTheme} som={som} onSom={pickSom}
-              onAbrirChaves={() => go('config')} />
+              onAbrirChaves={() => go('config')} servicoPublicacao={servicoPub} />
           )}
         </main>
       </div>

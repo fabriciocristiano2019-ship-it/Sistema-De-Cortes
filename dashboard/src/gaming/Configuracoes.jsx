@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, KeyRound, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
+import { FileText, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
 } from './sons';
 
 import { NOME_PADRAO } from './nome';
+import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
 import { getApiUrl } from '../config';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 
@@ -55,8 +56,9 @@ function AppCelular() {
   );
 }
 
-export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves }) {
+export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false }) {
   const [vol, setVol] = useState(volumeAtual);
+  const [autoPub, setAutoPub] = useState(lerAutoPub);
   const [musica, setMusicaEstado] = useState(musicaLigada);
   const [volMus, setVolMus] = useState(volumeMusica);
   const [rascunho, setRascunho] = useState(nome);
@@ -130,6 +132,30 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
               onChange={(e) => setVolMus(setVolumeMusica(e.target.value))} />
             <p className="mt-1 text-[11px] text-muted">Trilha ambiente gerada pelo próprio programa. Pausa sozinha quando você sai do app.</p>
           </div>
+        </Card>
+
+        <Card icon={Send} title="Publicação automática" id="cfg-autopub">
+          <p className="mb-3 text-sm text-ink2">Ao clicar em <b className="text-ink">Aprovar</b> num corte, ele já vai para as redes marcadas. Antes de enviar, o painel pede confirmação.</p>
+          <div className="mb-3 flex gap-2">
+            <Opcao on={autoPub.ativo} onClick={() => setAutoPub(gravarAutoPub({ ...autoPub, ativo: true }))} icon={Send}>Publicar ao aprovar</Opcao>
+            <Opcao on={!autoPub.ativo} onClick={() => setAutoPub(gravarAutoPub({ ...autoPub, ativo: false }))} icon={X}>Só aprovar</Opcao>
+          </div>
+          {REDES_AUTO.map((r) => (
+            <label key={r.id} className="flex items-center gap-2 text-sm text-ink2">
+              <input type="checkbox" disabled={!autoPub.ativo} checked={autoPub.plataformas.includes(r.id)}
+                onChange={(e) => setAutoPub(gravarAutoPub({ ...autoPub, plataformas: e.target.checked ? [...autoPub.plataformas, r.id] : autoPub.plataformas.filter((p) => p !== r.id) }))} />
+              {r.label} · <span className="text-muted">publicado como público</span>
+            </label>
+          ))}
+          <p className="mt-2 text-[11px] text-muted">Instagram e TikTok entram depois.</p>
+          {servicoPublicacao ? (
+            <p className="mt-3 text-xs text-ok">Serviço de publicação configurado.</p>
+          ) : (
+            <p className="mt-3 text-xs text-warn">
+              Falta configurar o Upload-Post ou o Postiz (onde o seu YouTube fica conectado).{' '}
+              <button type="button" className="underline font-bold" onClick={onAbrirChaves}>Abrir Chaves e Integrações</button>
+            </p>
+          )}
         </Card>
 
         <AppCelular />

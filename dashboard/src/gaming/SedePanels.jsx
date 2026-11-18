@@ -297,16 +297,18 @@ export function ConsolePanel({ lines, roles }) {
 
 /* Cortes + prévia --------------------------------------------------------- */
 
-export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEditor, rendering }) {
+export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEditor, rendering, publicacao }) {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const approve = async (c) => {
     const key = `${c.job_id}:${c.clip_index}`;
+    if (publicacao && !publicacao.confirmar(c)) return;
     setBusy(key); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${c.job_id}/${c.clip_index}`, 'PATCH', { approved: true });
       somAprovado();
       await onReload();
+      publicacao?.publicar(c);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
   return (
