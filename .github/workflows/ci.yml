@@ -19,6 +19,10 @@ jobs:
       # the tests exercise the gated-off paths. numpy+opencv cover the layout
       # modules, fastapi/boto3/PyJWT/python-multipart cover importing app.py
       # for the MCP endpoint tests, google-genai covers gemini_worker.
+      # Several tests encode or probe real media (thumbnails, Gemini frames,
+      # chunked uploads, 48 kHz audio): the runner has no ffmpeg by default.
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Install test dependencies
         run: >
           pip install pytest pillow httpx pydantic sqlalchemy numpy
