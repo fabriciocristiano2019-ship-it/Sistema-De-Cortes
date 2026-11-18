@@ -11,6 +11,7 @@ Cópias fiéis dos originais, sem alteração no conteúdo. Cada pasta traz a li
 | `fastapi-patterns`, `python-patterns`, `python-testing`, `api-design`, `error-handling` | Boas práticas do servidor (FastAPI/Python) e dos testes | affaan-m/ECC (3f14a10) | MIT |
 | `react-patterns`, `react-performance`, `frontend-a11y`, `accessibility`, `make-interfaces-feel-better`, `motion-patterns`, `design-system` | Painel React: desempenho, acessibilidade, acabamento visual | affaan-m/ECC (3f14a10) | MIT |
 | `e2e-testing`, `production-audit`, `codebase-onboarding`, `search-first` | Testes no navegador, auditoria antes de publicar, guia do código, pesquisar antes de programar | affaan-m/ECC (3f14a10) | MIT |
+| `impeccable-design-polish`, `web-design-guidelines`, `ui-animation`, `design-md` | Acabamento e revisão do painel (padrões da Vercel), animações de interface, guia visual do projeto | nexu-io/open-design (0725880) | Apache-2.0 |
 | `short-video-distribution`, `remotion-video-creation`, `cost-aware-llm-pipeline` | Conferir cortes contra as regras de TikTok/Shorts/Reels, vídeos em React, custo do Gemini | affaan-m/ECC (3f14a10) | MIT |
 
 ## Regras de uso neste projeto
@@ -30,3 +31,4 @@ Cópias fiéis dos originais, sem alteração no conteúdo. Cada pasta traz a li
 | Anil-matcha/AI-Youtube-Shorts-Generator | A skill só comanda o programa dele, que faz o mesmo que o nosso. |
 | affaan-m/ECC (outras 308) | Fora do assunto do projeto (outras linguagens, finanças, saúde, redes), já instaladas na sua conta (~80), ou: `social-publisher` (serviço pago SocialClaw), `repo-scan` e `security-scan` (baixam e executam código externo), `web-perimeter-owasp-2025-audit` (varre sites externos), `documentation-lookup` (exige conector Context7), `security-review` (mesmo nome da revisão embutida do Claude). |
 | mutonby/openshorts | Mesma família do OpenShorts que serviu de base ao CORTES. A skill dele usa a API paga openshorts.app. Juntar o código novo dele de uma vez quebraria a versão Gaming. |
+| nexu-io/open-design (outras 558) | É um aplicativo inteiro de design (com plano pago "Go/Cloud"), não um pacote de skills. Ficaram de fora: as de outros assuntos (slides, revistas, Figma, SwiftUI), as que usam serviços pagos (`fal-*`, `venice-*`, `imagegen-*`), `video-downloader` (baixar vídeo de terceiros) e `ui-ux-pro-max` (só um atalho vazio, sem o conteúdo). |
