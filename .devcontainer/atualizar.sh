@@ -43,6 +43,6 @@ pkill -9 -f "uvicorn app:app" 2>/dev/null
 pkill -9 -f "vite --port 5173" 2>/dev/null
 
 echo "4/4 Ligando a versão nova..."
-bash .devcontainer/iniciar.sh
+OPENSHORTS_ATUALIZANDO=1 bash .devcontainer/iniciar.sh
 echo ""
 echo "Se o painel já estava aberto, recarregue a página (no app do celular: feche e abra de novo)."

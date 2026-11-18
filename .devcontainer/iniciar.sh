@@ -10,6 +10,28 @@ if [ ! -x .venv/bin/uvicorn ] || [ ! -d dashboard/node_modules ]; then
   exit 0
 fi
 
+# Atualização automática: ao ligar ou abrir o codespace, se o GitHub tiver uma
+# versão mais nova, atualiza antes de ligar (atualizar.sh). Nunca no meio de um
+# processamento: com vídeo na fila, só avisa. Desligar: OPENSHORTS_AUTO_UPDATE=0.
+# OPENSHORTS_ATUALIZANDO evita repetir a checagem quando atualizar.sh chama este
+# script de volta.
+if [ "${OPENSHORTS_AUTO_UPDATE:-1}" = "1" ] && [ -z "${OPENSHORTS_ATUALIZANDO:-}" ]; then
+  ramo="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  { [ -z "$ramo" ] || [ "$ramo" = "HEAD" ]; } && ramo=main
+  if timeout 20 git fetch -q origin "$ramo" 2>/dev/null \
+     && [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$ramo")" ] \
+     && git merge-base --is-ancestor HEAD "origin/$ramo" 2>/dev/null; then
+    if curl -s -m 3 http://127.0.0.1:8000/api/gaming/system 2>/dev/null | python3 -c \
+        'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (d.get("jobs_active") or 0) + (d.get("jobs_queued") or 0) else 1)' 2>/dev/null; then
+      echo "Versão nova no GitHub. Há vídeo em processamento: atualizo depois."
+      echo "Quando terminar, rode: bash .devcontainer/atualizar.sh"
+    else
+      echo "Versão nova encontrada no GitHub: atualizando antes de ligar..."
+      OPENSHORTS_ATUALIZANDO=1 exec bash .devcontainer/atualizar.sh
+    fi
+  fi
+fi
+
 # setsid + nohup: os processos ficam ligados mesmo depois que este script
 # termina (sem isso o Codespaces os encerra junto com o comando de início).
 # Every background process gets its own output files: none may keep this
