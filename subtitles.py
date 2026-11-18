@@ -113,6 +113,26 @@ def _normalize_subtitle_word(value):
     return " ".join(str(value or "").split())
 
 
+# Shorts captions read as spoken words, not prose: commas, periods and the
+# like at a word's edges are noise on screen ("GANHAMOS," / "BOIÁ."). ? and !
+# carry tone and stay.
+_EDGE_PUNCT = ",.;:…\"'“”‘’«»()[]"
+
+
+# Words that lean on the next one: a caption group ending on them reads as
+# cut mid-thought ("SÓ EU E" / "A GENTE GANHOU"), so they move to the next group.
+_LEANING_WORDS = {
+    "e", "a", "o", "as", "os", "um", "uma", "de", "do", "da", "dos", "das", "em", "no", "na",
+    "nos", "nas", "que", "pra", "pro", "com", "por", "se", "mas", "ou", "the", "and", "of", "to",
+}
+_PAUSE_END = (",", ".", ";", ":", "!", "?", "…")
+
+
+def _clean_caption_word(word):
+    w = word.strip(_EDGE_PUNCT)
+    return w or word if any(ch.isalnum() for ch in word) else ""
+
+
 def transcribe_audio(video_path):
     """
     Transcribe audio from a video file via the configured ASR backend.
@@ -148,7 +168,8 @@ def generate_srt_from_video(video_path, output_path, max_chars=20, max_duration=
     return generate_srt(transcript, 0, duration, output_path, max_chars, max_duration)
 
 
-def _collect_word_blocks(transcript, clip_start, clip_end, max_chars=20, max_duration=2.0):
+def _collect_word_blocks(transcript, clip_start, clip_end, max_chars=20, max_duration=2.0,
+                         max_words=None, clean_punct=False):
     """
     Flatten transcript words for a clip range and group them into short blocks
     suitable for vertical video. Returns a list of blocks; each block is a list
@@ -167,9 +188,13 @@ def _collect_word_blocks(transcript, clip_start, clip_end, max_chars=20, max_dur
     for word_info in flat_words:
         if word_info.get('end', 0) > clip_start and word_info.get('start', 0) < clip_end:
             cleaned_word = _normalize_subtitle_word(word_info.get('word', ''))
+            pause_after = cleaned_word.endswith(_PAUSE_END)
+            if clean_punct:
+                cleaned_word = _clean_caption_word(cleaned_word)
             if not cleaned_word:
                 continue
             words.append({
+                'pause_after': pause_after,
                 'word': cleaned_word,
                 'start': max(0, word_info['start'] - clip_start),
                 'end': max(0, word_info['end'] - clip_start),
@@ -188,10 +213,18 @@ def _collect_word_blocks(transcript, clip_start, clip_end, max_chars=20, max_dur
         current_text_len = sum(len(w['word']) + 1 for w in current_block)
         duration = word['end'] - block_start
 
-        if current_text_len + len(word['word']) > max_chars or duration > max_duration:
+        too_many = max_words is not None and len(current_block) >= max_words
+        # Smart grouping (the Shorts preset): a spoken pause (comma, period)
+        # always closes the group.
+        paused = clean_punct and current_block[-1].get('pause_after')
+        if paused or current_text_len + len(word['word']) > max_chars or duration > max_duration or too_many:
+            carry = []
+            if (clean_punct and not paused and len(current_block) > 1
+                    and current_block[-1]['word'].lower() in _LEANING_WORDS):
+                carry = [current_block.pop()]
             blocks.append(current_block)
-            current_block = [word]
-            block_start = word['start']
+            current_block = carry + [word]
+            block_start = current_block[0]['start']
         else:
             current_block.append(word)
 
@@ -251,8 +284,12 @@ AUTO_CAPTION_STYLE = {
     "effect": "pop",
     "base_opacity": 1.0,
     "uppercase": True,
-    "max_chars": 16,
+    "max_chars": 14,          # with Anton at this size, 14 never reaches the edges
     "max_duration": 1.4,
+    "max_words": 3,           # short punchy groups, the Shorts/TikTok rhythm
+    "clean_punct": True,      # no stray commas and periods on screen
+    "shadow": 2,              # soft drop shadow for bright backgrounds
+    "bridge_gap": 0.35,       # hold through short pauses instead of blinking
 }
 
 
@@ -309,7 +346,8 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
                  border_color="#000000", border_width=2,
                  highlight_color="#FFD700", bg_color="#000000", bg_opacity=0.0,
                  effect="none", base_opacity=1.0, uppercase=False,
-                 margin_v=SAFE_MARGIN_V, split_ranges=None):
+                 margin_v=SAFE_MARGIN_V, split_ranges=None,
+                 max_words=None, clean_punct=False, shadow=0, bridge_gap=0.0):
     """
     Generates a karaoke-style ASS file: each block is shown like the SRT path,
     but the currently spoken word is rendered in highlight_color (modern
@@ -321,7 +359,8 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
     base_opacity: opacity of the non-active words — dimmed base text is the
     modern captioneer look (e.g. 0.4).
     """
-    blocks = _collect_word_blocks(transcript, clip_start, clip_end, max_chars, max_duration)
+    blocks = _collect_word_blocks(transcript, clip_start, clip_end, max_chars, max_duration,
+                                  max_words=max_words, clean_punct=clean_punct)
     if not blocks:
         return False
 
@@ -363,7 +402,10 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
         outline_colour = hex_to_ass_color(border_color, 1.0, fallback="000000")
         outline_width = max(1, int(border_width))
 
-    back_colour = hex_to_ass_color("#000000", 0.0)
+    # With BorderStyle 1 the BackColour paints the drop shadow: soft black
+    # under the outline keeps captions readable on bright game skies.
+    shadow = _clamp_number(shadow, 0, 6, 0)
+    back_colour = hex_to_ass_color("#000000", 0.55 if shadow else 0.0)
     highlight_inline = _hex_to_ass_inline_color(highlight_color, fallback="FFD700")
 
     # Inline override tags for the active word; {\r} after it resets to the
@@ -398,19 +440,27 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
         f"Style: Default,{safe_font},{final_fontsize},{primary_colour},{primary_colour},"
         f"{outline_colour},{back_colour},1,0,0,0,100,100,0,0,{border_style},"
-        f"{outline_width},0,{ass_alignment},10,10,{int(_clamp_number(margin_v, 0, 200, SAFE_MARGIN_V))},1\n"
+        f"{outline_width},{shadow:g},{ass_alignment},10,10,{int(_clamp_number(margin_v, 0, 200, SAFE_MARGIN_V))},1\n"
         "\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
     events = []
-    for block in blocks:
+    bridge_gap = _clamp_number(bridge_gap, 0.0, 1.0, 0.0)
+    for b_idx, block in enumerate(blocks):
+        # A short pause before the next block keeps this one on screen, so the
+        # caption does not blink off and on between phrases.
+        block_end = block[-1]['end']
+        if b_idx + 1 < len(blocks):
+            nxt = blocks[b_idx + 1][0]['start']
+            if 0 < nxt - block_end <= bridge_gap:
+                block_end = nxt
         for i, word in enumerate(block):
             # Event runs until the next word starts (no flicker in gaps);
             # the last word holds until the block ends.
             ev_start = block[0]['start'] if i == 0 else word['start']
-            ev_end = block[i + 1]['start'] if i < len(block) - 1 else block[-1]['end']
+            ev_end = block[i + 1]['start'] if i < len(block) - 1 else block_end
             if ev_end <= ev_start:
                 continue
 

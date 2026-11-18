@@ -1026,7 +1026,9 @@ def auto_caption_clip(clip_path, transcript, clip_start, clip_end, split_ranges=
                 font_name=style["font_name"], font_color=style["font_color"],
                 border_color=style["border_color"], border_width=style["border_width"],
                 highlight_color=style["highlight_color"], effect=style["effect"],
-                base_opacity=style["base_opacity"], uppercase=style["uppercase"]):
+                base_opacity=style["base_opacity"], uppercase=style["uppercase"],
+                max_words=style.get("max_words"), clean_punct=style.get("clean_punct", False),
+                shadow=style.get("shadow", 0), bridge_gap=style.get("bridge_gap", 0.0)):
             print("   ℹ️ No words in range — clip ships without captions.")
             return None
 
@@ -1657,7 +1659,10 @@ def gaming_transcription_hints(game, library_dir=None):
         terms += [a for a in g.get("aliases") or [] if len(a) > 2][:8]
     boost = game_profiles.category(game.get("category") or "other").get("boost") or []
     terms += [game_profiles.MOMENTS[m]["label"].lower() for m in boost if m in game_profiles.MOMENTS]
-    terms += ["gameplay", "partida", "clutch", "headshot", "kill", "rush", "loot"]
+    # Common PT-BR gaming slang Whisper otherwise misspells ("Booyah" came out
+    # as "boiá" on a Free Fire win).
+    terms += ["gameplay", "partida", "clutch", "headshot", "capa", "kill", "rush", "rushar",
+              "loot", "squad", "Booyah", "GG", "noob", "bot", "Garena"]
     seen, uniq = set(), []
     for t in terms:
         if t.lower() not in seen:

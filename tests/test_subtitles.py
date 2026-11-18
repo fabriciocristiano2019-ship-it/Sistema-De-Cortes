@@ -330,3 +330,63 @@ class TestFilterQuoting:
     def test_plain_path_untouched(self):
         from subtitles import _escape_ffmpeg_filter_value
         assert _escape_ffmpeg_filter_value("/out/subs_0_123.ass") == "/out/subs_0_123.ass"
+
+
+class TestShortsCaptionPolish:
+    """Gaming Shorts look (18-nov-2026): no stray punctuation, groups of at most
+    three words, a drop shadow and no blinking across short pauses."""
+
+    @staticmethod
+    def _t(words):
+        return {"segments": [{"words": words}]}
+
+    def _events(self, out):
+        return [l for l in out.read_text(encoding="utf-8-sig").splitlines() if l.startswith("Dialogue:")]
+
+    def test_commas_and_periods_leave_but_tone_marks_stay(self, tmp_path):
+        from subtitles import generate_ass
+        out = tmp_path / "s.ass"
+        words = [_w(" ganhamos,", 0.0, 0.4), _w(" booyah.", 0.4, 0.8), _w(" sério?", 0.8, 1.2), _w(" ...", 1.2, 1.3)]
+        assert generate_ass(self._t(words), 0, 10, str(out), clean_punct=True, max_chars=40, max_duration=5)
+        text = "\n".join(self._events(out))
+        assert "ganhamos," not in text and "booyah." not in text
+        assert "ganhamos" in text and "booyah" in text and "sério?" in text
+        assert "..." not in text
+
+    def test_groups_hold_at_most_three_words(self, tmp_path):
+        from subtitles import _collect_word_blocks
+        words = [_w(f" w{i}", i * 0.2, i * 0.2 + 0.2) for i in range(7)]
+        blocks = _collect_word_blocks(self._t(words), 0, 10, max_chars=99, max_duration=99, max_words=3)
+        assert [len(b) for b in blocks] == [3, 3, 1]
+
+    def test_shadow_and_short_pauses_are_bridged(self, tmp_path):
+        from subtitles import generate_ass
+        out = tmp_path / "s.ass"
+        words = [_w(" um", 0.0, 0.5), _w(" dois", 0.7, 1.0)]  # 0.2 s pause between blocks
+        assert generate_ass(self._t(words), 0, 10, str(out), max_words=1, shadow=2, bridge_gap=0.35)
+        style = [l for l in out.read_text(encoding="utf-8-sig").splitlines() if l.startswith("Style: Default")][0]
+        assert ",2,2," in style  # outline 2, shadow 2
+        first = self._events(out)[0]
+        assert first.split(",")[2] == "0:00:00.70"  # held until the next block starts
+
+    def test_long_pauses_still_clear_the_screen(self, tmp_path):
+        from subtitles import generate_ass
+        out = tmp_path / "s.ass"
+        words = [_w(" um", 0.0, 0.5), _w(" dois", 2.0, 2.4)]
+        assert generate_ass(self._t(words), 0, 10, str(out), max_words=1, bridge_gap=0.35)
+        assert self._events(out)[0].split(",")[2] == "0:00:00.50"
+
+    def test_auto_style_uses_the_polish(self):
+        from subtitles import AUTO_CAPTION_STYLE as s
+        assert s["max_words"] == 3 and s["clean_punct"] is True and s["shadow"] > 0 and s["bridge_gap"] > 0
+
+    def test_groups_follow_the_speech(self):
+        from subtitles import _collect_word_blocks
+        raw = [" vitória,", " sobrou", " só", " eu", " e", " a", " gente", " ganhou,", " booyah."]
+        words = [_w(t, i * 0.25, i * 0.25 + 0.25) for i, t in enumerate(raw)]
+        blocks = _collect_word_blocks(self._t(words), 0, 10, max_chars=14, max_duration=5,
+                                      max_words=3, clean_punct=True)
+        text = [" ".join(w["word"] for w in b) for b in blocks]
+        assert text[0] == "vitória"                                   # comma closes the group
+        assert not any(t.split()[-1] in ("e", "a") for t in text)     # never ends on a leaning word
+        assert text[-2:] == ["ganhou", "booyah"]
