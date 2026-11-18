@@ -16,7 +16,8 @@ import { postizHeaders, postizKey } from './postizConf';
 import JarvisOrb from './JarvisOrb';
 import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
-import { AnalysisSection, DashboardSection, GamesSection, ImportSection } from './SectionsCore';
+import { AnalysisSection, GamesSection, ImportSection } from './SectionsCore';
+import Painel from './Painel';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
 import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from './SectionsPublish';
 import './sede.css';
@@ -39,6 +40,7 @@ const MODULE_HINT = 'Módulo integrado ao fluxo local OpenShorts Gaming Edition 
 
 const VIEWS = [
   { id: 'hq', label: 'Sede', icon: Cpu, hint: 'Sala virtual: os agentes trabalhando' },
+  { id: 'painel', label: 'Painel', icon: BarChart3, hint: 'Seus números: visualizações, curtidas, cortes e publicações' },
   { id: 'modules', label: 'Módulos', icon: Layers, hint: 'Os 12 módulos: cortes, editor, legendas, redes sociais…' },
   { id: 'pipeline', label: 'Fluxo', icon: Terminal, hint: 'Etapas do processamento e registros completos' },
 ];
@@ -65,7 +67,7 @@ const stored = (k, fallback, allowed) => {
 export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
   const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
   const [view, setView] = useState(() => stored('os_sede_view', 'hq', [...VIEWS.map((v) => v.id), 'settings']));
-  const [section, setSection] = useState(() => stored('os_gaming_section', 'dashboard', MODULES.map((m) => m.id)));
+  const [section, setSection] = useState(() => stored('os_gaming_section', 'games', MODULES.filter((m) => m.id !== 'dashboard').map((m) => m.id)));
   const [meta, setMeta] = useState(null);
   const [system, setSystem] = useState(null);
   const [bootAt, setBootAt] = useState(null);
@@ -108,6 +110,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const pickTheme = (t) => { setTheme(t); localStorage.setItem('os_sede_theme', t); };
   const pickView = useCallback((v) => { setView(v); localStorage.setItem('os_sede_view', v); }, []);
   const go = useCallback((id) => {
+    if (id === 'dashboard') { setView('painel'); localStorage.setItem('os_sede_view', 'painel'); window.scrollTo({ top: 0 }); return; }
     setSection(id); localStorage.setItem('os_gaming_section', id);
     setView('modules'); localStorage.setItem('os_sede_view', 'modules');
     window.scrollTo({ top: 0 });
@@ -351,7 +354,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     return `${a} em processamento${q ? ` · ${q} na fila` : ''}`;
   })();
 
-  const mod = MODULES.find((m) => m.id === section) || MODULES[0];
+  const mod = MODULES.find((m) => m.id === section && m.id !== 'dashboard') || MODULES[1];
   const modIndex = MODULES.indexOf(mod) + 1;
   // "Publicar ao aprovar": the Approve click is the owner's approval; the clip
   // goes through the same publication path as module 9/10 (Upload-Post or
@@ -390,8 +393,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }), [servicoPub, uploadPostKey, uploadUserId, loadPubs, loadDash]);
 
   const moduleBody = {
-    dashboard: <DashboardSection dash={dash} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} clips={clips} pubs={pubs}
-      working={working} agentCount={agents.length} connected={!!(uploadPostKey || meta?.upload_post_configured)} />,
     games: <GamesSection meta={meta} games={games} reload={() => Promise.all([loadGames(), loadDash()])} />,
     import: <ImportSection meta={meta} games={games} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,
@@ -460,7 +461,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       </header>
 
       <div className="grid grid-cols-1 gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
-        <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' ? 'hidden lg:block' : ''}`}>
+        <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' || view === 'painel' ? 'hidden lg:block' : ''}`}>
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
             cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
@@ -514,6 +515,9 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
             </section>
           )}
 
+          {view === 'painel' && (
+            <Painel dash={dash} clips={clips} pubs={pubs} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} />
+          )}
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}
           {view === 'settings' && (
             <Configuracoes nome={nome} onNome={pickNome} theme={theme} onTheme={pickTheme} som={som} onSom={pickSom}
