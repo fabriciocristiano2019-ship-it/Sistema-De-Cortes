@@ -27,7 +27,11 @@ if [ "${OPENSHORTS_AUTO_UPDATE:-1}" = "1" ] && [ -z "${OPENSHORTS_ATUALIZANDO:-}
       echo "Quando terminar, rode: bash .devcontainer/atualizar.sh"
     else
       echo "Versão nova encontrada no GitHub: atualizando antes de ligar..."
-      OPENSHORTS_ATUALIZANDO=1 exec bash .devcontainer/atualizar.sh
+      # The newest updater, even when this checkout predates it.
+      if git checkout "origin/$ramo" -- .devcontainer/atualizar.sh 2>/dev/null; then
+        OPENSHORTS_ATUALIZANDO=1 exec bash .devcontainer/atualizar.sh
+      fi
+      echo "Não consegui atualizar sozinho; ligando a versão atual."
     fi
   fi
 fi
