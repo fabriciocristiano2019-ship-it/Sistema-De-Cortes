@@ -5,6 +5,7 @@ import {
 import { apiJson } from '../lib/api';
 import { errText, fmtClock, fmtFalta, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
 import { LOOK } from './agents';
+import { somAprovado } from './sons';
 
 const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
 
@@ -304,6 +305,7 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
     setBusy(key); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${c.job_id}/${c.clip_index}`, 'PATCH', { approved: true });
+      somAprovado();
       await onReload();
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };

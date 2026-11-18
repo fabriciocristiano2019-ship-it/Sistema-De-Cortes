@@ -4,6 +4,7 @@ import { apiJson } from '../lib/api';
 import { errText, fmtDate, jsonReq, PLATFORMS, STATUS_LABEL } from './util';
 import { Badge, Empty, Field, Header, Notice } from './ui';
 import { postizHeaders, postizKey, postizUrl, setPostizKey, setPostizUrl } from './postizConf';
+import { somAprovado } from './sons';
 
 const clipLabel = (clips, p) => {
   const c = (clips || []).find((x) => x.job_id === p.job_id && x.clip_index === p.clip_index);
@@ -42,7 +43,7 @@ function usePubActions({ reload, uploadPostKey, setErr }) {
   const approve = async (p) => {
     if (!window.confirm(`Publicar “${p.title || 'corte'}” em ${p.platforms.join(', ')}?\n\nEssa ação envia o vídeo para as redes sociais.`)) return;
     setBusy(p.id); setErr('');
-    try { await jsonReq(`/api/gaming/publications/${p.id}/approve`, 'POST', {}, headers); }
+    try { await jsonReq(`/api/gaming/publications/${p.id}/approve`, 'POST', {}, headers); somAprovado(); }
     catch (e) { setErr(errText(e)); }
     finally { setBusy(''); reload(); }
   };

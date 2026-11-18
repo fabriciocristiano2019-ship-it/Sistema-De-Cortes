@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Loader2, Pencil, Save, Scissors, Type, X, Image as ImageIcon } from 'lucide-react';
 import { errText, fmtDate, fmtTime, jsonReq, mediaUrl } from './util';
+import { somAprovado } from './sons';
 import { Badge, Empty, Field, Header, Notice, ScoreBar } from './ui';
 
 function ClipVideo({ clip, className = '' }) {
@@ -41,6 +42,7 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
     setBusy(tag); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}`, 'PATCH', body);
+      if (body.approved === true) somAprovado();
       await onPatched();
       setEdit(false);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }

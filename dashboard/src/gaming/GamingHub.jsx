@@ -12,7 +12,7 @@ import SedeMap from './SedeMap';
 import Configuracoes from './Configuracoes';
 import { NOME_KEY, nomeSalvo } from './nome';
 import JarvisOrb from './JarvisOrb';
-import { iniciarZumbido, pararZumbido, setSom, somConcluido, somFalha, somFinal, somInicio, somLigado } from './sons';
+import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
 import { AnalysisSection, DashboardSection, GamesSection, ImportSection } from './SectionsCore';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
@@ -277,6 +277,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       if (a.state === before[a.id]) continue;
       if (a.state === 'working') somInicio(a.id);
       else if (a.state === 'done' && before[a.id] === 'working') somConcluido(a.id);
+      else if (a.state === 'failed') somErroAgente(a.id);
     }
   }, [agents, som]);
   useEffect(() => {

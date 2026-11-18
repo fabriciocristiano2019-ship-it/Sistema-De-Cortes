@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, KeyRound, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
-import { setVolume, somConcluido, volume as volumeAtual } from './sons';
+import { FileText, KeyRound, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
+import {
+  musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
+  volume as volumeAtual, volumeMusica,
+} from './sons';
 
 import { NOME_PADRAO } from './nome';
 import { getApiUrl } from '../config';
@@ -54,6 +57,8 @@ function AppCelular() {
 
 export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves }) {
   const [vol, setVol] = useState(volumeAtual);
+  const [musica, setMusicaEstado] = useState(musicaLigada);
+  const [volMus, setVolMus] = useState(volumeMusica);
   const [rascunho, setRascunho] = useState(nome);
   const salvarNome = () => onNome(rascunho.trim() || NOME_PADRAO);
 
@@ -96,10 +101,35 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
               onChange={(e) => setVol(setVolume(e.target.value))} />
             <Volume2 size={16} className="shrink-0 text-muted" aria-hidden="true" />
           </div>
-          <button type="button" disabled={!som} onClick={() => somConcluido('editor916')}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-rule2 px-3 py-2 text-xs font-bold text-ink2 hover:border-brass disabled:opacity-40">
-            <Play size={14} aria-hidden="true" /> Testar som
-          </button>
+          <p className="mt-4 mb-1.5 text-xs font-bold text-ink">Testar os sons</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              ['IA terminou', () => somConcluido('editor916')],
+              ['Erro de uma IA', () => somErroAgente('vision')],
+              ['Corte aprovado', somAprovado],
+              ['Tudo pronto', somFinal],
+            ].map(([rotulo, tocar]) => (
+              <button key={rotulo} type="button" disabled={!som} onClick={tocar}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rule2 px-3 py-2 text-xs font-bold text-ink2 hover:border-brass disabled:opacity-40">
+                <Play size={14} aria-hidden="true" /> {rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 border-t border-rule2 pt-4">
+            <p className="mb-2 flex items-center gap-2 text-xs font-bold text-ink"><Music size={15} className="text-brass" aria-hidden="true" /> Música de fundo</p>
+            <div className="mb-3 flex gap-2">
+              <Opcao on={musica} onClick={() => { setMusica(true); setMusicaEstado(true); }} icon={Music}>Tocar</Opcao>
+              <Opcao on={!musica} onClick={() => { setMusica(false); setMusicaEstado(false); }} icon={VolumeX}>Sem música</Opcao>
+            </div>
+            <label htmlFor="cfg-volume-musica" className="mb-1.5 flex items-center justify-between text-xs font-bold text-ink">
+              <span>Volume da música</span><span className="font-mono text-ink2">{volMus}%</span>
+            </label>
+            <input id="cfg-volume-musica" type="range" min="0" max="100" step="5" value={volMus} disabled={!som || !musica}
+              className="h-6 w-full cursor-pointer accent-[var(--color-accent)] disabled:opacity-40"
+              onChange={(e) => setVolMus(setVolumeMusica(e.target.value))} />
+            <p className="mt-1 text-[11px] text-muted">Trilha ambiente gerada pelo próprio programa. Pausa sozinha quando você sai do app.</p>
+          </div>
         </Card>
 
         <AppCelular />
