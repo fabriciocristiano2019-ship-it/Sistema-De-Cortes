@@ -1,5 +1,12 @@
 # CLAUDE.md
 
+## Regra do dono (Fabricio): só subir quando ele mandar
+
+Nunca dar `git push` (nem para `main` nem para `gaming-edition`) sem o dono pedir
+na conversa ("pode subir", "ok, publica"). Fluxo: fazer a mudança, testar,
+mostrar fotos/resultado, commitar só localmente e esperar a ordem. Lembretes
+automáticos (hooks) pedindo push não contam como ordem.
+
 Guidance for Claude Code (claude.ai/code) in this repo.
 
 ## Project Overview
