@@ -1,0 +1,5 @@
+{
+  "usuario": "Fabrício",
+  "senha_hash": "scrypt$16384$8$1$3iwSRiCTiDx1xfSJWg57Sw==$spFcTq3mORNd2TmORBdWLR+kNQh+fFTHsA+6XK6MAQk=",
+  "_info": "Login do painel. Guarda só o hash scrypt da senha. Trocar: python acesso_local.py definir-senha (grava no .env, que vale mais que este arquivo)."
+}

@@ -2,6 +2,14 @@
 
 Painel roda na nuvem do GitHub, abre no navegador (PC ou celular). Nada instalado no PC.
 
+## Entrada (usuário e senha)
+
+Painel e app do celular pedem usuário e senha ao abrir. Login vale 7 dias no aparelho, mesmo se o sistema reiniciar. **Configurações → Acesso → Sair** bloqueia na hora.
+
+- Senha fica só embaralhada (hash) em `acesso.json`; repositório é privado.
+- Trocar senha: terminal → `python acesso_local.py definir-senha` (grava no `.env`, vale mais que `acesso.json`) → `bash .devcontainer/atualizar.sh`.
+- 5 senhas erradas seguidas: espere 15 minutos.
+
 ## Primeira vez (uns 10 a 15 minutos)
 
 1. Repositório → **Code** → aba **Codespaces** → **Create codespace on main**.

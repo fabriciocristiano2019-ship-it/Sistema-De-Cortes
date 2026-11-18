@@ -28,6 +28,7 @@ import re
 import secrets
 import sys
 import threading
+import unicodedata
 import time
 from collections import deque
 from http.cookies import SimpleCookie
@@ -35,7 +36,11 @@ from http.cookies import SimpleCookie
 COOKIE = "os_sessao"
 SESSAO_SEGUNDOS = 7 * 24 * 3600
 ENV_SENHA = "OPENSHORTS_SENHA_HASH"
-SENHA_MIN = 8
+SENHA_MIN = 4
+ENV_USUARIO = "OPENSHORTS_USUARIO"
+# Login do dono, versionado no repositório (privado): só o hash scrypt da
+# senha, nunca a senha. OPENSHORTS_SENHA_HASH (.env ou Secret) tem prioridade.
+ARQUIVO_ACESSO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "acesso.json")
 
 # Tentativas de login erradas: por endereço e no total (contra quem troca de IP).
 FALHAS_POR_IP = 5
@@ -83,14 +88,68 @@ def conferir_senha(senha: str, guardado: str) -> bool:
     return hmac.compare_digest(teste, dk_b)
 
 
+def _arquivo_acesso():
+    return os.environ.get("OPENSHORTS_ACESSO_FILE") or ARQUIVO_ACESSO
+
+
+def credenciais():
+    """(usuario ou None, hash ou ""): do ambiente, senão do acesso.json."""
+    env = (os.environ.get(ENV_SENHA) or "").strip()
+    if env:
+        return ((os.environ.get(ENV_USUARIO) or "").strip() or None), env
+    try:
+        with open(_arquivo_acesso(), encoding="utf-8") as f:
+            d = json.load(f)
+        return (str(d.get("usuario") or "").strip() or None), str(d.get("senha_hash") or "").strip()
+    except (OSError, ValueError, AttributeError):
+        return None, ""
+
+
 def hash_configurado() -> str:
-    return (os.environ.get(ENV_SENHA) or "").strip()
+    return credenciais()[1]
+
+
+def _normalizar(nome):
+    tira = unicodedata.normalize("NFKD", str(nome or ""))
+    return "".join(c for c in tira if not unicodedata.combining(c)).strip().casefold()
+
+
+def usuario_confere(digitado, esperado) -> bool:
+    """Sem usuário configurado, qualquer um serve (só a senha conta). Ignora
+    acentos e maiúsculas: Fabrício = Fabricio = fabricio."""
+    if not esperado:
+        return True
+    return hmac.compare_digest(_normalizar(digitado).encode(), _normalizar(esperado).encode())
 
 
 # --------------------------------------------------------------------------- #
 # Sessão (cookie assinado)
 # --------------------------------------------------------------------------- #
-_CHAVE = secrets.token_bytes(32)   # nova a cada início: reiniciar encerra as sessões
+def _chave_sessao():
+    """Chave das sessões guardada fora do repositório (0600), para o login
+    sobreviver às reinicializações (a atualização automática reinicia o
+    servidor). Sem onde gravar, uma chave nova a cada início."""
+    caminho = os.environ.get("OPENSHORTS_SESSAO_KEY_FILE") or os.path.join(
+        os.path.expanduser("~"), ".openshorts", "sessao.key")
+    try:
+        with open(caminho, "rb") as f:
+            chave = f.read()
+        if len(chave) >= 32:
+            return chave
+    except OSError:
+        pass
+    chave = secrets.token_bytes(32)
+    try:
+        os.makedirs(os.path.dirname(caminho), mode=0o700, exist_ok=True)
+        fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(chave)
+    except OSError:
+        pass
+    return chave
+
+
+_CHAVE = _chave_sessao()
 
 
 def _assinar(dados: str) -> str:
@@ -283,6 +342,7 @@ def criar_router():
 
     class Entrada(BaseModel):
         senha: str = Field(..., min_length=1, max_length=256)
+        usuario: str = Field("", max_length=80)
 
     def _cookie(resp, request, valor, max_age):
         h = {k.lower(): v for k, v in request.headers.items()}
@@ -291,13 +351,14 @@ def criar_router():
 
     @router.get("/api/acesso/estado")
     async def estado(request: Request):
-        guardado = hash_configurado()
+        usuario, guardado = credenciais()
         valor = request.cookies.get(COOKIE, "")
-        return {"exige_senha": bool(guardado), "autenticado": (not guardado) or sessao_valida(valor)}
+        return {"exige_senha": bool(guardado), "pede_usuario": bool(guardado and usuario),
+                "autenticado": (not guardado) or sessao_valida(valor)}
 
     @router.post("/api/acesso/entrar")
     async def entrar(body: Entrada, request: Request, response: Response):
-        guardado = hash_configurado()
+        usuario, guardado = credenciais()
         if not guardado:
             return {"ok": True, "exige_senha": False}
         ip = request.client.host if request.client else "?"
@@ -305,9 +366,12 @@ def criar_router():
         if espera:
             raise HTTPException(status_code=429, detail=f"Muitas tentativas. Tente de novo em {max(1, espera // 60)} min.",
                                 headers={"Retry-After": str(espera)})
-        if not conferir_senha(body.senha, guardado):
+        # Both checks always run: the answer time does not tell which one failed.
+        senha_ok = conferir_senha(body.senha, guardado)
+        if not (usuario_confere(body.usuario, usuario) and senha_ok):
             LIMITE.falhou(ip)
-            raise HTTPException(status_code=401, detail="Senha incorreta.")
+            raise HTTPException(status_code=401,
+                                detail="Usuário ou senha incorretos." if usuario else "Senha incorreta.")
         LIMITE.acertou(ip)
         _cookie(response, request, criar_sessao(), SESSAO_SEGUNDOS)
         return {"ok": True}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, KeyRound, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
+import { FileText, KeyRound, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX } from 'lucide-react';
 import { setVolume, somConcluido, volume as volumeAtual } from './sons';
 
 import { NOME_PADRAO } from './nome';
+import { getApiUrl } from '../config';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 
 function Card({ icon, title, children, id }) {
@@ -102,6 +103,17 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
         </Card>
 
         <AppCelular />
+
+        <Card icon={LogOut} title="Acesso" id="cfg-acesso">
+          <p className="mb-3 text-sm text-ink2">O login vale por 7 dias neste aparelho. Para bloquear agora, saia.</p>
+          <button type="button" className="inline-flex items-center gap-1.5 rounded-xl border border-rule2 px-4 py-2 text-sm font-bold text-ink2 hover:border-brass"
+            onClick={async () => {
+              try { await fetch(getApiUrl('/api/acesso/sair'), { method: 'POST', credentials: 'include' }); } catch (_) { /* offline: reload shows the gate anyway */ }
+              window.location.reload();
+            }}>
+            <LogOut size={15} aria-hidden="true" /> Sair
+          </button>
+        </Card>
 
         <Card icon={KeyRound} title="Chaves e integrações" id="cfg-chaves">
           <p className="mb-3 text-sm text-ink2">

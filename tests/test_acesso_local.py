@@ -49,7 +49,7 @@ def test_hash_is_salted_and_verifies():
 
 def test_short_password_is_refused():
     with pytest.raises(ValueError):
-        al.gerar_hash("curta")
+        al.gerar_hash("abc")
 
 
 def test_session_is_signed_and_expires():
@@ -129,7 +129,7 @@ def test_internal_files_are_not_served(client, path):
 
 # ---- optional password ------------------------------------------------------
 def test_without_password_everything_is_open(client):
-    assert client.get("/api/acesso/estado").json() == {"exige_senha": False, "autenticado": True}
+    assert client.get("/api/acesso/estado").json() == {"exige_senha": False, "pede_usuario": False, "autenticado": True}
     assert client.get("/api/games").status_code == 200
 
 
@@ -139,7 +139,7 @@ def test_password_flow(client, monkeypatch):
     assert r.status_code == 401 and r.json()["code"] == "acesso_necessario"
     assert client.get("/videos/x/clip.mp4").status_code == 401
     assert client.get("/health").status_code == 200
-    assert client.get("/api/acesso/estado").json() == {"exige_senha": True, "autenticado": False}
+    assert client.get("/api/acesso/estado").json() == {"exige_senha": True, "pede_usuario": False, "autenticado": False}
 
     assert client.post("/api/acesso/entrar", json={"senha": "errada-errada"}).status_code == 401
     r = client.post("/api/acesso/entrar", json={"senha": SENHA})
@@ -206,3 +206,65 @@ def test_game_preferences_only_keep_valid_values(out):
     p = g["preferences"]
     assert p["layout"] == "auto" and p["clip_seconds"] == 30 and p["captions"] is True
     assert p["max_clips"] == 5 and "admin" not in p
+
+
+# --- usuário + senha (acesso.json do dono) ---------------------------------- #
+
+def _login_arquivo(tmp_path, monkeypatch, usuario="Fabrício", senha="4507"):
+    import json
+    arq = tmp_path / "acesso.json"
+    arq.write_text(json.dumps({"usuario": usuario, "senha_hash": al.gerar_hash(senha)}), encoding="utf-8")
+    monkeypatch.setenv("OPENSHORTS_ACESSO_FILE", str(arq))
+    monkeypatch.delenv(al.ENV_SENHA, raising=False)
+
+
+def test_four_digit_pin_is_accepted_and_three_is_not():
+    assert al.conferir_senha("4507", al.gerar_hash("4507"))
+    with pytest.raises(ValueError):
+        al.gerar_hash("450")
+
+
+@pytest.mark.parametrize("nome", ["Fabrício", "Fabricio", "fabricio", "  FABRÍCIO  "])
+def test_user_ignores_accents_case_and_spaces(nome):
+    assert al.usuario_confere(nome, "Fabrício")
+
+
+@pytest.mark.parametrize("nome", ["", "Fabio", "Fabricio2", "admin"])
+def test_other_users_are_refused(nome):
+    assert not al.usuario_confere(nome, "Fabrício")
+
+
+def test_login_with_user_and_pin_from_file(client, tmp_path, monkeypatch):
+    _login_arquivo(tmp_path, monkeypatch)
+    assert client.get("/api/acesso/estado").json() == {"exige_senha": True, "pede_usuario": True, "autenticado": False}
+    assert client.get("/api/games").status_code == 401
+    r = client.post("/api/acesso/entrar", json={"usuario": "Fabio", "senha": "4507"})
+    assert r.status_code == 401 and r.json()["detail"] == "Usuário ou senha incorretos."
+    r = client.post("/api/acesso/entrar", json={"usuario": "Fabricio", "senha": "1234"})
+    assert r.status_code == 401 and r.json()["detail"] == "Usuário ou senha incorretos."
+    assert client.post("/api/acesso/entrar", json={"senha": "4507"}).status_code == 401, "user is required"
+    assert client.post("/api/acesso/entrar", json={"usuario": "fabricio", "senha": "4507"}).status_code == 200
+    assert client.get("/api/games").status_code == 200
+
+
+def test_env_password_wins_over_the_file(client, tmp_path, monkeypatch):
+    _login_arquivo(tmp_path, monkeypatch)
+    monkeypatch.setenv(al.ENV_SENHA, al.gerar_hash("outra-senha"))
+    assert client.post("/api/acesso/entrar", json={"usuario": "Fabricio", "senha": "4507"}).status_code == 401
+    assert client.post("/api/acesso/entrar", json={"senha": "outra-senha"}).status_code == 200
+
+
+def test_session_key_survives_a_restart(tmp_path, monkeypatch):
+    import os, stat
+    monkeypatch.setenv("OPENSHORTS_SESSAO_KEY_FILE", str(tmp_path / "k" / "sessao.key"))
+    k1 = al._chave_sessao()
+    assert al._chave_sessao() == k1, "same key after a restart"
+    assert stat.S_IMODE(os.stat(tmp_path / "k" / "sessao.key").st_mode) == 0o600
+
+
+def test_repo_login_file_has_only_a_hash():
+    import json, os
+    arq = os.path.join(os.path.dirname(al.__file__), "acesso.json")
+    d = json.load(open(arq, encoding="utf-8"))
+    assert d["senha_hash"].startswith("scrypt$") and "4507" not in open(arq, encoding="utf-8").read()
+    assert al.conferir_senha("4507", d["senha_hash"]) and al.usuario_confere("Fabricio", d["usuario"])
