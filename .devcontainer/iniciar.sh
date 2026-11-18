@@ -4,6 +4,16 @@
 cd "$(dirname "$0")/.."
 mkdir -p .logs
 
+# The codespace runs this twice on open (postStart and postAttach): one at a
+# time, or both could update and stop the servers the other just started. The
+# copy that atualizar.sh calls back already runs under its parent's lock. The
+# servers started below must not inherit fd 9 (9>&-): they outlive this
+# script, and a lock held by them would make every later start wait forever.
+if [ -z "${OPENSHORTS_ATUALIZANDO:-}" ]; then
+  exec 9>.logs/.iniciar.lock
+  flock -n 9 || { echo "Outra inicialização em andamento; aguardando ela terminar..."; flock 9; }
+fi
+
 if [ ! -x .venv/bin/uvicorn ] || [ ! -d dashboard/node_modules ]; then
   echo "A instalação ainda não terminou (ou falhou)."
   echo "Rode: bash .devcontainer/instalar.sh"
@@ -21,7 +31,12 @@ if [ "${OPENSHORTS_AUTO_UPDATE:-1}" = "1" ] && [ -z "${OPENSHORTS_ATUALIZANDO:-}
   if timeout 20 git fetch -q origin "$ramo" 2>/dev/null \
      && [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$ramo")" ] \
      && git merge-base --is-ancestor HEAD "origin/$ramo" 2>/dev/null; then
-    if curl -s -m 3 http://127.0.0.1:8000/api/gaming/system 2>/dev/null | python3 -c \
+    # A video being uploaded is not a job yet: restarting now would cut the
+    # upload and leave the page dark. Parts land in uploads/pending_*.
+    if find uploads -maxdepth 1 -name 'pending_*' -mmin -2 2>/dev/null | grep -q .; then
+      echo "Versão nova no GitHub. Há vídeo sendo enviado: atualizo depois."
+      echo "Quando terminar, rode: bash .devcontainer/atualizar.sh"
+    elif curl -s -m 3 http://127.0.0.1:8000/api/gaming/system 2>/dev/null | python3 -c \
         'import json,sys; d=json.load(sys.stdin); sys.exit(0 if (d.get("jobs_active") or 0) + (d.get("jobs_queued") or 0) else 1)' 2>/dev/null; then
       echo "Versão nova no GitHub. Há vídeo em processamento: atualizo depois."
       echo "Quando terminar, rode: bash .devcontainer/atualizar.sh"
@@ -52,11 +67,28 @@ done
 # forever.
 if ! pgrep -f "uvicorn app:app" >/dev/null; then
   setsid nohup .venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 \
-    > .logs/servidor.log 2>&1 < /dev/null &
+    > .logs/servidor.log 2>&1 < /dev/null 9>&- &
 fi
-if ! pgrep -f "vite --port 5173" >/dev/null; then
-  (cd dashboard && VITE_PROXY_TARGET=http://127.0.0.1:8000 exec setsid nohup npx vite --port 5173 --host 127.0.0.1) \
-    > .logs/painel.log 2>&1 < /dev/null &
+# The panel is served already built (vite preview): one small bundle instead
+# of the development server, which reloads the page on its own when its
+# connection drops (as during a big upload through the codespace tunnel). It
+# is rebuilt only when the code changed; if the build fails, the development
+# server is used as before. OPENSHORTS_PAINEL_DEV=1 forces development mode.
+versao_painel() { printf '%s %s' "$(git rev-parse HEAD 2>/dev/null)" "$(git status --porcelain -- dashboard 2>/dev/null | md5sum | cut -c1-8)"; }
+painel_montado() {
+  [ -f dashboard/dist/index.html ] && [ "$(cat dashboard/dist/.versao 2>/dev/null)" = "$(versao_painel)" ] && return 0
+  echo "Montando o painel (uns 20 segundos)..."
+  (cd dashboard && npx vite build) > .logs/build.log 2>&1 && versao_painel > dashboard/dist/.versao
+}
+if ! pgrep -f "vite.*--port 5173" >/dev/null; then
+  if [ "${OPENSHORTS_PAINEL_DEV:-0}" != "1" ] && painel_montado; then
+    (cd dashboard && VITE_PROXY_TARGET=http://127.0.0.1:8000 exec setsid nohup npx vite preview --port 5173 --host 127.0.0.1 --strictPort) \
+      > .logs/painel.log 2>&1 < /dev/null 9>&- &
+  else
+    [ "${OPENSHORTS_PAINEL_DEV:-0}" != "1" ] && echo "A montagem falhou (.logs/build.log): usando o modo de desenvolvimento."
+    (cd dashboard && VITE_PROXY_TARGET=http://127.0.0.1:8000 exec setsid nohup npx vite --port 5173 --host 127.0.0.1) \
+      > .logs/painel.log 2>&1 < /dev/null 9>&- &
+  fi
 fi
 
 echo "Conferindo o servidor e o painel (liga o que estiver desligado)..."

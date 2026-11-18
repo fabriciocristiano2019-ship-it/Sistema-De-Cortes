@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import AcessoGate from './gaming/AcessoGate.jsx'
 import TermosLGPD from './gaming/TermosLGPD.jsx'
+import ErroTela from './gaming/ErroTela.jsx'
 const Landing = lazy(() => import('./Landing.jsx'))
 const Legal = lazy(() => import('./Legal.jsx'))
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -118,7 +119,9 @@ captureAttribution();
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <Suspense fallback={<div className="min-h-screen bg-background" />}><Root /></Suspense>
+      <ErroTela>
+        <Suspense fallback={<div className="min-h-screen grid place-items-center bg-background text-sm text-zinc-400">Carregando…</div>}><Root /></Suspense>
+      </ErroTela>
     </AuthProvider>
   </StrictMode>,
 )

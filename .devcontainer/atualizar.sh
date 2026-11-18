@@ -6,6 +6,13 @@
 # do controle do git). Alterações feitas à mão nos arquivos do código são
 # descartadas: o código passa a ser exatamente o do GitHub.
 cd "$(dirname "$0")/.."
+mkdir -p .logs
+# Run by hand: wait for any start/update in progress (iniciar.sh holds the lock).
+if [ -z "${OPENSHORTS_ATUALIZANDO:-}" ]; then
+  exec 9>.logs/.iniciar.lock
+  flock -n 9 || { echo "Outra inicialização em andamento; aguardando..."; flock 9; }
+  export OPENSHORTS_ATUALIZANDO=1
+fi
 
 ramo="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
 [ -z "$ramo" ] || [ "$ramo" = "HEAD" ] && ramo=main
@@ -34,13 +41,13 @@ fi
 
 echo "3/4 Desligando a versão antiga..."
 pkill -f "uvicorn app:app" 2>/dev/null
-pkill -f "vite --port 5173" 2>/dev/null
+pkill -f "vite.*--port 5173" 2>/dev/null
 for _ in $(seq 1 45); do
-  pgrep -f "uvicorn app:app" >/dev/null || pgrep -f "vite --port 5173" >/dev/null || break
+  pgrep -f "uvicorn app:app" >/dev/null || pgrep -f "vite.*--port 5173" >/dev/null || break
   sleep 2
 done
 pkill -9 -f "uvicorn app:app" 2>/dev/null
-pkill -9 -f "vite --port 5173" 2>/dev/null
+pkill -9 -f "vite.*--port 5173" 2>/dev/null
 
 echo "4/4 Ligando a versão nova..."
 OPENSHORTS_ATUALIZANDO=1 bash .devcontainer/iniciar.sh

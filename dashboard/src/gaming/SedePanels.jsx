@@ -239,6 +239,25 @@ const LEVEL = {
 
 // Live diary of the agents: one line per step, the agent's codename in its own
 // colour (the same as its room on the map), then what it did.
+// The agent log sits on a dark panel in both themes: an agent colour that is too
+// dark there (indigo #4f46e5 read at 2.8:1) is lightened toward white until it
+// reaches 4.5:1 (WCAG AA).
+const _lum = (h) => {
+  const v = (i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * v(1) + 0.7152 * v(3) + 0.0722 * v(5);
+};
+const _CONSOLE_BG = _lum('#0f1828');
+function claroNoEscuro(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  let [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  for (let k = 0; k < 20; k += 1) {
+    const h = `#${[r, g, b].map((x) => Math.round(x).toString(16).padStart(2, '0')).join('')}`;
+    if ((_lum(h) + 0.05) / (_CONSOLE_BG + 0.05) >= 4.5) return h;
+    [r, g, b] = [r, g, b].map((x) => x + (255 - x) * 0.12);
+  }
+  return '#ffffff';
+}
+
 export function ConsolePanel({ lines, roles }) {
   const box = useRef(null);
   useEffect(() => {
@@ -257,7 +276,7 @@ export function ConsolePanel({ lines, roles }) {
         {lines.map((l, i) => {
           const isAgent = l.agent && l.agent !== 'core';
           const who = l.agent === 'core' || !l.agent ? 'J.A.R.V.I.S.' : (roles[l.agent] || l.agent).split(' · ')[0];
-          const color = isAgent ? (LOOK[l.agent]?.color || '#a5b4fc') : '#22d3ee';
+          const color = isAgent ? claroNoEscuro(LOOK[l.agent]?.color || '#a5b4fc') : '#22d3ee';
           const lv = LEVEL[l.level] || LEVEL.info;
           return (
             <p key={i} className="break-words">
