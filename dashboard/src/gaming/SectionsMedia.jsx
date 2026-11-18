@@ -195,7 +195,7 @@ export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, g
           <button className="underline" onClick={() => go('import')}>Importar gameplay</button>
         </Empty>
       ) : (
-        <div className="grid xl:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {list.map((c) => <ClipCard key={`${c.job_id}:${c.clip_index}`} clip={c} meta={meta} onPatched={reload} onEdit={openEditor} onSubs={openSubs} publicacao={publicacao} />)}
         </div>
       )}
@@ -240,14 +240,14 @@ export function EditorSection({ clips, selected, onSelect, reload }) {
       <Header ord="06 · EDITOR DE VÍDEOS" title="Editor" hint="Ajuste início, fim e enquadramento. O vídeo original não é alterado; o corte é renderizado de novo." />
       <div className="mb-5 max-w-2xl"><ClipPicker clips={clips || []} selected={selected} onSelect={onSelect} /></div>
       {!clip ? <Empty title="Selecione um corte">Escolha acima o corte que quer ajustar.</Empty> : (
-        <div className="grid lg:grid-cols-[1fr_15rem] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_15rem] gap-5">
           <div className="card p-4 space-y-4">
             <div>
               <p className="text-xs text-muted mb-2">Vídeo original (use para achar o ponto exato)</p>
               <video ref={srcRef} src={mediaUrl(`/api/source/${clip.job_id}`)} controls preload="metadata" className="w-full rounded-input bg-black max-h-[22rem]"
                 onLoadedMetadata={(e) => { e.currentTarget.currentTime = Number(start) || 0; }} />
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label={`Início (s) · ${fmtTime(start)}`}>
                 <div className="flex gap-2">
                   <input type="number" step="0.1" min="0" className="input-field w-full" value={start} onChange={(e) => setStart(e.target.value)} />
@@ -308,9 +308,9 @@ export function SubtitlesSection({ clips, selected, onSelect, reload }) {
       <Header ord="07 · LEGENDAS" title="Legendas" hint="Geradas da transcrição local (Faster-Whisper), sincronizadas palavra por palavra." />
       <div className="mb-5 max-w-2xl"><ClipPicker clips={clips || []} selected={selected} onSelect={onSelect} /></div>
       {!clip ? <Empty title="Selecione um corte">Escolha acima o corte para aplicar ou refazer as legendas.</Empty> : (
-        <div className="grid lg:grid-cols-[1fr_15rem] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_15rem] gap-5">
           <div className="card p-4 space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Estilo">
                 <select className="input-field w-full" value={o.style} onChange={(e) => set('style', e.target.value)}>
                   <option value="karaoke">Animada: destaca a palavra falada</option>

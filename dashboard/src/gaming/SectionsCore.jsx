@@ -59,7 +59,7 @@ function SocialMetrics({ uploadPostKey, uploadUserId, go }) {
               <StatTile label="Compartilhamentos" value={nf.format(m.totals.shares)} />
             </div>
             {m.totals.posts === 0 ? <p className="text-sm text-muted">Nenhuma publicação neste período.</p> : (
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-xs text-muted mb-3">Visualizações por rede</h3>
                   <BarList data={m.per_platform.map((p) => ({ label: platLabel(p.platform), value: p.views }))} />
@@ -106,7 +106,7 @@ export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId, c
         </div>
       )}
       <ResultsBoard dash={dash} clips={clips} pubs={pubs} working={working} agentCount={agentCount} connected={connected} go={go} />
-      <div className="grid sm:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <StatTile label="Gameplays Processadas" value={t.videos} sub={`${t.games} jogos na biblioteca`} />
         <StatTile label="Cortes 9:16 Gerados" value={t.clips} sub={`${minutes} min de vídeo`} tone="accent" />
         {t.external_api_jobs > 0 ? (
@@ -123,7 +123,7 @@ export function DashboardSection({ dash, job, go, uploadPostKey, uploadUserId, c
         <StatTile label="Publicações enviadas" value={t.published} />
       </div>
       <SocialMetrics uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div className="card p-5">
           <h2 className="text-sm text-ink mb-4">Cortes por jogo</h2>
           <BarList data={dash.by_game} />
@@ -202,7 +202,7 @@ function GameForm({ meta, initial, onSaved, onCancel }) {
         <h2 className="text-sm text-ink">{initial ? `Editar ${initial.name}` : 'Novo jogo'}</h2>
         <button className="btn-quiet" onClick={onCancel} aria-label="Fechar"><X size={16} /></button>
       </div>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Nome do jogo">
           <input className="input-field w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ex.: Valorant" />
         </Field>
@@ -347,7 +347,7 @@ export function ImportSection({ meta, games, form, setForm, onStart, starting, s
   return (
     <div>
       <Header ord="03 · IMPORTAÇÃO" title="Importar gameplay" hint="O vídeo original é preservado; os cortes são arquivos novos." />
-      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-5">
         <div className="space-y-4">
           <div
             className={`card p-6 text-center border-dashed ${drag ? 'border-brass' : ''}`}
@@ -487,7 +487,7 @@ export function AnalysisSection({ job, onCancel, cancelling, go }) {
           </div>
         </div>
       )}
-      <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
+      <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
         {agents.map((a, i) => {
           const [label, tone] = STEP_STATE[a.state] || STEP_STATE.idle;
           return (

@@ -105,7 +105,7 @@ export function SocialSection({ clips, pubs, meta, reload, uploadPostKey, upload
         </div>
       )}
       {err && <div className="mb-4"><Notice tone="error">{err}</Notice></div>}
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card p-5 space-y-4">
           <h2 className="text-sm text-ink">Preparar publicação</h2>
           {approved.length === 0 ? (
@@ -113,7 +113,7 @@ export function SocialSection({ clips, pubs, meta, reload, uploadPostKey, upload
           ) : (
             <>
               <Field label="Corte aprovado">
-                <select className="input-field w-full" value={sel} onChange={(e) => setSel(e.target.value)}>
+                <select className="input-field w-full min-w-0 max-w-full truncate" value={sel} onChange={(e) => setSel(e.target.value)}>
                   <option value="" disabled>Selecione</option>
                   {approved.map((c) => <option key={`${c.job_id}:${c.clip_index}`} value={`${c.job_id}:${c.clip_index}`}>{c.game_name} · {c.moment_label} · {c.video_title_for_youtube_short}</option>)}
                 </select>
@@ -333,7 +333,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
             O sistema funciona sem nenhuma chave. Digitadas aqui, elas ficam só neste navegador, apenas embaralhadas (não é criptografia forte).
             O lugar mais seguro é o arquivo <code>.env</code> do servidor (UPLOAD_POST_API_KEY, UPLOAD_POST_USER, GEMINI_API_KEY): assim a chave nunca passa pelo navegador.
           </p>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="Chave do Upload-Post (publicar e ver resultados)" hint="Serviço de terceiros; pode ter custo.">
               <input id="cfg-upload-key" type="password" autoComplete="off" className="input-field w-full" value={uploadPostKey || ''} onChange={(e) => keys.setUploadPostKey(e.target.value.trim())} />
             </Field>
@@ -348,7 +348,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
       )}
       {keys && <PostizCard />}
       {keys && <YoutubeCookiesCard />}
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card p-5">
           <h2 className="text-sm text-ink mb-1">Processamento local (gratuito)</h2>
           <dl className="divide-y divide-rule">
@@ -406,7 +406,7 @@ function PostizCard() {
         Custo: o Postiz Cloud é pago (tem teste grátis); instalado no seu próprio servidor é gratuito, mas exige configurar cada rede.
         Confira os preços em postiz.com antes de assinar.
       </p>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Chave da API do Postiz" hint="Postiz → Settings → Public API.">
           <input id="cfg-postiz-key" type="password" autoComplete="off" className="input-field w-full" value={key}
             onChange={(e) => { const v = e.target.value.trim(); setKey(v); save(v, url); }} />

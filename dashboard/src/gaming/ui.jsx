@@ -43,7 +43,7 @@ export function Badge({ status, children }) {
 
 export function Field({ label, hint, children }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="block text-xs text-ink2 mb-1.5">{label}</span>
       {children}
       {hint && <span className="block text-xs text-muted mt-1">{hint}</span>}
