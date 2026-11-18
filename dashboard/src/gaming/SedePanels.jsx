@@ -12,16 +12,16 @@ const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
 const ACTIVE = ['queued', 'processing'];
 
 const LAYOUT_HINT = {
-  auto: 'O sistema escolhe o melhor enquadramento para cada cena.',
-  full: 'Mostra a tela inteira do jogo, com vida, mapa e placar (HUD).',
+  auto: 'O sistema escolhe: jogo inteiro, ou jogo + webcam quando acha a sua câmera.',
+  vertical: 'Formato Shorts/Reels/TikTok: o vídeo ocupa a tela toda do celular. Corta as laterais do jogo.',
+  full: 'Mostra o jogo todo (vida, mapa e placar), com faixas em cima e embaixo.',
   webcam: 'Jogo em cima e a sua câmera embaixo, maior.',
-  vertical: 'Recorta o centro da tela para ocupar o celular todo.',
 };
 
 /* Orquestrador ------------------------------------------------------------ */
 
 export function OrchestratorPanel({
-  meta, games, form, setForm, job, starting, startError, cancelling, onStartFile, onStartUrl, onCancel, onAddGame, onImportLink,
+  meta, form, setForm, job, starting, startError, cancelling, onStartFile, onStartUrl, onCancel, onImportLink,
   proAI = false, onProAI, uploadPct = null,
 }) {
   const fileRef = useRef(null);
@@ -40,15 +40,6 @@ export function OrchestratorPanel({
   const linkOk = /^https?:\/\/\S+\.\S+/i.test(link);
   const ytOnCloud = linkOk && /(^|\.)(youtube\.com|youtu\.be)\//i.test(link.replace(/^https?:\/\//i, '').replace(/^www\./i, ''))
     && /\.app\.github\.dev$/i.test(window.location.hostname);
-
-  const pickGame = (id) => {
-    const g = (games || []).find((x) => x.id === id);
-    setForm((p) => ({
-      ...p,
-      game_id: id,
-      ...(g ? { category: g.category, clip_seconds: g.preferences.clip_seconds, layout: g.preferences.layout } : {}),
-    }));
-  };
 
   let badge = { label: 'PRONTO', cls: 'text-ok border-ok/40 bg-ok/10' };
   if (active) badge = { label: job.status === 'queued' ? 'NA FILA' : 'PROCESSANDO', cls: 'text-warn border-warn/40 bg-warn/10' };
@@ -79,24 +70,9 @@ export function OrchestratorPanel({
         </button>
       ))}
 
-      <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-game"><span className="sede-step">1</span>Qual jogo?</label>
-      <div className="flex gap-2 mb-3">
-        <select id="sede-game" className="sede-select flex-1 min-w-0" value={form.game_id}
-          title="Detecção automática: reconhece o jogo pelo nome do arquivo e pelo que é dito no vídeo" disabled={active} onChange={(e) => pickGame(e.target.value)}>
-          <option value="auto">Descobrir sozinho</option>
-          {(games || []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
-        <button type="button" onClick={onAddGame} title="Cadastrar um jogo na biblioteca" aria-label="Cadastrar um jogo na biblioteca"
-          className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px] border border-rule2 text-brass hover:border-brass">
-          <Plus size={17} />
-        </button>
-      </div>
-
-      {!active && <p className="-mt-2 mb-3 text-[10.5px] text-muted">Reconhece pelo nome do arquivo e pelo que é falado.</p>}
-
       <div className="grid grid-cols-2 gap-2 mb-1">
         <div>
-          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-dur"><span className="sede-step">2</span>Tamanho do corte</label>
+          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-dur"><span className="sede-step">1</span>Tamanho do corte</label>
           <select id="sede-dur" className="sede-select w-full" disabled={active} value={customDur ? 'custom' : String(form.clip_seconds)}
             onChange={(e) => (e.target.value === 'other' ? onImportLink() : set('clip_seconds', Number(e.target.value)))}>
             {durations.map((d) => <option key={d} value={d}>{d} segundos</option>)}
@@ -105,12 +81,12 @@ export function OrchestratorPanel({
           </select>
         </div>
         <div>
-          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-layout"><span className="sede-step">3</span>Enquadramento</label>
+          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-layout"><span className="sede-step">2</span>Enquadramento</label>
           <select id="sede-layout" className="sede-select w-full" disabled={active} value={form.layout} onChange={(e) => set('layout', e.target.value)}>
             <option value="auto">Automático</option>
-            <option value="full">Tela inteira</option>
+            <option value="vertical">Shorts (tela cheia)</option>
+            <option value="full">Jogo inteiro</option>
             <option value="webcam">Jogo + webcam</option>
-            <option value="vertical">Vertical recortado</option>
           </select>
         </div>
       </div>
@@ -118,7 +94,7 @@ export function OrchestratorPanel({
       {!active && <p className="mb-3 text-[10.5px] leading-snug text-muted">{LAYOUT_HINT[form.layout] || LAYOUT_HINT.auto}</p>}
 
       <div className="mb-3">
-        <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-qtd"><span className="sede-step">4</span>Quantidade de cortes</label>
+        <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-qtd"><span className="sede-step">3</span>Quantidade de cortes</label>
         <select id="sede-qtd" className="sede-select w-full" disabled={active} value={String(form.max_clips)}
           onChange={(e) => set('max_clips', Number(e.target.value))}>
           {CLIP_COUNTS.map((n) => <option key={n} value={n}>{n === 1 ? '1 corte' : `${n} cortes de uma vez`}</option>)}
@@ -132,17 +108,12 @@ export function OrchestratorPanel({
         </p>}
       </div>
 
-      <p className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5"><span className="sede-step">5</span>Extras</p>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 pl-[26px] text-xs text-ink2">
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" className="accent-[var(--color-accent)]" checked={!!form.captions} disabled={active} onChange={(e) => set('captions', e.target.checked)} />
-          Legendas animadas
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" className="accent-[var(--color-accent)]" checked={!!form.zoom} disabled={active} onChange={(e) => set('zoom', e.target.checked)} />
-          Zoom nos melhores momentos
-        </label>
-      </div>
+      {!active && (
+        <p className="mb-4 flex items-start gap-2 rounded-xl border border-rule2 px-3 py-2 text-[11px] leading-snug text-ink2">
+          <Sparkles size={13} className="mt-px shrink-0 text-brass" aria-hidden="true" />
+          <span><b className="text-ink">Automático em todo corte:</b> legendas animadas, zoom nos melhores momentos e texto de gancho.</span>
+        </p>
+      )}
 
       <input ref={fileRef} type="file" accept="video/*,.mkv,.mov,.mp4,.webm,.avi,.m4v" className="sr-only" tabIndex={-1} aria-hidden="true"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onStartFile(f); }} />

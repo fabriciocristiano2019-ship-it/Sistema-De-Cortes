@@ -23,7 +23,7 @@ export const fmtClock = (epochSeconds) =>
   new Date(epochSeconds * 1000).toLocaleTimeString('pt-BR', { hour12: false });
 
 export const LAYOUT_SHORT = {
-  auto: 'Formato automático', full: 'Formato A', webcam: 'Formato B', vertical: 'Formato C',
+  auto: 'Formato automático', full: 'Jogo inteiro', webcam: 'Jogo + webcam', vertical: 'Shorts (tela cheia)',
 };
 
 export const mediaUrl = (path) => (path ? getApiUrl(path) : '');

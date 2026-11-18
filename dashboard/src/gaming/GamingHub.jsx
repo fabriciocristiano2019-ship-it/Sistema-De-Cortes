@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, LogOut, KeyRound, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, Scissors, Settings,
+  BarChart3, CalendarClock, LogOut, KeyRound, Cpu, Eye, Film, History, Layers, Moon, Scissors, Settings,
   Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
@@ -17,7 +17,7 @@ import { postizHeaders, postizKey } from './postizConf';
 import JarvisOrb from './JarvisOrb';
 import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
-import { AnalysisSection, GamesSection, ImportSection } from './SectionsCore';
+import { AnalysisSection, ImportSection } from './SectionsCore';
 import Painel from './Painel';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
 import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from './SectionsPublish';
@@ -27,7 +27,6 @@ import './sede.css';
 // modules sit in four groups so the bar reads at a glance.
 const MODULES = [
   { id: 'dashboard', label: 'Painel Geral', icon: BarChart3 },
-  { id: 'games', label: 'Biblioteca de Jogos', short: 'Jogos', icon: Gamepad2, group: 'Criar' },
   { id: 'import', label: 'Importação de Gameplays', short: 'Importar', icon: Upload, group: 'Criar' },
   { id: 'analysis', label: 'Análise Inteligente', short: 'Análise', icon: Eye, group: 'Criar' },
   { id: 'clips', label: 'Cortes Encontrados', short: 'Cortes', icon: Scissors, group: 'Cortes' },
@@ -55,7 +54,9 @@ const DEFAULT_FORM = {
 };
 
 const FORM_KEY = 'os_sede_form';
-const FORM_KEEP = ['game_id', 'category', 'clip_seconds', 'layout', 'engine', 'max_clips', 'fill', 'min_score', 'captions', 'zoom', 'auto_hook'];
+const FORM_KEEP = ['category', 'clip_seconds', 'layout', 'engine', 'max_clips', 'fill', 'min_score'];
+// Captions, zoom and hook text are always on (the owner's choice): not
+// remembered, so an old "off" saved in this browser cannot switch them off.
 
 const ACTIVE = ['queued', 'processing'];
 const GPU_ENCODER = /nvenc|qsv|vaapi|amf|videotoolbox/i;
@@ -71,7 +72,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
   // Every visit opens on the Sede (the owner's choice), whatever tab was last open.
   const [view, setView] = useState('hq');
-  const [section, setSection] = useState(() => stored('os_gaming_section', 'games', MODULES.filter((m) => m.id !== 'dashboard').map((m) => m.id)));
+  const [section, setSection] = useState(() => stored('os_gaming_section', 'import', MODULES.filter((m) => m.id !== 'dashboard').map((m) => m.id)));
   const [meta, setMeta] = useState(null);
   const [system, setSystem] = useState(null);
   const [bootAt, setBootAt] = useState(null);
@@ -88,11 +89,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       return { ...DEFAULT_FORM, ...keep };
     } catch (_) { return DEFAULT_FORM; }
   });
-  useEffect(() => {
-    if (games && form.game_id !== 'auto' && !games.some((g) => g.id === form.game_id)) {
-      setForm((f) => ({ ...f, game_id: 'auto' }));
-    }
-  }, [games, form.game_id]);
   useEffect(() => {
     try { localStorage.setItem(FORM_KEY, JSON.stringify(Object.fromEntries(FORM_KEEP.map((k) => [k, form[k]])))); } catch (_) { /* private mode */ }
   }, [form]);
@@ -394,8 +390,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }), [servicoPub, uploadPostKey, uploadUserId, loadPubs, loadDash]);
 
   const moduleBody = {
-    games: <GamesSection meta={meta} games={games} reload={() => Promise.all([loadGames(), loadDash()])} />,
-    import: <ImportSection meta={meta} games={games} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
+    import: <ImportSection meta={meta} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,
     clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,
     editor: <EditorSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
@@ -457,8 +452,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
       <div className="grid grid-cols-1 gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
         <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${['settings', 'painel', 'modules'].includes(view) ? 'hidden lg:block' : ''}`}>
-          <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
-            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
+          <OrchestratorPanel meta={meta} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
+            cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
         </aside>
 

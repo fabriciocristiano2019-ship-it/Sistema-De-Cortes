@@ -1,188 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Plus, Trash2, Upload, ImagePlus, Save, X, Square, Play, RefreshCw } from 'lucide-react';
-import { apiJson } from '../lib/api';
-import { errText, fmtClock, fmtDate, jsonReq, mediaUrl, PLATFORMS, STATUS_LABEL } from './util';
-import { Badge, BarList, DayColumns, Empty, Field, Header, Notice, StatTile } from './ui';
-
-/* 02 · Biblioteca de jogos ------------------------------------------------ */
-function GameForm({ meta, initial, onSaved, onCancel }) {
-  const [f, setF] = useState(() => ({
-    name: initial?.name || '',
-    category: initial?.category || 'other',
-    aliases: (initial?.aliases || []).join(', '),
-    preferences: { ...(meta?.defaults || {}), ...(initial?.preferences || {}) },
-  }));
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const fileRef = useRef(null);
-  const setPref = (k, v) => setF((p) => ({ ...p, preferences: { ...p.preferences, [k]: v } }));
-
-  const save = async () => {
-    setBusy(true); setErr('');
-    try {
-      const body = {
-        name: f.name, category: f.category,
-        aliases: f.aliases.split(',').map((a) => a.trim()).filter(Boolean),
-        preferences: f.preferences,
-      };
-      let g = initial
-        ? await jsonReq(`/api/games/${initial.id}`, 'PUT', body)
-        : await jsonReq('/api/games', 'POST', body);
-      const file = fileRef.current?.files?.[0];
-      if (file) {
-        const fd = new FormData();
-        fd.append('file', file);
-        g = await apiJson(`/api/games/${g.id}/cover`, { method: 'POST', body: fd });
-      }
-      onSaved(g);
-    } catch (e) { setErr(errText(e)); } finally { setBusy(false); }
-  };
-
-  return (
-    <div className="card p-5 mb-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm text-ink">{initial ? `Editar ${initial.name}` : 'Novo jogo'}</h2>
-        <button className="btn-quiet" onClick={onCancel} aria-label="Fechar"><X size={16} /></button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Nome do jogo">
-          <input className="input-field w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ex.: Valorant" />
-        </Field>
-        <Field label="Categoria (define o perfil de análise)">
-          <select className="input-field w-full" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
-            {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </Field>
-        <Field label="Apelidos para identificação automática" hint="Separados por vírgula. Usados no nome do arquivo e na fala.">
-          <input className="input-field w-full" value={f.aliases} onChange={(e) => setF({ ...f, aliases: e.target.value })} placeholder="valorant, vava" />
-        </Field>
-        <Field label="Capa (imagem JPG/PNG/WebP, até 8 MB)">
-          <input ref={fileRef} type="file" accept="image/*" className="block w-full text-sm text-muted file:mr-3 file:btn-ghost" />
-        </Field>
-        <Field label="Duração padrão do corte (segundos)">
-          <input type="number" min="5" max="180" className="input-field w-full" value={f.preferences.clip_seconds}
-            onChange={(e) => setPref('clip_seconds', Number(e.target.value))} />
-        </Field>
-        <Field label="Formato padrão">
-          <select className="input-field w-full" value={f.preferences.layout} onChange={(e) => setPref('layout', e.target.value)}>
-            {meta.layouts.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-          </select>
-        </Field>
-        <label className="flex items-center gap-2 text-sm text-ink2">
-          <input type="checkbox" checked={!!f.preferences.captions} onChange={(e) => setPref('captions', e.target.checked)} /> Legendas automáticas
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink2">
-          <input type="checkbox" checked={!!f.preferences.zoom} onChange={(e) => setPref('zoom', e.target.checked)} /> Zoom nos momentos importantes
-        </label>
-      </div>
-      {err && <div className="mt-4"><Notice tone="error">{err}</Notice></div>}
-      <div className="mt-5 flex gap-2">
-        <button className="btn-primary" disabled={busy || !f.name.trim()} onClick={save}>
-          {busy ? <Loader2 size={16} className="inline animate-spin mr-1.5" /> : <Save size={16} className="inline mr-1.5" />}Salvar
-        </button>
-        <button className="btn-ghost" onClick={onCancel}>Cancelar</button>
-      </div>
-    </div>
-  );
-}
-
-export function GamesSection({ meta, games, reload }) {
-  const [editing, setEditing] = useState(null); // null | 'new' | game
-  const [open, setOpen] = useState(null);
-  const [err, setErr] = useState('');
-  const [filter, setFilter] = useState('');
-  const shown = useMemo(() => (games || []).filter((g) => !filter || g.category === filter), [games, filter]);
-
-  const remove = async (g) => {
-    if (!window.confirm(`Remover “${g.name}” da biblioteca?\n\nOs cortes já produzidos continuam salvos.`)) return;
-    try { await apiJson(`/api/games/${g.id}`, { method: 'DELETE' }); reload(); } catch (e) { setErr(errText(e)); }
-  };
-
-  if (!meta || !games) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
-  return (
-    <div>
-      <Header ord="02 · BIBLIOTECA DE JOGOS" title="Jogos" hint="Qualquer jogo funciona: escolha uma categoria e o sistema usa o perfil de análise dela. Os jogos iniciais são só exemplos e podem ser editados ou removidos.">
-        <select className="input-field" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filtrar por categoria">
-          <option value="">Todas as categorias</option>
-          {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
-        <button className="btn-primary" onClick={() => setEditing('new')}><Plus size={16} className="inline mr-1" />Adicionar jogo</button>
-      </Header>
-      {err && <div className="mb-4"><Notice tone="error">{err}</Notice></div>}
-      {editing && (
-        <GameForm key={editing === 'new' ? 'new' : editing.id} meta={meta} initial={editing === 'new' ? null : editing}
-          onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
-      )}
-      {shown.length === 0 ? <Empty title="Nenhum jogo nesta categoria">Adicione um jogo para começar.</Empty> : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-          {shown.map((g) => (
-            <article key={g.id} className="card overflow-hidden flex flex-col">
-              <div className="aspect-[4/5] bg-paper3 relative">
-                {g.cover_url
-                  ? <img src={mediaUrl(g.cover_url)} alt={`Capa de ${g.name}`} className="absolute inset-0 w-full h-full object-cover" />
-                  : <div className="absolute inset-0 flex flex-col items-center justify-center text-muted gap-2 p-3 text-center">
-                      <ImagePlus size={22} /><span className="font-display text-lg text-ink2 leading-tight">{g.name}</span>
-                    </div>}
-              </div>
-              <div className="p-3 flex-1 flex flex-col gap-1.5">
-                <h3 className="text-sm text-ink truncate" title={g.name}>{g.name}</h3>
-                <p className="text-xs text-muted">{g.category_label}</p>
-                <p className="font-mono text-xs text-ink2">{g.videos} vídeo(s) · {g.clips} corte(s)</p>
-                <div className="mt-auto pt-2 flex gap-1.5">
-                  <button className="btn-ghost btn-sm flex-1" onClick={() => setEditing(g)}>Editar</button>
-                  <button className="btn-quiet btn-sm" onClick={() => setOpen(open === g.id ? null : g.id)}>Histórico</button>
-                  <button className="btn-quiet btn-sm" onClick={() => remove(g)} aria-label={`Remover ${g.name}`}><Trash2 size={14} /></button>
-                </div>
-                {open === g.id && (
-                  <ul className="mt-2 border-t border-rule pt-2 space-y-1">
-                    {g.history.length === 0 && <li className="text-xs text-muted">Nenhum vídeo processado ainda.</li>}
-                    {g.history.map((h) => (
-                      <li key={h.job_id} className="text-xs text-muted flex justify-between gap-2">
-                        <span className="truncate" title={h.source}>{h.source}</span>
-                        <span className="font-mono shrink-0">{h.clips} · {fmtDate(h.created_at).slice(0, 10)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { Loader2, Upload, Square, Play } from 'lucide-react';
+import { fmtClock, STATUS_LABEL } from './util';
+import { Badge, Empty, Field, Header, Notice } from './ui';
 
 /* 03 · Importação --------------------------------------------------------- */
-export function ImportSection({ meta, games, form, setForm, onStart, starting, startError, job }) {
-  const [ident, setIdent] = useState(null);
+export function ImportSection({ meta, form, setForm, onStart, starting, startError, job }) {
   const [drag, setDrag] = useState(false);
   const fileRef = useRef(null);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const busy = job?.id && ['queued', 'processing'].includes(job.status);
 
-  const pick = async (file) => {
-    if (!file) return;
-    set('file', file);
-    setIdent(null);
-    try {
-      const r = await jsonReq('/api/gaming/identify', 'POST', { filename: file.name });
-      setIdent(r);
-      if (r.best && r.confidence !== 'baixa') applyGame(r.best.game_id);
-    } catch { /* identification is a convenience; manual selection still works */ }
-  };
+  const pick = (file) => { if (file) set('file', file); };
 
-  const applyGame = (id) => {
-    const g = (games || []).find((x) => x.id === id);
-    setForm((p) => ({
-      ...p, game_id: id,
-      ...(g ? { clip_seconds: g.preferences.clip_seconds, layout: g.preferences.layout,
-                captions: g.preferences.captions, zoom: g.preferences.zoom,
-                max_clips: g.preferences.max_clips, min_score: g.preferences.min_score } : {}),
-    }));
-  };
-
-  if (!meta || !games) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
+  if (!meta) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
   const custom = !meta.durations.includes(Number(form.clip_seconds));
   const ready = (form.file || form.url.trim()) && form.acknowledged && !busy && !starting;
 
@@ -209,29 +39,14 @@ export function ImportSection({ meta, games, form, setForm, onStart, starting, s
             <input className="input-field w-full" value={form.url} disabled={!!form.file}
               onChange={(e) => set('url', e.target.value)} placeholder="https://..." />
           </Field>
-          {ident && (
-            <Notice tone={ident.best ? 'ok' : 'warn'}>
-              {ident.best
-                ? <>Jogo sugerido: <strong>{ident.best.name}</strong> (confiança {ident.confidence}: {ident.best.evidence.join('; ')}).</>
-                : 'Não reconheci o jogo pelo nome do arquivo. Selecione ao lado, ou deixe em “Identificar automaticamente” para tentar pela fala após a transcrição.'}
-            </Notice>
-          )}
         </div>
 
         <div className="card p-5 space-y-4">
-          <Field label="Jogo">
-            <select className="input-field w-full" value={form.game_id} onChange={(e) => applyGame(e.target.value)}>
-              <option value="auto">Identificar automaticamente</option>
-              {games.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.category_label}</option>)}
+          <Field label="Tipo de jogo" hint="O jogo é reconhecido sozinho pelo nome do arquivo e pela fala; isto só vale quando ele não é reconhecido.">
+            <select className="input-field w-full" value={form.category} onChange={(e) => set('category', e.target.value)}>
+              {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </Field>
-          {form.game_id === 'auto' && (
-            <Field label="Categoria, caso o jogo não seja identificado">
-              <select className="input-field w-full" value={form.category} onChange={(e) => set('category', e.target.value)}>
-                {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </Field>
-          )}
           <Field label="Duração de cada corte">
             <div className="flex flex-wrap gap-2">
               {meta.durations.map((d) => (
@@ -261,11 +76,7 @@ export function ImportSection({ meta, games, form, setForm, onStart, starting, s
               {meta.engines.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
             </select>
           </Field>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink2">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.captions} onChange={(e) => set('captions', e.target.checked)} /> Legendas animadas (D)</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.zoom} onChange={(e) => set('zoom', e.target.checked)} /> Zoom nos picos</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.auto_hook} onChange={(e) => set('auto_hook', e.target.checked)} /> Texto de gancho</label>
-          </div>
+          <p className="text-sm text-ink2">Automático em todo corte: legendas animadas, zoom nos melhores momentos e texto de gancho.</p>
           <label className="flex items-start gap-2 text-sm text-ink2">
             <input type="checkbox" className="mt-0.5" checked={form.acknowledged} onChange={(e) => set('acknowledged', e.target.checked)} />
             Confirmo que tenho direito de usar este vídeo.

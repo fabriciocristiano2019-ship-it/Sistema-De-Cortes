@@ -53,9 +53,9 @@ _PUB_LOCK = threading.Lock()
 
 LAYOUTS = {
     "auto": {"label": "Automático", "strategy": None},
-    "full": {"label": "A · Gameplay em tela inteira", "strategy": "WIDE"},   # full width: HUD, map and scoreboard kept
-    "webcam": {"label": "B · Gameplay com webcam", "strategy": "INSET"},
-    "vertical": {"label": "C · Gameplay adaptada para vertical", "strategy": "TRACK"},
+    "vertical": {"label": "Shorts (tela cheia)", "strategy": "TRACK"},       # fills the phone screen; sides cropped
+    "full": {"label": "Jogo inteiro", "strategy": "WIDE"},   # full width: HUD, map and scoreboard kept
+    "webcam": {"label": "Jogo + webcam", "strategy": "INSET"},
 }
 DURATIONS = [15, 30, 45, 60]
 ENGINES = {"local": "Local (gratuito)", "auto": "Automático (Gemini se houver chave)",
