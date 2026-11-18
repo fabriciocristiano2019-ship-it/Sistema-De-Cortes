@@ -42,11 +42,6 @@ export function ImportSection({ meta, form, setForm, onStart, starting, startErr
         </div>
 
         <div className="card p-5 space-y-4">
-          <Field label="Tipo de jogo" hint="O jogo é reconhecido sozinho pelo nome do arquivo e pela fala; isto só vale quando ele não é reconhecido.">
-            <select className="input-field w-full" value={form.category} onChange={(e) => set('category', e.target.value)}>
-              {meta.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
-          </Field>
           <Field label="Duração de cada corte">
             <div className="flex flex-wrap gap-2">
               {meta.durations.map((d) => (

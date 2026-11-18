@@ -177,16 +177,8 @@ export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uplo
               </div>
             )}
             <div>
-              <h4 className="mb-3 text-xs text-muted">Cortes por jogo</h4>
-              <BarList data={dash.by_game} max={5} />
-            </div>
-            <div>
               <h4 className="mb-3 text-xs text-muted">Cortes por tipo de momento</h4>
               <BarList data={dash.by_moment} max={5} />
-            </div>
-            <div>
-              <h4 className="mb-3 text-xs text-muted">Cortes por categoria</h4>
-              <BarList data={dash.by_category} max={5} />
             </div>
           </div>
         </div>

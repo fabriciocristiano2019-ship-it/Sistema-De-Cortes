@@ -357,7 +357,7 @@ export function SubtitlesSection({ clips, selected, onSelect, reload }) {
 }
 
 /* 08 · Biblioteca de vídeos ----------------------------------------------- */
-export function VideoLibrarySection({ clips, games, openEditor, pubs = [], servicoPub = false, onPublicar, onAbrirChaves }) {
+export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub = false, onPublicar, onAbrirChaves }) {
   const [publicando, setPublicando] = useState(null);
   // Networks each clip already went to (sent publications), for "Republicar".
   const enviados = useMemo(() => {
@@ -369,17 +369,12 @@ export function VideoLibrarySection({ clips, games, openEditor, pubs = [], servi
     }
     return m;
   }, [pubs]);
-  const [game, setGame] = useState('');
   const [status, setStatus] = useState('');
-  const list = useMemo(() => (clips || []).filter((c) => (!game || c.game_id === game) && (!status || c.status === status)), [clips, game, status]);
+  const list = useMemo(() => (clips || []).filter((c) => !status || c.status === status), [clips, status]);
   if (!clips) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
   return (
     <div>
       <Header ord="08 · BIBLIOTECA DE VÍDEOS" title="Vídeos produzidos" hint={`${list.length} de ${clips.length} corte(s). Arquivos MP4 (H.264 + AAC), 1080×1920.`}>
-        <select className="input-field" value={game} onChange={(e) => setGame(e.target.value)} aria-label="Filtrar por jogo">
-          <option value="">Todos os jogos</option>
-          {(games || []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
         <select className="input-field" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filtrar por situação">
           <option value="">Todas as situações</option>
           <option value="pendente">Pendentes</option><option value="aprovado">Aprovados</option><option value="rejeitado">Rejeitados</option>

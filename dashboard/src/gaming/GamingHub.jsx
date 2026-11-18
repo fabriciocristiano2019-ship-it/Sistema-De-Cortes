@@ -78,7 +78,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const [meta, setMeta] = useState(null);
   const [system, setSystem] = useState(null);
   const [bootAt, setBootAt] = useState(null);
-  const [games, setGames] = useState(null);
   const [dash, setDash] = useState(null);
   const [clips, setClips] = useState(null);
   const [pubs, setPubs] = useState(null);
@@ -117,16 +116,15 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }, []);
   const goHQ = useCallback(() => { pickView('hq'); window.scrollTo({ top: 0 }); }, [pickView]);
 
-  const loadGames = useCallback(() => apiJson('/api/games').then((d) => setGames(d.games)), []);
   const loadDash = useCallback(() => apiJson('/api/gaming/dashboard').then(setDash), []);
   const loadClips = useCallback(() => apiJson('/api/gaming/clips').then((d) => setClips(d.clips)), []);
   const loadPubs = useCallback(() => apiJson('/api/gaming/publications').then((d) => setPubs(d.items)), []);
   const loadSystem = useCallback(() => apiJson('/api/gaming/system').then((d) => { setSystem(d); setBootAt((t) => t || Date.now() / 1000); }), []);
   const reloadAll = useCallback(
-    () => Promise.all([loadGames(), loadDash(), loadClips(), loadPubs(), loadSystem()])
+    () => Promise.all([loadDash(), loadClips(), loadPubs(), loadSystem()])
       .then(() => setLoadError(''))
       .catch((e) => setLoadError(`Não foi possível falar com o servidor (${errText(e)}). Verifique se o OpenShorts está em execução.`)),
-    [loadGames, loadDash, loadClips, loadPubs, loadSystem],
+    [loadDash, loadClips, loadPubs, loadSystem],
   );
 
   useEffect(() => {
@@ -309,7 +307,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const details = useMemo(() => {
     const pending = (pubs || []).filter((p) => p.status === 'aguardando_aprovacao').length;
     return {
-      library: games && meta ? `${games.length} jogos cadastrados em ${meta.categories.length} categorias.` : '',
+      library: 'Reconhece o jogo sozinho (nome do arquivo e fala) para o título e as hashtags.',
       ingest: 'Aceita MP4, MKV, MOV, WebM e links.',
       whisper: system ? `Modelo ${system.whisper_model} (${system.whisper_device}).` : '',
       vision: 'Motor local, sem custo de API.',
@@ -318,7 +316,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       captions: 'Destaque palavra por palavra em PT-BR.',
       social: `${pending} publicação(ões) aguardando aprovação.`,
     };
-  }, [games, meta, system, pubs]);
+  }, [meta, system, pubs]);
 
   // Console: what the backend really reported. Boot facts first, then the job.
   const consoleLines = useMemo(() => {
@@ -329,7 +327,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
         ? { t: bootAt, level: 'ok', text: `Editor de vídeo pronto (${system.ffmpeg.replace(/ Copyright.*/, '').replace(/^ffmpeg version /, 'FFmpeg ')}, ${system.encoder}).` }
         : { t: bootAt, level: 'error', text: 'FFmpeg não encontrado no servidor.' });
       boot.push({ t: bootAt, level: 'ok', text: `Transcrição pronta (Whisper ${system.whisper_model}, ${system.whisper_device === 'cpu' ? 'processador' : system.whisper_device}).` });
-      boot.push({ t: bootAt, level: 'info', text: `${system.games} jogos na biblioteca. Tudo processado sem custo de API.` });
+      boot.push({ t: bootAt, level: 'info', text: 'Tudo processado sem custo de API.' });
       if (!snap) boot.push({ t: bootAt, level: 'info', text: 'Aguardando uma gameplay. Use o painel acima para começar.' });
     }
     const lines = [...boot, ...(snap?.console || [])];
@@ -409,7 +407,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,
     editor: <EditorSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
     subtitles: <SubtitlesSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
-    videos: <VideoLibrarySection clips={clips} games={games} openEditor={openEditor} pubs={pubs} servicoPub={servicoPub}
+    videos: <VideoLibrarySection clips={clips} openEditor={openEditor} pubs={pubs} servicoPub={servicoPub}
       onPublicar={publicarAgora} onAbrirChaves={() => go('config')} />,
     social: <SocialSection clips={clips} pubs={pubs} meta={meta} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />,
     schedule: <ScheduleSection clips={clips} pubs={pubs} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} />,

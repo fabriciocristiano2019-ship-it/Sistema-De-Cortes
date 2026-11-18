@@ -40,8 +40,8 @@ class TimedLogs(list):
 AGENTS = [
     {"id": "ingest", "name": "Importação & Validação", "role": "F.R.I.D.A.Y. · Ingestão", "module": "import",
      "does": "Recebe o arquivo ou link, valida com FFprobe e preserva o original."},
-    {"id": "library", "name": "Biblioteca & Jogos", "role": "GRIOT · Taxonomia", "module": "games",
-     "does": "Identifica o jogo (nome do arquivo e fala) e aplica o perfil da categoria."},
+    {"id": "library", "name": "Reconhecimento", "role": "GRIOT · Jogo automático", "module": "import",
+     "does": "Reconhece o jogo sozinho (nome do arquivo e fala) para o título e as hashtags."},
     {"id": "whisper", "name": "Transcrição Whisper", "role": "K.A.R.E.N. · Faster-Whisper", "module": "subtitles",
      "does": "Transcreve a fala localmente, com tempo de cada palavra."},
     {"id": "vision", "name": "Análise Áudio & Visual", "role": "E.D.I.T.H. · Detector", "module": "analysis",
