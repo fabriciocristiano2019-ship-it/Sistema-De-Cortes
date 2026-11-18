@@ -33,6 +33,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import threading
 import time
 import uuid
@@ -842,7 +843,60 @@ async def pipeline_state(job_id: str, request: Request):
     ready = len(((st.get("result") or {}).get("clips")) or [])
     snap = pipeline.snapshot(logs, st.get("status"), times, clips_ready=ready or None)
     snap.update(job_id=job_id, error=st.get("error"), log_lines=len(logs), **_queue_counts())
+    _tempo_e_construcao(job_id, st, snap, times is not None)
     return snap
+
+
+def _tempo_e_construcao(job_id, st, snap, tem_horarios):
+    """Time left per stage and the clips as they are being built (progresso)."""
+    from gaming import progresso
+    if not _ID_RE.fullmatch(job_id or ""):
+        return
+    job_dir = os.path.join(_out(), job_id)
+    try:
+        with open(os.path.join(job_dir, "gaming_job.json"), encoding="utf-8") as f:
+            settings = (json.load(f) or {}).get("settings") or {}
+    except (OSError, ValueError):
+        settings = {}
+    console = snap.get("console") or []
+    status = st.get("status")
+    try:
+        if status == "completed" and tem_horarios:
+            progresso.registrar(_out(), job_id, console)      # this machine's pace, once per job
+        if tem_horarios:
+            rates = progresso.taxas(progresso.carregar(_out()).get("historico"))
+            snap["tempo"] = progresso.estimar(time.time(), status, snap, console, settings, rates)
+            if snap["tempo"].get("progresso") is not None and status in ("queued", "processing"):
+                snap["progress"] = snap["tempo"]["progresso"]   # time-based: the stage-weighted bar overshot
+        prontos = [int(c.get("clip_index", i)) + 1 for i, c in enumerate((st.get("result") or {}).get("clips") or [])]
+        snap["construcao"] = progresso.construcao(job_dir, job_id, console, prontos)
+    except Exception as e:      # never break the room view over an estimate
+        print(f"⚠️ progresso: {e}")
+
+
+@router.get("/api/gaming/jobs/{job_id}/quadro")
+async def quadro(job_id: str, t: float = 0.0):
+    """A 9:16 still of the source at second t: what a clip being cut looks like
+    before its first file exists. Cached next to the job."""
+    from fastapi.responses import FileResponse
+    _check_id(job_id)
+    if not (0 <= t <= 6 * 3600):
+        raise HTTPException(status_code=400, detail="t inválido")
+    up = "uploads"
+    fonte = next((os.path.join(up, n) for n in sorted(os.listdir(up)) if n.startswith(job_id + "_")), None) \
+        if os.path.isdir(up) else None
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Vídeo original não encontrado.")
+    pasta = os.path.join(_out(), job_id, ".quadros")
+    os.makedirs(pasta, exist_ok=True)
+    destino = os.path.join(pasta, f"{t:.1f}.jpg")
+    if not os.path.exists(destino):
+        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{t:.2f}", "-i", fonte, "-frames:v", "1",
+               "-vf", "crop='min(iw,ih*9/16)':ih,scale=360:640", "-q:v", "5", destino]
+        r = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, timeout=30)
+        if r.returncode != 0 or not os.path.exists(destino):
+            raise HTTPException(status_code=500, detail="Não foi possível gerar a imagem.")
+    return FileResponse(destino, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 _SELFTEST_LOCK = threading.Lock()

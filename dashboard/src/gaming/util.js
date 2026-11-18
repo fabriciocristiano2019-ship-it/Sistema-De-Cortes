@@ -69,3 +69,12 @@ export const safeHttpUrl = (url) => {
     return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
   } catch (_) { return null; }
 };
+
+// "cerca de 3 min" for a time estimate in seconds.
+export const fmtFalta = (sec) => {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  if (s < 45) return 'menos de 1 min';
+  const m = Math.round(s / 60);
+  if (m < 60) return `cerca de ${m} min`;
+  return `cerca de ${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+};

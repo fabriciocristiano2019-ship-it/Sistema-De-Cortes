@@ -1,0 +1,262 @@
+[
+{
+"t": 0.0,
+"agent": "core",
+"text": "Gameplay recebida. Aguardando vaga na fila local…"
+},
+{
+"t": 0.0,
+"agent": "core",
+"text": "J.A.R.V.I.S. recebeu a gameplay. Delegando aos agentes…"
+},
+{
+"t": 5.7,
+"agent": "ingest",
+"text": "Arquivo validado: 1280x720, 30 fps, 3min00s, vídeo h264, áudio aac 44 kHz. Original preservado."
+},
+{
+"t": 5.7,
+"agent": "library",
+"text": "Jogo identificado pelo nome do arquivo: Free Fire — perfil FPS e Battle Royale."
+},
+{
+"t": 8.1,
+"agent": "editor916",
+"text": "Enquadramento automático: A · tela inteira, HUD preservado."
+},
+{
+"t": 8.1,
+"agent": "whisper",
+"text": "Transcrevendo a fala localmente (Faster-Whisper)…"
+},
+{
+"t": 22.4,
+"agent": "whisper",
+"text": "Idioma detectado: pt."
+},
+{
+"t": 22.4,
+"agent": "whisper",
+"text": "7 trecho(s) de fala transcrito(s)."
+},
+{
+"t": 22.4,
+"agent": "vision",
+"text": "Motor local de momentos (áudio + visual + fala), sem custo de API."
+},
+{
+"t": 22.4,
+"agent": "vision",
+"text": "Análise de áudio (local)..."
+},
+{
+"t": 23.1,
+"agent": "vision",
+"text": "Análise visual (local)..."
+},
+{
+"t": 29.6,
+"agent": "slicer",
+"text": "Selecionando janelas de 15s com contexto (picos de áudio, imagem e fala)..."
+},
+{
+"t": 29.6,
+"agent": "slicer",
+"text": "3 momento(s) com evidência encontrados. 2 trecho(s) extra(s) para completar os 5 pedidos."
+},
+{
+"t": 29.6,
+"agent": "slicer",
+"text": "5 corte(s) selecionado(s) para renderização."
+},
+{
+"t": 29.6,
+"agent": "slicer",
+"text": "Roteiro dos cortes salvo (títulos, descrições e hashtags)."
+},
+{
+"t": 29.6,
+"agent": "editor916",
+"text": "Corte 1: recortando 16.25s → 30.87s e enquadrando em 9:16…"
+},
+{
+"t": 29.6,
+"agent": "editor916",
+"text": "Codificador de vídeo: libx264."
+},
+{
+"t": 29.6,
+"agent": "editor916",
+"text": "Corte 2: recortando 66.25s → 81.25s e enquadrando em 9:16…"
+},
+{
+"t": 29.6,
+"agent": "editor916",
+"text": "Corte 3: recortando 92.25s → 107.25s e enquadrando em 9:16…"
+},
+{
+"t": 56.0,
+"agent": "editor916",
+"text": "Layout aplicado em todas as cenas: A · tela inteira, HUD preservado."
+},
+{
+"t": 57.2,
+"agent": "editor916",
+"text": "Zoom dinâmico em 1 pico(s) do corte."
+},
+{
+"t": 64.6,
+"agent": "editor916",
+"text": "Layout aplicado em todas as cenas: A · tela inteira, HUD preservado."
+},
+{
+"t": 69.4,
+"agent": "editor916",
+"text": "Zoom dinâmico em 1 pico(s) do corte."
+},
+{
+"t": 75.0,
+"agent": "editor916",
+"text": "Enquadramento 1080x1920 concluído em 36.4 s."
+},
+{
+"t": 75.8,
+"agent": "editor916",
+"text": "Layout aplicado em todas as cenas: A · tela inteira, HUD preservado."
+},
+{
+"t": 82.3,
+"agent": "editor916",
+"text": "Zoom dinâmico em 1 pico(s) do corte."
+},
+{
+"t": 93.0,
+"agent": "captions",
+"text": "Gancho inicial aplicado: “GAMEPLAY”."
+},
+{
+"t": 112.4,
+"agent": "editor916",
+"text": "Enquadramento 1080x1920 concluído em 62.7 s."
+},
+{
+"t": 114.7,
+"agent": "captions",
+"text": "Legendas palavra por palavra aplicadas."
+},
+{
+"t": 114.7,
+"agent": "social",
+"text": "Corte 3 exportado em MP4, aguardando aprovação manual."
+},
+{
+"t": 114.7,
+"agent": "editor916",
+"text": "Corte 4: recortando 116.25s → 129.8s e enquadrando em 9:16…"
+},
+{
+"t": 138.4,
+"agent": "editor916",
+"text": "Enquadramento 1080x1920 concluído em 85.5 s."
+},
+{
+"t": 156.5,
+"agent": "captions",
+"text": "Gancho inicial aplicado: “QUE SUSTO!”."
+},
+{
+"t": 162.5,
+"agent": "editor916",
+"text": "Layout aplicado em todas as cenas: A · tela inteira, HUD preservado."
+},
+{
+"t": 169.3,
+"agent": "editor916",
+"text": "Zoom dinâmico em 1 pico(s) do corte."
+},
+{
+"t": 183.9,
+"agent": "captions",
+"text": "Gancho inicial aplicado: “HEADSHOT!”."
+},
+{
+"t": 199.7,
+"agent": "captions",
+"text": "Legendas palavra por palavra aplicadas."
+},
+{
+"t": 199.7,
+"agent": "social",
+"text": "Corte 2 exportado em MP4, aguardando aprovação manual."
+},
+{
+"t": 199.7,
+"agent": "editor916",
+"text": "Corte 5: recortando 151.25s → 166.25s e enquadrando em 9:16…"
+},
+{
+"t": 218.5,
+"agent": "editor916",
+"text": "Enquadramento 1080x1920 concluído em 78.6 s."
+},
+{
+"t": 228.6,
+"agent": "captions",
+"text": "Legendas palavra por palavra aplicadas."
+},
+{
+"t": 228.6,
+"agent": "social",
+"text": "Corte 1 exportado em MP4, aguardando aprovação manual."
+},
+{
+"t": 230.9,
+"agent": "editor916",
+"text": "Layout aplicado em todas as cenas: A · tela inteira, HUD preservado."
+},
+{
+"t": 232.8,
+"agent": "editor916",
+"text": "Zoom dinâmico em 1 pico(s) do corte."
+},
+{
+"t": 248.0,
+"agent": "captions",
+"text": "Gancho inicial aplicado: “VITÓRIA!”."
+},
+{
+"t": 254.9,
+"agent": "editor916",
+"text": "Enquadramento 1080x1920 concluído em 44.1 s."
+},
+{
+"t": 271.7,
+"agent": "captions",
+"text": "Gancho inicial aplicado: “GAMEPLAY”."
+},
+{
+"t": 274.9,
+"agent": "captions",
+"text": "Legendas palavra por palavra aplicadas."
+},
+{
+"t": 274.9,
+"agent": "social",
+"text": "Corte 4 exportado em MP4, aguardando aprovação manual."
+},
+{
+"t": 281.5,
+"agent": "captions",
+"text": "Legendas palavra por palavra aplicadas."
+},
+{
+"t": 281.5,
+"agent": "social",
+"text": "Corte 5 exportado em MP4, aguardando aprovação manual."
+},
+{
+"t": 284.2,
+"agent": "core",
+"text": "Processamento finalizado. Cortes prontos para revisão."
+}
+]

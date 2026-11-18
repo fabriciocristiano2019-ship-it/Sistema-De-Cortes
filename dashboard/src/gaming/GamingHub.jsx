@@ -438,7 +438,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia}
                   onOpenEditor={() => (previewClip ? openEditor(previewClip) : go('editor'))} rendering={jobActive} />
-                <PreviewPanel clip={previewClip} />
+                <PreviewPanel clip={previewClip} obras={job?.snap?.construcao || []} jobId={job?.id} ativo={jobActive} tempo={job?.snap?.tempo} />
               </div>
             </>
           )}

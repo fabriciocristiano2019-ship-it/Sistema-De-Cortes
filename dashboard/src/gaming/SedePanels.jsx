@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Check, CheckCircle2, Download, Loader2, Plus, Scissors, Sparkles, Terminal, Upload, X, XCircle, Zap,
+  Check, CheckCircle2, Clock3, Download, Loader2, Plus, Radio, Scissors, Sparkles, Terminal, Upload, X, XCircle, Zap,
 } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { errText, fmtClock, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
+import { errText, fmtClock, fmtFalta, jsonReq, LAYOUT_SHORT, mediaUrl, STATUS_LABEL } from './util';
 import { LOOK } from './agents';
 
 const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
@@ -26,7 +26,12 @@ export function OrchestratorPanel({
   const fileRef = useRef(null);
   const active = job && ACTIVE.includes(job.status);
   const snap = job?.snap;
-  const pct = snap?.progress ?? 0;
+  // Never let the bar walk backwards when an estimate is revised upwards.
+  const maxPct = useRef({ id: null, v: 0 });
+  if (maxPct.current.id !== job?.id) maxPct.current = { id: job?.id, v: 0 };
+  maxPct.current.v = Math.max(maxPct.current.v, snap?.progress ?? 0);
+  const pct = maxPct.current.v;
+  const tempo = snap?.tempo;
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const durations = meta?.durations || [15, 30, 45, 60];
   const customDur = !durations.includes(Number(form.clip_seconds));
@@ -157,6 +162,27 @@ export function OrchestratorPanel({
             <div className="h-full rounded-full bg-brass transition-[width] duration-700" style={{ width: `${Math.max(2, pct)}%` }} />
           </div>
           {snap?.step_label && <p className="mt-1.5 text-[11px] text-muted truncate">Agora: {snap.step_label}</p>}
+          {tempo && tempo.restante_s != null && (
+            <div className="mt-3 rounded-xl border border-rule2 bg-paper p-2.5" aria-live="polite">
+              <p className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-ink">
+                <Clock3 size={14} className="text-brass" aria-hidden="true" /> Pronto em {fmtFalta(tempo.restante_s)}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {(tempo.etapas || []).map((e) => (
+                  <li key={e.id} className="flex items-center gap-2 text-[11.5px]">
+                    {e.estado === 'concluido' ? <Check size={13} className="shrink-0 text-ok" aria-hidden="true" />
+                      : e.estado === 'andamento' ? <Loader2 size={13} className="shrink-0 animate-spin text-brass" aria-hidden="true" />
+                        : <Clock3 size={13} className="shrink-0 text-muted" aria-hidden="true" />}
+                    <span className={`flex-1 truncate ${e.estado === 'aguardando' ? 'text-muted' : 'text-ink2'}`}>{e.label}</span>
+                    <span className="shrink-0 tabular-nums text-muted">
+                      {e.estado === 'concluido' ? 'pronto' : fmtFalta(e.restante_s).replace('cerca de ', '~')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[10px] leading-snug text-muted">Estimativa pelo ritmo deste computador; fica mais precisa a cada vídeo.</p>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -340,28 +366,97 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
   );
 }
 
-export function PreviewPanel({ clip }) {
+const ESTAGIO = {
+  aguardando: { label: 'Na fila', passo: 0 },
+  enquadrando: { label: 'Recortando e enquadrando em 9:16…', passo: 1 },
+  gancho: { label: 'Enquadrado. Aplicando o gancho…', passo: 2 },
+  legendas: { label: 'Gancho pronto. Aplicando as legendas…', passo: 3 },
+  pronto: { label: 'Pronto', passo: 4 },
+};
+const PASSOS = ['Recorte', '9:16', 'Gancho', 'Legendas', 'Pronto'];
+
+// The clip being built, live: a still of the moment while it is cut, then the
+// real intermediate files (reframed, with hook, with captions) as they land.
+function AoVivo({ obras, jobId, tempo }) {
+  const emObra = obras.filter((o) => o.estagio !== 'pronto');
+  const auto = (emObra.length ? emObra : obras).reduce((a, o) => (ESTAGIO[o.estagio].passo >= ESTAGIO[a.estagio].passo ? o : a));
+  const [escolhido, setEscolhido] = useState(null);
+  const atual = obras.find((o) => o.indice === escolhido) || auto;
+  const est = ESTAGIO[atual.estagio] || ESTAGIO.enquadrando;
+  return (
+    <>
+      <div className="relative mx-auto w-full max-w-[230px] overflow-hidden rounded-[26px] border-2 border-brass/60 bg-black" style={{ aspectRatio: '9 / 16' }}>
+        {atual.video_url ? (
+          <video key={atual.video_url} src={mediaUrl(atual.video_url)} autoPlay muted playsInline loop className="h-full w-full object-contain bg-black"
+            aria-label={`Corte ${atual.indice}: ${est.label}`} />
+        ) : (
+          <img src={mediaUrl(`/api/gaming/jobs/${jobId}/quadro?t=${atual.inicio}`)} alt={`Corte ${atual.indice} sendo recortado`}
+            className="h-full w-full object-cover opacity-80" />
+        )}
+        <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 to-transparent px-3 pb-6 pt-2.5 text-white">
+          <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider">
+            {atual.estagio !== 'pronto' && <Radio size={11} className="animate-pulse text-red-400" aria-hidden="true" />}
+            Corte {atual.indice} de {Math.max(obras.length, tempo?.cortes || 0)}
+          </p>
+          <p className="mt-0.5 text-[11.5px] font-bold leading-snug">{est.label}</p>
+        </div>
+        <ol className="absolute inset-x-2 bottom-2 flex gap-1" aria-label="Etapas deste corte">
+          {PASSOS.map((p, i) => (
+            <li key={p} className={`flex-1 rounded-md px-0.5 py-1 text-center text-[8.5px] font-extrabold ${i < est.passo || est.passo === 4 ? 'bg-ok/90 text-black' : i === est.passo ? 'bg-brass text-black animate-pulse' : 'bg-black/60 text-slate-300'}`}>
+              {p}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5" role="group" aria-label="Escolher o corte em construção">
+        {obras.map((o) => (
+          <button key={o.indice} type="button" aria-pressed={o.indice === atual.indice} onClick={() => setEscolhido(o.indice)}
+            className={`min-w-[34px] rounded-lg border px-2 py-1 text-[11px] font-extrabold ${o.indice === atual.indice ? 'border-brass bg-brass/15 text-ink' : 'border-rule2 text-ink2'}`}
+            title={ESTAGIO[o.estagio]?.label}>
+            {o.estagio === 'pronto' ? '✓ ' : ''}{o.indice}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function PreviewPanel({ clip, obras = [], jobId = null, ativo = false, tempo = null }) {
   const layout = clip ? (LAYOUT_SHORT[clip.layout] || 'Formato automático') : null;
+  const vivo = ativo && obras.length > 0;
+  const [modo, setModo] = useState('vivo');
+  const mostraVivo = vivo && modo === 'vivo';
   return (
     <section aria-label="Prévia do corte" className="rounded-[20px] border border-rule2 bg-paper2 p-4" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
       <div className="flex items-center justify-between gap-2 mb-3">
-        <h2 className="text-[13px] font-extrabold text-ink">Prévia 9:16 (1080x1920)</h2>
-        {layout && <span className="rounded border border-brass/40 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] text-brass">{layout} • MP4</span>}
-      </div>
-      <div className="mx-auto w-full max-w-[230px] overflow-hidden rounded-[26px] border-2 border-rule2 bg-black" style={{ aspectRatio: '9 / 16' }}>
-        {clip?.video_url ? (
-          <video key={clip.video_url} src={mediaUrl(clip.video_url)} controls playsInline loop preload="metadata" className="h-full w-full object-contain bg-black"
-            aria-label={`Prévia: ${clip.video_title_for_youtube_short}`} />
-        ) : (
-          <div className="grid h-full place-items-center px-5 text-center text-xs text-slate-400">
-            {clip ? 'Este corte ainda está sendo renderizado.' : 'Selecione um corte para assistir aqui.'}
+        <h2 className="text-[13px] font-extrabold text-ink">{mostraVivo ? 'Construindo ao vivo' : 'Prévia 9:16 (1080x1920)'}</h2>
+        {vivo ? (
+          <div className="flex rounded-lg border border-rule2 p-0.5 text-[10.5px] font-bold" role="group" aria-label="O que mostrar">
+            <button type="button" aria-pressed={modo === 'vivo'} onClick={() => setModo('vivo')}
+              className={`rounded-md px-2 py-0.5 ${modo === 'vivo' ? 'bg-brass/20 text-ink' : 'text-muted'}`}>Ao vivo</button>
+            <button type="button" aria-pressed={modo !== 'vivo'} onClick={() => setModo('corte')}
+              className={`rounded-md px-2 py-0.5 ${modo !== 'vivo' ? 'bg-brass/20 text-ink' : 'text-muted'}`}>Selecionado</button>
           </div>
-        )}
+        ) : layout && <span className="rounded border border-brass/40 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] text-brass">{layout} • MP4</span>}
       </div>
-      {clip && (
-        <p className="mt-3 text-center text-[11px] text-muted">
-          {clip.game_name || 'Gameplay'} · {Math.round((clip.end || 0) - (clip.start || 0))}s · {STATUS_LABEL[clip.status] || clip.status}
-        </p>
+      {mostraVivo ? <AoVivo obras={obras} jobId={jobId} tempo={tempo} /> : (
+        <>
+          <div className="mx-auto w-full max-w-[230px] overflow-hidden rounded-[26px] border-2 border-rule2 bg-black" style={{ aspectRatio: '9 / 16' }}>
+            {clip?.video_url ? (
+              <video key={clip.video_url} src={mediaUrl(clip.video_url)} controls playsInline loop preload="metadata" className="h-full w-full object-contain bg-black"
+                aria-label={`Prévia: ${clip.video_title_for_youtube_short}`} />
+            ) : (
+              <div className="grid h-full place-items-center px-5 text-center text-xs text-slate-400">
+                {clip ? 'Este corte ainda está sendo renderizado.' : 'Selecione um corte para assistir aqui.'}
+              </div>
+            )}
+          </div>
+          {clip && (
+            <p className="mt-3 text-center text-[11px] text-muted">
+              {clip.game_name || 'Gameplay'} · {Math.round((clip.end || 0) - (clip.start || 0))}s · {STATUS_LABEL[clip.status] || clip.status}
+            </p>
+          )}
+        </>
       )}
     </section>
   );
