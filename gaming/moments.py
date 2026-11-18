@@ -80,22 +80,77 @@ SIGNAL_LABELS = {
 TITLE_TEMPLATES = {
     # Extra windows that only complete the requested count: neutral copy, no
     # claimed scare/kill/win the clip may not contain.
-    "extra": ["Gameplay de {game}", "Mais um trecho de {game}", "{game}: partida sem cortes"],
-    "eliminacao": ["Eliminação brabíssima no {game}", "Ninguém escapa: kill no {game}", "Que eliminação no {game}!"],
-    "headshot": ["HEADSHOT INSANO no {game}", "Um tiro, uma capa: {game}", "Mira absurda no {game}"],
-    "vitoria": ["VITÓRIA no {game}!", "Ganhamos no {game} assim", "O final dessa partida de {game}"],
-    "derrota": ["Perdi do jeito mais doído no {game}", "Não acredito nessa derrota no {game}", "Quase… {game}"],
-    "clutch": ["Clutch impossível no {game}", "Sobrou só eu no {game}…", "1 contra todos no {game}"],
-    "jogada": ["Jogada INSANA no {game}", "Isso foi surreal no {game}", "Melhor jogada da live de {game}"],
-    "engracado": ["Morri de rir no {game} 😂", "O {game} me trollou", "Momento mais engraçado no {game}"],
-    "susto": ["Que SUSTO no {game}!", "Quase infartei jogando {game}", "Não jogue {game} de madrugada"],
-    "reacao": ["Minha reação no {game}", "Olha o que aconteceu no {game}", "Ninguém esperava isso no {game}"],
-    "perseguicao": ["Perseguição insana no {game}", "Fugindo de tudo no {game}", "Corre! {game}"],
-    "conquista": ["FINALMENTE consegui no {game}", "Conquista desbloqueada no {game}", "Valeu a pena: {game}"],
-    "descoberta": ["Achei um segredo no {game}", "Você sabia disso no {game}?", "Olha o que eu encontrei no {game}"],
-    "inesperado": ["Do nada isso no {game}", "O {game} me surpreendeu", "Ninguém explica isso no {game}"],
-    "tensao": ["Tensão máxima no {game}", "Último suspiro no {game}", "Coração na boca no {game}"],
+    "extra": ["Esse momento de {game} merecia mais views", "Só quem joga {game} entende",
+              "{game} do jeito que tem que ser", "Mais um rolê no {game}"],
+    "eliminacao": ["Ele nem viu de onde veio 💀", "Entrou na call errada no {game}", "Apaguei o squad inteiro? {game}",
+                   "Ninguém escapa dessa no {game}", "Que kill limpa no {game}"],
+    "headshot": ["Só capa! A mira tava calibrada 🎯", "Um tiro e acabou: {game}", "Essa capa foi no reflexo 🎯",
+                 "Mira de outro planeta no {game}", "Headshot que nem eu acreditei"],
+    "vitoria": ["Booyah! Do jeito mais sofrido 🏆", "Ganhamos no último segundo 🏆", "O final dessa partida foi insano",
+                "Venci e nem acredito como 🏆", "Vitória de virada no {game}"],
+    "derrota": ["Perdi do jeito mais doído possível", "Tava ganho… e eu joguei fora", "Isso não podia ter acontecido",
+                "A derrota mais injusta do {game}"],
+    "clutch": ["Sobrou só eu… e virei o jogo 🔥", "1 contra todos e deu certo?", "Clutch que salvou a partida 🔥",
+               "Ninguém acreditava nesse clutch"],
+    "jogada": ["Essa jogada foi de outro nível 🔥", "Fiz isso sem pensar no {game}", "Jogada que eu vou lembrar pra sempre",
+               "Olha o que eu fiz nessa partida"],
+    "engracado": ["Não aguentei de rir aqui 😂", "O {game} me trollou bonito 😂", "Isso só acontece comigo 😂",
+                  "Era pra ser sério… 😂"],
+    "susto": ["Que SUSTO! Quase larguei o celular 😱", "Ele apareceu do nada 😱", "Meu coração parou aqui 😱",
+              "Não jogue {game} de madrugada 😱"],
+    "reacao": ["Minha reação diz tudo", "Olha o que aconteceu aqui", "Ninguém esperava por isso",
+               "Até agora tô processando isso"],
+    "perseguicao": ["Corri pra salvar a vida no {game}", "Fuga impossível no {game}", "Ele me seguiu até o fim"],
+    "conquista": ["FINALMENTE consegui! 🏆", "Demorou, mas saiu no {game}", "Valeu cada partida perdida"],
+    "descoberta": ["Achei um segredo no {game} 👀", "Você sabia disso no {game}?", "Pouca gente conhece esse truque"],
+    "inesperado": ["Do nada isso aconteceu 👀", "O {game} me surpreendeu", "Ninguém explica isso"],
+    "tensao": ["Tensão até o último segundo", "Coração na boca nessa 😬", "Um erro e acabava tudo"],
 }
+
+TITLE_EMOJI = {
+    "eliminacao": "💀", "headshot": "🎯", "vitoria": "🏆", "derrota": "😩", "clutch": "🔥", "jogada": "🔥",
+    "engracado": "😂", "susto": "😱", "reacao": "👀", "perseguicao": "🏃", "conquista": "🏆", "descoberta": "👀",
+    "inesperado": "👀", "tensao": "😬", "extra": "🎮",
+}
+_FILLER = re.compile(r"^(e|é|ah|eh|hm+|né|tipo|então|cara|mano|velho|ok|beleza)$", re.I)
+
+
+def best_quote(excerpt, moment):
+    """The strongest thing the player said in the clip, short enough to be a
+    title: 2-8 words, ideally the moment's own words or an exclamation. Whisper
+    mostly separates speech with commas, so clauses (and runs of up to three
+    of them) are the candidates. None when nothing stands out (then a
+    template is used)."""
+    clauses = []
+    for m in re.finditer(r"[^.!?…,;]+[.!?…,;]*", excerpt or ""):
+        txt = m.group(0).strip()
+        core = re.sub(r"[.!?…,;:\"'“”]+$", "", txt).strip().strip("\"'“”")
+        if core:
+            clauses.append((core, txt[-1:] if txt[-1:] in "!?" else ""))
+    best, best_score = None, 0.0
+    for i in range(len(clauses)):
+        for n in (1, 2, 3):
+            part = clauses[i:i + n]
+            if len(part) < n:
+                break
+            core = ", ".join([part[0][0]] + [c[:1].lower() + c[1:] for c, _ in part[1:]])
+            end = part[-1][1]
+            words = core.split()
+            if not 2 <= len(words) <= 8 or len(core) > 46:
+                continue
+            if sum(1 for w in words if _FILLER.match(w)) * 2 >= len(words):
+                continue
+            hits = profiles.match_moments(core)
+            score = 3.0 if moment in hits else 1.5 if hits else 0.0
+            score += 1.5 if end == "!" else 1.0 if end == "?" else 0.0
+            if profiles.LAUGH_RE.search(profiles.strip_accents(core)):
+                score += 1.0
+            score += 0.5 if 3 <= len(words) <= 6 else 0.0
+            score += 0.2 * min(len(hits), 3)          # several signals in one line
+            if score > best_score:
+                best, best_score = core[0].upper() + core[1:] + end, score
+    return best if best_score >= 2.0 else None
+
 
 HOOKS = {
     "extra": "GAMEPLAY",
@@ -236,10 +291,24 @@ def _slug_tag(name):
     return re.sub(r"[^a-z0-9]", "", s) or "games"
 
 
-def build_copy(game_name, moment, excerpt, seed):
-    """Template titles/descriptions in PT-BR. Deterministic per clip."""
+def build_copy(game_name, moment, excerpt, seed, used=None):
+    """Titles/descriptions in PT-BR. Deterministic per clip.
+
+    The title prefers the player's own strongest line (what makes a Short
+    feel real), then a template for the moment; ``used`` keeps titles in one
+    job from repeating."""
     g = game_name or "game"
-    title = _pick(TITLE_TEMPLATES.get(moment, TITLE_TEMPLATES["reacao"]), seed).format(game=g)
+    used = used if used is not None else set()
+    options = []
+    quote = None if moment == "extra" else best_quote(excerpt, moment)
+    if quote:
+        emoji = TITLE_EMOJI.get(moment, "🔥")
+        options.append(f"{quote} {emoji} | {g}" if len(quote) + len(g) <= 52 else f"{quote} {emoji}")
+    templates = TITLE_TEMPLATES.get(moment, TITLE_TEMPLATES["reacao"])
+    first = templates.index(_pick(templates, seed))
+    options += [t.format(game=g) for t in templates[first:] + templates[:first]]
+    title = next((t for t in options if t.lower() not in used), options[0])
+    used.add(title.lower())
     label = "Gameplay" if moment == "extra" else profiles.MOMENTS.get(moment, {}).get("label", "Momento")
     tags = [f"#{_slug_tag(g)}", f"#{MOMENT_TAGS.get(moment, 'gaming')}", "#gaming", "#gameplay", "#cortes"]
     quote = f' "{excerpt[:90]}"' if excerpt else ""
@@ -326,6 +395,7 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
     order = np.argsort(-combined)
     taken = []
     shorts = []
+    used_titles = set()
     rejected_low = 0
     rejected_single = 0
     # Pass 1 keeps only moments with real evidence. With fill on (the panel's
@@ -396,7 +466,8 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
             excerpt = _excerpt(words, start, end)
             if relaxed:
                 moment = "jogada"     # a valid category for the rest of the app; copy stays neutral
-            copy = build_copy(game.get("name"), "extra" if relaxed else moment, excerpt, f"{game.get('id')}-{start:.1f}")
+            copy = build_copy(game.get("name"), "extra" if relaxed else moment, excerpt, f"{game.get('id')}-{start:.1f}",
+                              used=used_titles)
             clip = {
                 "start": round(float(start), 3),
                 "end": round(float(end), 3),

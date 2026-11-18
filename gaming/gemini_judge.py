@@ -77,8 +77,18 @@ Para CADA candidato, decida:
 - start/end: ajuste para começar logo antes da ação e terminar logo depois da reação, sem cortar fala no meio.
   Pode mover cada ponto no máximo 12 s em relação ao candidato. Mantenha perto da duração alvo.
 - moment_category: uma destas: {moments}.
-- title: português do Brasil, até 60 caracteres, chamativo e verdadeiro (nada de clickbait falso),
-  palavra-chave do jogo no começo quando couber.
+- title: o título do Short. Regras:
+  * português do Brasil, linguagem de quem joga (gírias do jogo são bem-vindas), 25 a 55 caracteres;
+  * conte o que ACONTECE neste corte específico, usando o que você vê nos quadros e o que o jogador fala
+    (de preferência a melhor frase dele, entre aspas ou adaptada);
+  * a parte que dá vontade de assistir vem primeiro (o celular corta títulos longos);
+  * verdadeiro: não prometa o que o corte não mostra;
+  * no máximo 1 emoji, no fim; sem hashtags; no máximo 1 palavra em MAIÚSCULAS;
+  * cada título diferente dos outros (não repita a mesma estrutura nem a mesma frase);
+  * não repita o texto do hook;
+  * evite títulos genéricos como "Gameplay de X", "Momento incrível no X", "Mais um trecho".
+  Bons exemplos: "Sobrou só eu… e virei a partida 🔥", "\"Ele tava atrás de mim!\" 😱",
+  "Capa no último tiro, que reflexo 🎯", "Pulei na pior hora e deu certo".
 - description: 1 a 2 frases em PT-BR.
 - hashtags: 5 a 8, começando com #, inclua o jogo.
 - hook: 1 a 3 palavras em MAIÚSCULAS para aparecer na tela (ex.: "QUE CLUTCH!").
@@ -186,6 +196,7 @@ def _clean_tags(tags, game_name):
 
 def apply_verdict(verdict, cands, pool, game, settings, duration):
     """Validated clips from Gemini's answer (pure function: unit-tested)."""
+    used_titles = set()
     clip_len = float(settings.get("clip_seconds") or 30)
     max_clips = int(settings.get("max_clips") or 8)
     min_score = float(settings.get("min_score") if settings.get("min_score") is not None else 30)
@@ -208,7 +219,8 @@ def apply_verdict(verdict, cands, pool, game, settings, duration):
         cat = p.get("moment_category")
         if cat not in profiles.MOMENTS:
             cat = base.get("moment_category") or "jogada"
-        title = (str(p.get("title") or "").strip() or base.get("video_title_for_youtube_short", ""))[:100]
+        title = clean_title(p.get("title"), used_titles) or base.get("video_title_for_youtube_short", "")
+        used_titles.add(title.lower())
         desc = str(p.get("description") or "").strip() or base.get("description", "")
         tags = _clean_tags(p.get("hashtags"), game.get("name"))
         tag_line = " ".join(tags)
@@ -230,6 +242,31 @@ def apply_verdict(verdict, cands, pool, game, settings, duration):
             break
     out.sort(key=lambda c: c["start"])
     return out
+
+
+_EMOJI_RE = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF]")
+
+
+def clean_title(raw, used=()):
+    """Gemini's title made safe for every network: no hashtags or wrapping
+    quotes, at most one emoji (at the end), not shouted in full caps, at most
+    70 characters, and not a repeat of another clip's title (then None, so
+    the local title is kept)."""
+    t = re.sub(r"#\w+", "", str(raw or "")).strip()
+    t = re.sub(r"\s+", " ", t).strip(" -|")
+    if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'“”":
+        t = t[1:-1].strip()
+    emojis = _EMOJI_RE.findall(t)
+    if len(emojis) > 1:
+        t = _EMOJI_RE.sub("", t).strip() + " " + emojis[-1]
+    letters = [c for c in t if c.isalpha()]
+    if letters and sum(c.isupper() for c in letters) / len(letters) > 0.7 and len(t.split()) > 2:
+        t = t[0] + t[1:].lower()
+    if len(t) > 70:
+        t = t[:69].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
+    if not t or t.lower() in used:
+        return None
+    return t
 
 
 def apply_corrections(transcript, corrections):
