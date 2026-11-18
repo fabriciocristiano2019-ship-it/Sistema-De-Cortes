@@ -326,7 +326,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
   return (
     <div className={`sede ${theme === 'nova' ? 'sede-nova' : 'sede-classic'} h-full overflow-y-auto`}>
-      <header className="sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-2.5">
+      <header className="sede-topo sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
           <div className="mr-auto flex min-w-0 items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl" style={{ background: '#06101f' }}>

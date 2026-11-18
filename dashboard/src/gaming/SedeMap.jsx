@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Maximize2, Radio } from 'lucide-react';
 import Wave from './Wave';
 import JarvisOrb from './JarvisOrb';
 import { LOOK } from './agents';
+
+// Phone lying down: two rows around J.A.R.V.I.S., clockwise in pipeline order,
+// so the centre column stays free for the orb and its label.
+const DEITADO = {
+  ingest: { x: 13, y: 23 }, library: { x: 31, y: 23 }, whisper: { x: 69, y: 23 }, vision: { x: 87, y: 23 },
+  slicer: { x: 87, y: 77 }, editor916: { x: 69, y: 77 }, captions: { x: 31, y: 77 }, social: { x: 13, y: 77 },
+};
+const QUERY_DEITADO = '(max-height: 520px) and (min-width: 568px)';
+
+function useDeitado() {
+  const mq = () => typeof window !== 'undefined' && !!window.matchMedia?.(QUERY_DEITADO).matches;
+  const [on, setOn] = useState(mq);
+  useEffect(() => {
+    const m = window.matchMedia?.(QUERY_DEITADO);
+    if (!m) return undefined;
+    const f = () => setOn(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, []);
+  return on;
+}
 
 // Black or white text, whichever contrasts more with the badge colour (WCAG
 // relative luminance): white on the light cyan/blue badges read at 2.4:1.
@@ -82,23 +103,87 @@ function AgentRoom({ agent, onOpen, detail, className = '', style }) {
   );
 }
 
+// Lines from J.A.R.V.I.S. to each room; a dot travels along the busy ones.
+function Linhas({ agents, reduceMotion, posicoes = LOOK }) {
+  return (
+    <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
+      {agents.map((a) => {
+        const look = posicoes[a.id];
+        if (!look) return null;
+        const ls = lineStyle(a.state);
+        return (
+          <g key={a.id}>
+            <line x1="50%" y1="50%" x2={`${look.x}%`} y2={`${look.y}%`} stroke={ls.stroke} strokeWidth={ls.width}
+              strokeDasharray={ls.dash} strokeLinecap="round" className={ls.flow ? 'sede-flow' : undefined} />
+            {ls.flow && !reduceMotion && (
+              <circle r="4.5" fill="var(--color-accent)">
+                <animate attributeName="cx" values={`50%;${look.x}%`} dur="1.15s" repeatCount="indefinite" />
+                <animate attributeName="cy" values={`50%;${look.y}%`} dur="1.15s" repeatCount="indefinite" />
+              </circle>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// Compact room for phones: icon, live wave and name.
+function AgentMini({ agent, onOpen, style }) {
+  const look = LOOK[agent.id] || { color: '#64748b' };
+  const badge = BADGE[agent.state] || BADGE.idle;
+  const working = agent.state === 'working';
+  return (
+    <button type="button" onClick={() => onOpen(agent)}
+      aria-label={`${agent.name}, ${agent.role}: ${badge.label.toLowerCase()}. Abrir módulo.`}
+      className={`absolute z-10 flex w-[84px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-xl border bg-paper2/95 px-1 pb-1.5 pt-1.5 text-center transition-transform duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${working ? 'scale-105' : 'border-rule2'}`}
+      style={{ ...style, ...(working ? { borderColor: look.color, boxShadow: `0 0 0 1px ${look.color}, 0 0 18px ${look.color}66` } : { boxShadow: 'var(--sede-card-shadow)' }) }}>
+      <span className="flex w-full items-center justify-center gap-1">
+        <span className={`grid h-6 w-6 place-items-center rounded-md text-[9px] font-extrabold ${working ? 'animate-pulse' : ''}`}
+          style={{ background: look.color, color: inkOn(look.color) }}>IA</span>
+        <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={7} height={14}
+          color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
+      </span>
+      <span className="line-clamp-2 text-[9.5px] font-extrabold leading-tight text-ink">{agent.name}</span>
+      <span className={`rounded border px-1 text-[8px] font-extrabold tracking-wider ${badge.cls}`}
+        style={working ? { color: look.color, borderColor: `${look.color}88` } : undefined}>{badge.label}</span>
+    </button>
+  );
+}
+
 // The virtual room: eight agents around the orchestrator. Every state shown
 // here is the real state of that pipeline stage for the tracked job.
 export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
   const coreBadge = CORE_BADGE[core] || CORE_BADGE.idle;
   const busy = core === 'working';
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const posMini = useDeitado() ? DEITADO : LOOK;
   return (
     <section aria-label="Sede virtual: agentes do fluxo" className="rounded-[20px] border border-rule2 overflow-hidden">
-      {/* Phones: same rooms, as a simple grid */}
-      <div className="md:hidden sede-map p-3">
-        <p className="text-[11px] font-bold text-muted mb-2">J.A.R.V.I.S. · {coreBadge.label}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {agents.map((a) => <AgentRoom key={a.id} agent={a} onOpen={onOpen} detail={details[a.id]} />)}
+      {/* Phones (standing or lying down): the same room, smaller — J.A.R.V.I.S. in the
+          middle, the agents around it. Which map shows is decided in sede.css. */}
+      <div className="sede-mini relative sede-map select-none">
+        <Linhas agents={agents} reduceMotion={reduceMotion} posicoes={posMini} />
+        <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+          <div className={`relative h-[104px] w-[104px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
+            style={{ background: 'radial-gradient(circle, var(--sede-map) 55%, transparent 72%)' }}>
+            {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
+            <JarvisOrb size={104} busy={busy} theme={theme} className="absolute inset-0" />
+            <span className="absolute inset-x-0 -bottom-4 flex flex-col items-center">
+              <span className="text-[9.5px] font-extrabold tracking-[0.16em] text-ink" style={{ textShadow: '0 0 12px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
+              <span className={`mt-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
+            </span>
+          </div>
         </div>
+        {agents.map((a) => {
+          const look = posMini[a.id];
+          if (!look) return null;
+          return <AgentMini key={a.id} agent={a} onOpen={onOpen}
+            style={{ left: `${look.x}%`, top: `${look.y}%` }} />;
+        })}
       </div>
 
-      <div className="hidden md:block relative sede-map h-[600px] select-none">
+      <div className="sede-full relative sede-map h-[600px] select-none">
         <p className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-ink">
           <Radio size={13} className="text-ok" aria-hidden="true" />
           SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : 'EDIÇÃO CLÁSSICA NEON'}
@@ -107,25 +192,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
           Clique em qualquer sala para abrir o módulo
         </p>
 
-        <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
-          {agents.map((a) => {
-            const look = LOOK[a.id];
-            if (!look) return null;
-            const ls = lineStyle(a.state);
-            return (
-              <g key={a.id}>
-                <line x1="50%" y1="50%" x2={`${look.x}%`} y2={`${look.y}%`} stroke={ls.stroke} strokeWidth={ls.width}
-                  strokeDasharray={ls.dash} strokeLinecap="round" className={ls.flow ? 'sede-flow' : undefined} />
-                {ls.flow && !reduceMotion && (
-                  <circle r="4.5" fill="var(--color-accent)">
-                    <animate attributeName="cx" values={`50%;${look.x}%`} dur="1.15s" repeatCount="indefinite" />
-                    <animate attributeName="cy" values={`50%;${look.y}%`} dur="1.15s" repeatCount="indefinite" />
-                  </circle>
-                )}
-              </g>
-            );
-          })}
-        </svg>
+        <Linhas agents={agents} reduceMotion={reduceMotion} />
 
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
           <div className={`relative h-44 w-44 rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
