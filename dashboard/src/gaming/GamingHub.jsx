@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, KeyRound, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, MoreVertical, Scissors, Settings,
+  BarChart3, CalendarClock, LogOut, KeyRound, Cpu, Eye, Film, Gamepad2, History, Layers, Moon, Scissors, Settings,
   Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
@@ -11,6 +11,7 @@ import { Notice } from './ui';
 import SedeMap from './SedeMap';
 import Configuracoes from './Configuracoes';
 import { NOME_KEY, nomeSalvo } from './nome';
+import { sair } from './sair';
 import { lerAutoPub, nomesRedes, textoDoCorte } from './autoPublicar';
 import { postizHeaders, postizKey } from './postizConf';
 import JarvisOrb from './JarvisOrb';
@@ -22,21 +23,23 @@ import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } fr
 import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from './SectionsPublish';
 import './sede.css';
 
+// The Painel (old module 1) is now its own tab next to the Sede; the other
+// modules sit in four groups so the bar reads at a glance.
 const MODULES = [
   { id: 'dashboard', label: 'Painel Geral', icon: BarChart3 },
-  { id: 'games', label: 'Biblioteca de Jogos', icon: Gamepad2 },
-  { id: 'import', label: 'Importação de Gameplays', icon: Upload },
-  { id: 'analysis', label: 'Análise Inteligente', icon: Eye },
-  { id: 'clips', label: 'Cortes Encontrados', icon: Scissors },
-  { id: 'editor', label: 'Editor de Vídeos 9:16', icon: SlidersHorizontal },
-  { id: 'subtitles', label: 'Legendas PT-BR', icon: Type },
-  { id: 'videos', label: 'Biblioteca de Vídeos', icon: Film },
-  { id: 'social', label: 'Redes Sociais', icon: Share2 },
-  { id: 'schedule', label: 'Agendamentos', icon: CalendarClock },
-  { id: 'history', label: 'Histórico & Registros', icon: History },
-  { id: 'config', label: 'Chaves e Integrações', icon: KeyRound },
+  { id: 'games', label: 'Biblioteca de Jogos', short: 'Jogos', icon: Gamepad2, group: 'Criar' },
+  { id: 'import', label: 'Importação de Gameplays', short: 'Importar', icon: Upload, group: 'Criar' },
+  { id: 'analysis', label: 'Análise Inteligente', short: 'Análise', icon: Eye, group: 'Criar' },
+  { id: 'clips', label: 'Cortes Encontrados', short: 'Cortes', icon: Scissors, group: 'Cortes' },
+  { id: 'editor', label: 'Editor de Vídeos 9:16', short: 'Editor', icon: SlidersHorizontal, group: 'Cortes' },
+  { id: 'subtitles', label: 'Legendas PT-BR', short: 'Legendas', icon: Type, group: 'Cortes' },
+  { id: 'videos', label: 'Biblioteca de Vídeos', short: 'Vídeos', icon: Film, group: 'Cortes' },
+  { id: 'social', label: 'Redes Sociais', short: 'Redes', icon: Share2, group: 'Publicar' },
+  { id: 'schedule', label: 'Agendamentos', short: 'Agenda', icon: CalendarClock, group: 'Publicar' },
+  { id: 'history', label: 'Histórico & Registros', short: 'Histórico', icon: History, group: 'Publicar' },
+  { id: 'config', label: 'Chaves e Integrações', short: 'Chaves', icon: KeyRound, group: 'Ajustes' },
 ];
-const MODULE_HINT = 'Módulo integrado ao fluxo local OpenShorts Gaming Edition (Windows + Docker Desktop).';
+const GROUPS = ['Criar', 'Cortes', 'Publicar', 'Ajustes'];
 
 const VIEWS = [
   { id: 'hq', label: 'Sede', icon: Cpu, hint: 'Sala virtual: os agentes trabalhando' },
@@ -102,8 +105,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const [cancelling, setCancelling] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [toast, setToast] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
   const lastReady = useRef(0);
   const watching = useRef(false);   // true once this tab has seen the job running
 
@@ -355,7 +356,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   })();
 
   const mod = MODULES.find((m) => m.id === section && m.id !== 'dashboard') || MODULES[1];
-  const modIndex = MODULES.indexOf(mod) + 1;
   // "Publicar ao aprovar": the Approve click is the owner's approval; the clip
   // goes through the same publication path as module 9/10 (Upload-Post or
   // Postiz, whichever is configured).
@@ -383,7 +383,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
             title: titulo, description: desc, user_id: uploadUserId || undefined, scheduled_at: null }),
         });
         await apiJson(`/api/gaming/publications/${pub.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: '{}' });
-        setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → 10. Agendamentos.` });
+        setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → Agenda.` });
       } catch (e) {
         setToast({ tone: 'error', text: `O corte foi aprovado, mas a publicação no ${redes} falhou: ${errText(e)}` });
       } finally {
@@ -408,16 +408,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
   const closeToast = useCallback(() => setToast(null), []);
 
-
-  // The module list closes on Escape or a click anywhere else.
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const onDown = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [menuOpen]);
 
   return (
     <div className={`sede ${theme === 'nova' ? 'sede-nova' : 'sede-classic'} h-full overflow-y-auto`}>
@@ -446,6 +436,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
               <span className="text-muted" aria-hidden="true">·</span>
               <span className="text-muted">{queueText}</span>
             </p>
+            <button type="button" onClick={sair} aria-label="Sair do painel" title="Sair (pede a senha de novo)"
+              className="flex h-9 items-center gap-1.5 rounded-xl border border-rule2 bg-paper2 px-3 text-[12.5px] font-bold text-ink2 hover:border-brass hover:text-ink">
+              <LogOut size={15} aria-hidden="true" /> Sair
+            </button>
             <button type="button" onClick={toggleSom} aria-pressed={som}
               aria-label={som ? 'Desligar os sons dos agentes' : 'Ligar os sons dos agentes'} title={som ? 'Sons ligados' : 'Sons desligados'}
               className="grid h-9 w-9 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink2 hover:border-brass hover:text-ink">
@@ -461,7 +455,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       </header>
 
       <div className="grid grid-cols-1 gap-4 p-4 md:p-5 lg:grid-cols-[304px_minmax(0,1fr)] lg:items-start">
-        <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${view === 'settings' || view === 'painel' ? 'hidden lg:block' : ''}`}>
+        <aside className={`min-w-0 space-y-4 lg:sticky lg:top-[72px] ${['settings', 'painel', 'modules'].includes(view) ? 'hidden lg:block' : ''}`}>
           <OrchestratorPanel meta={meta} games={games} form={form} setForm={setForm} job={job} starting={starting} startError={startError}
             cancelling={cancelling} onStartFile={start} onStartUrl={() => start()} uploadPct={uploadPct} proAI={!!(apiKey || meta?.gemini_configured)} onProAI={() => go('config')} onCancel={cancel} onAddGame={() => go('games')} onImportLink={() => go('import')} />
           <ConsolePanel lines={consoleLines} roles={roles} />
@@ -490,26 +484,30 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
           {view === 'modules' && (
             <section className="rounded-[20px] border border-rule2 bg-paper2/60 p-4 md:p-5">
-              <div className="relative mb-5 flex items-center gap-3 border-b border-rule pb-4" ref={menuRef}>
-                <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Abrir lista de módulos" title="Módulos"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  className="grid h-10 w-10 place-items-center rounded-xl border border-rule2 bg-paper2 text-ink hover:border-brass">
-                  <MoreVertical size={20} aria-hidden="true" />
-                </button>
-                <span className="text-xs font-bold text-muted">Módulos · {modIndex} de {MODULES.length}</span>
-                {menuOpen && (
-                  <nav aria-label="Módulos" role="menu"
-                    className="absolute left-0 top-12 z-30 flex w-72 max-w-[calc(100vw-48px)] flex-col gap-0.5 rounded-2xl border border-rule2 bg-paper2 p-2 shadow-2xl">
-                    {MODULES.map((m, i) => (
-                      <button key={m.id} type="button" role="menuitem" className="sede-pill w-full justify-start" aria-current={m.id === mod.id ? 'page' : undefined}
-                        onClick={() => { setMenuOpen(false); go(m.id); }}>
-                        <m.icon size={15} aria-hidden="true" /> {i + 1}. {m.label}
+              <label className="mb-5 block border-b border-rule pb-4 md:hidden">
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted">Módulo</span>
+                <select className="sede-select w-full" value={mod.id} onChange={(e) => go(e.target.value)} aria-label="Escolher módulo">
+                  {GROUPS.map((g) => (
+                    <optgroup key={g} label={g}>
+                      {MODULES.filter((m) => m.group === g).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <nav aria-label="Módulos" className="mb-5 hidden flex-wrap gap-x-5 gap-y-2 border-b border-rule pb-4 md:flex">
+                {GROUPS.map((g) => (
+                  <div key={g} className="flex flex-wrap items-center gap-1">
+                    <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-muted">{g}</span>
+                    {MODULES.filter((m) => m.group === g).map((m) => (
+                      <button key={m.id} type="button" className="sede-pill !px-2.5 !py-1.5" aria-current={m.id === mod.id ? 'page' : undefined}
+                        title={m.label} onClick={() => go(m.id)}>
+                        <m.icon size={14} aria-hidden="true" /> {m.short}
                       </button>
                     ))}
-                  </nav>
-                )}
-              </div>
-              <ModuleCtx.Provider value={{ label: `${modIndex}. ${mod.label}`, hint: MODULE_HINT, onBack: goHQ }}>
+                  </div>
+                ))}
+              </nav>
+              <ModuleCtx.Provider value={{ label: mod.label }}>
                 {moduleBody}
               </ModuleCtx.Provider>
             </section>

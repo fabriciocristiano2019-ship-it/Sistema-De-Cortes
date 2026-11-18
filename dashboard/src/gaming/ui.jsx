@@ -5,18 +5,15 @@ import { STATUS_LABEL, STATUS_TONE } from './util';
 export function Header({ ord, title, hint, children }) {
   const mod = useContext(ModuleCtx);
   if (mod) {
-    // Inside the Sede shell every module opens with its numbered name and the
-    // way back to the virtual room.
+    // Inside the Sede shell the module bar already says where you are: a plain
+    // title, one line of help when the module has it, and its own buttons.
     return (
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div className="min-w-0">
           <h2 className="text-lg font-extrabold text-ink">{mod.label}</h2>
-          <p className="text-sm text-muted mt-0.5 max-w-3xl">{hint || mod.hint}</p>
+          {hint && <p className="text-sm text-muted mt-0.5 max-w-3xl">{hint}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {children}
-          <button type="button" onClick={mod.onBack} className="sede-btn-accent">Voltar à Sala Virtual</button>
-        </div>
+        {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
       </div>
     );
   }

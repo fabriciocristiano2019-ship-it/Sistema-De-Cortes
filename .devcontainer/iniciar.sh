@@ -74,7 +74,12 @@ fi
 # connection drops (as during a big upload through the codespace tunnel). It
 # is rebuilt only when the code changed; if the build fails, the development
 # server is used as before. OPENSHORTS_PAINEL_DEV=1 forces development mode.
-versao_painel() { printf '%s %s' "$(git rev-parse HEAD 2>/dev/null)" "$(git status --porcelain -- dashboard 2>/dev/null | md5sum | cut -c1-8)"; }
+# Commit + the content of local changes (not just which files changed), so a
+# second edit to an already-modified file still triggers a rebuild.
+versao_painel() {
+  printf '%s %s' "$(git rev-parse HEAD 2>/dev/null)" \
+    "$( { git diff HEAD -- dashboard; git ls-files --others --exclude-standard -- dashboard | xargs -r md5sum; } 2>/dev/null | md5sum | cut -c1-8)"
+}
 painel_montado() {
   [ -f dashboard/dist/index.html ] && [ "$(cat dashboard/dist/.versao 2>/dev/null)" = "$(versao_painel)" ] && return 0
   echo "Montando o painel (uns 20 segundos)..."

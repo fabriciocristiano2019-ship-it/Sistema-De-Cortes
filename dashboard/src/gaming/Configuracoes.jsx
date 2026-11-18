@@ -7,7 +7,7 @@ import {
 
 import { NOME_PADRAO } from './nome';
 import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
-import { getApiUrl } from '../config';
+import { sair } from './sair';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 
 function Card({ icon, title, children, id }) {
@@ -56,22 +56,46 @@ function AppCelular() {
   );
 }
 
+const ABAS = [
+  { id: 'geral', label: 'Geral', icon: User },
+  { id: 'audio', label: 'Áudio', icon: Volume2 },
+  { id: 'publicacao', label: 'Publicação', icon: Send },
+  { id: 'celular', label: 'Celular', icon: Smartphone },
+  { id: 'conta', label: 'Conta e chaves', icon: KeyRound },
+  { id: 'termos', label: 'Termos e privacidade', icon: ShieldCheck },
+];
+const ABA_KEY = 'os_cfg_aba';
+const abaSalva = () => {
+  try { const v = localStorage.getItem(ABA_KEY); return ABAS.some((a) => a.id === v) ? v : 'geral'; } catch (_) { return 'geral'; }
+};
+
+// One subject at a time: a list of sections on the left (a row of tabs on the
+// phone) and only the chosen one open.
 export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false }) {
+  const [aba, setAba] = useState(abaSalva);
   const [vol, setVol] = useState(volumeAtual);
   const [autoPub, setAutoPub] = useState(lerAutoPub);
   const [musica, setMusicaEstado] = useState(musicaLigada);
   const [volMus, setVolMus] = useState(volumeMusica);
   const [rascunho, setRascunho] = useState(nome);
   const salvarNome = () => onNome(rascunho.trim() || NOME_PADRAO);
+  const escolher = (id) => { setAba(id); try { localStorage.setItem(ABA_KEY, id); } catch (_) { /* private mode */ } };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-[20px] border border-rule2 bg-paper2 p-5" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
-        <h2 className="text-[20px] font-extrabold text-ink">Configurações</h2>
-        <p className="mt-1 text-sm text-ink2">Ajustes do programa. Ficam salvos neste navegador.</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+    <div className="rounded-[20px] border border-rule2 bg-paper2/60 p-4 md:p-5">
+      <h2 className="mb-4 text-[20px] font-extrabold text-ink">Configurações</h2>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[200px_minmax(0,1fr)]">
+        <nav aria-label="Seções das configurações" className="flex flex-wrap gap-1 md:flex-col">
+          {ABAS.map((a) => (
+            <button key={a.id} type="button" className="sede-pill md:w-full md:justify-start" aria-current={aba === a.id ? 'page' : undefined}
+              onClick={() => escolher(a.id)}>
+              <a.icon size={15} aria-hidden="true" /> {a.label}
+            </button>
+          ))}
+        </nav>
+        <div className="min-w-0 space-y-4">
+          {aba === 'geral' && (
+            <>
         <Card icon={User} title="Nome no topo" id="cfg-nome">
           <label htmlFor="cfg-nome-campo" className="mb-1.5 block text-xs font-bold text-ink">Nome exibido</label>
           <div className="flex gap-2">
@@ -88,6 +112,10 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           </div>
         </Card>
 
+            </>
+          )}
+          {aba === 'audio' && (
+            <>
         <Card icon={Volume2} title="Áudio dos agentes" id="cfg-audio">
           <div className="mb-4 flex gap-2">
             <Opcao on={som} onClick={() => onSom(true)} icon={Volume2}>Sons ligados</Opcao>
@@ -134,6 +162,10 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           </div>
         </Card>
 
+            </>
+          )}
+          {aba === 'publicacao' && (
+            <>
         <Card icon={Send} title="Publicação automática" id="cfg-autopub">
           <p className="mb-3 text-sm text-ink2">Ao clicar em <b className="text-ink">Aprovar</b> num corte, ele já vai para as redes marcadas. Antes de enviar, o painel pede confirmação.</p>
           <div className="mb-3 flex gap-2">
@@ -158,28 +190,30 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           )}
         </Card>
 
-        <AppCelular />
-
+            </>
+          )}
+          {aba === 'celular' && <AppCelular />}
+          {aba === 'conta' && (
+            <>
         <Card icon={LogOut} title="Acesso" id="cfg-acesso">
           <p className="mb-3 text-sm text-ink2">O login vale por 7 dias neste aparelho. Para bloquear agora, saia.</p>
           <button type="button" className="inline-flex items-center gap-1.5 rounded-xl border border-rule2 px-4 py-2 text-sm font-bold text-ink2 hover:border-brass"
-            onClick={async () => {
-              try { await fetch(getApiUrl('/api/acesso/sair'), { method: 'POST', credentials: 'include' }); } catch (_) { /* offline: reload shows the gate anyway */ }
-              window.location.reload();
-            }}>
+            onClick={sair}>
             <LogOut size={15} aria-hidden="true" /> Sair
           </button>
         </Card>
 
         <Card icon={KeyRound} title="Chaves e integrações" id="cfg-chaves">
           <p className="mb-3 text-sm text-ink2">
-            Chave do Gemini (IA profissional), Upload-Post, Postiz e demais integrações ficam no módulo 12.
+            Chave do Gemini (IA profissional), Upload-Post, Postiz e demais integrações ficam em Módulos → Chaves.
             Nunca cole chaves em conversas ou arquivos do repositório.
           </p>
           <button type="button" className="sede-btn-accent px-4" onClick={onAbrirChaves}>Abrir Chaves e Integrações</button>
         </Card>
-      </div>
-
+            </>
+          )}
+          {aba === 'termos' && (
+            <>
       <Card icon={FileText} title="Termos de uso" id="cfg-termos">
         <div className="space-y-2 text-sm leading-relaxed text-ink2">
           <p>1. O programa é de uso pessoal e roda no seu próprio ambiente (Codespaces ou computador).</p>
@@ -200,6 +234,10 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           <p><b className="text-ink">Acesso:</b> a porta do painel é privada; só abre com o seu login do GitHub.</p>
         </div>
       </Card>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
