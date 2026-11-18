@@ -44,6 +44,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from gaming import library, pipeline, postiz, profiles
+import youtube_canais
 from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
 from gaming.moments import fmt_ts
 
@@ -133,6 +134,8 @@ def parse_gaming(raw):
                      "fill": raw.get("fill") is True},
         "zoom": bool(raw.get("zoom", True)),
         "inset_box": inset_box,
+        # Video found in "Buscar canais": who to credit on every clip.
+        "credito": youtube_canais.limpar_credito(raw.get("credito")),
     }
 
 
@@ -151,7 +154,7 @@ def write_job_config(job_dir, req, source_name):
         "engine": req["engine"], "game": req["game"], "settings": req["settings"],
         "library_dir": _out(), "source_name": os.path.basename(str(source_name or "")),
         "fallback_category": req["fallback_category"], "fallback_name": req["fallback_name"],
-        "layout": req["layout"],
+        "layout": req["layout"], "credito": req.get("credito"),
     }
     path = os.path.join(job_dir, "gaming_job.json")
     with open(path, "w", encoding="utf-8") as f:
@@ -702,6 +705,90 @@ async def gemini_chave_testar(request: Request):
 async def gemini_chave_remover():
     import gemini_chave
     return await asyncio.to_thread(gemini_chave.remover)
+
+
+# --------------------------------------------------------------------------- #
+# Buscar canais (youtube_canais.py)
+# --------------------------------------------------------------------------- #
+@router.get("/api/gaming/youtube-chave")
+async def yt_chave_status():
+    return youtube_canais.status()
+
+
+@router.put("/api/gaming/youtube-chave")
+async def yt_chave_salvar(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Envie {\"chave\": \"...\"}")
+    try:
+        return await asyncio.to_thread(youtube_canais.salvar, (body or {}).get("chave") if isinstance(body, dict) else None)
+    except youtube_canais.ChaveErro as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/api/gaming/youtube-chave/testar")
+async def yt_chave_testar():
+    return await asyncio.to_thread(youtube_canais.testar)
+
+
+@router.delete("/api/gaming/youtube-chave")
+async def yt_chave_remover():
+    return await asyncio.to_thread(youtube_canais.remover)
+
+
+class CanalIn(BaseModel):
+    entrada: str = Field(max_length=300)
+    prova_url: Optional[str] = Field(default="", max_length=500)
+    prova_texto: Optional[str] = Field(default="", max_length=500)
+
+
+class ProvaIn(BaseModel):
+    prova_url: Optional[str] = Field(default=None, max_length=500)
+    prova_texto: Optional[str] = Field(default=None, max_length=500)
+
+
+@router.get("/api/gaming/canais")
+async def canais_lista():
+    return {"canais": youtube_canais.lista(_out()), "chave": youtube_canais.status()}
+
+
+@router.post("/api/gaming/canais")
+async def canais_adicionar(body: CanalIn):
+    try:
+        return await asyncio.to_thread(youtube_canais.adicionar, _out(), body.entrada, body.prova_url, body.prova_texto)
+    except youtube_canais.BuscaErro as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/api/gaming/canais/{ident}")
+async def canais_prova(ident: str, body: ProvaIn):
+    _check_id(ident, "canal")
+    try:
+        c = youtube_canais.atualizar(_out(), ident, body.prova_url, body.prova_texto)
+    except youtube_canais.BuscaErro as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not c:
+        raise HTTPException(status_code=404, detail="Canal não está na lista")
+    return c
+
+
+@router.delete("/api/gaming/canais/{ident}")
+async def canais_remover(ident: str):
+    _check_id(ident, "canal")
+    if not youtube_canais.remover_canal(_out(), ident):
+        raise HTTPException(status_code=404, detail="Canal não está na lista")
+    return {"ok": True}
+
+
+@router.get("/api/gaming/buscar")
+async def canais_buscar(q: str = "", modo: str = "todos"):
+    if modo not in ("todos", "cc", "liberados", "lista"):
+        raise HTTPException(status_code=400, detail="modo inválido")
+    try:
+        return {"resultados": await asyncio.to_thread(youtube_canais.buscar, _out(), q, modo)}
+    except youtube_canais.BuscaErro as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/api/gaming/youtube-cookies")

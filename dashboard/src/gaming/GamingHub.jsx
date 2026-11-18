@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, LogOut, KeyRound, Cpu, Eye, Film, History, Layers, Moon, Scissors, Settings,
+  BarChart3, CalendarClock, LogOut, Search, KeyRound, Cpu, Eye, Film, History, Layers, Moon, Scissors, Settings,
   Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
@@ -19,6 +19,7 @@ import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somF
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
 import { AnalysisSection, ImportSection } from './SectionsCore';
 import Painel from './Painel';
+import CanaisSection from './CanaisSection';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
 import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from './SectionsPublish';
 import './sede.css';
@@ -27,6 +28,7 @@ import './sede.css';
 // modules sit in four groups so the bar reads at a glance.
 const MODULES = [
   { id: 'dashboard', label: 'Painel Geral', icon: BarChart3 },
+  { id: 'canais', label: 'Buscar canais', short: 'Canais', icon: Search, group: 'Criar' },
   { id: 'import', label: 'Importação de Gameplays', short: 'Importar', icon: Upload, group: 'Criar' },
   { id: 'analysis', label: 'Análise Inteligente', short: 'Análise', icon: Eye, group: 'Criar' },
   { id: 'clips', label: 'Cortes Encontrados', short: 'Cortes', icon: Scissors, group: 'Cortes' },
@@ -206,11 +208,13 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       .then((d) => { if (!d.complete) setParado({ nome: p.nome, pct: Math.floor((d.bytes / p.tamanho) * 100) }); })
       .catch(() => esquecerEnvioPendente());   // expired or server restarted
   }, []);
-  const start = async (file) => {
+  // extra: { url, credito } when a video comes from "Buscar canais".
+  const start = async (file, extra) => {
     setStarting(true); setStartError(''); setUploadPct(null);
     try {
-      const f = file || form.file;
+      const f = file || (extra ? null : form.file);
       const gaming = {
+        ...(extra?.credito ? { credito: extra.credito } : {}),
         game_id: form.game_id, category: form.category, engine: form.engine, layout: form.layout,
         clip_seconds: Number(form.clip_seconds), max_clips: Number(form.max_clips),
         min_score: Number(form.min_score), zoom: !!form.zoom, fill: form.fill !== false,
@@ -227,7 +231,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
         const uploadId = await enviarVideo(f, setUploadPct);
         source = { upload_id: uploadId };
       } else {
-        source = { url: form.url.trim() };
+        source = { url: (extra?.url || form.url).trim() };
       }
       const res = await apiFetch('/api/process', { method: 'POST', headers, body: JSON.stringify({ ...source, ...common }) });
       const text = await res.text();
@@ -390,6 +394,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }), [servicoPub, uploadPostKey, uploadUserId, loadPubs, loadDash]);
 
   const moduleBody = {
+    canais: <CanaisSection ocupado={starting || jobActive} erroInicio={startError} onCortar={(url, credito) => start(null, { url, credito })} />,
     import: <ImportSection meta={meta} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,
     clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,

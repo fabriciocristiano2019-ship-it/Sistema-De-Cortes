@@ -1813,6 +1813,10 @@ def gaming_detect(cfg, input_video, transcript, duration):
     if clips_data is None:
         print("🎮 Motor local de momentos (áudio + visual + fala), sem custo de API.")
         clips_data = detect_moments(input_video, transcript, duration, game, settings)
+    if cfg.get("credito"):
+        # Video picked in "Buscar canais": credit the creator on every clip.
+        import youtube_canais
+        youtube_canais.aplicar_credito(clips_data.get("shorts"), cfg["credito"])
     clips_data["gaming"] = {
         "game_id": game.get("id"), "game_name": game.get("name"), "category": game.get("category"),
         "engine": "gemini" if use_gemini and clips_data.get("shorts") and
