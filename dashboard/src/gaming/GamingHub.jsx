@@ -69,7 +69,8 @@ const stored = (k, fallback, allowed) => {
 // the twelve modules reuse the same endpoints as the rest of the dashboard.
 export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
   const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
-  const [view, setView] = useState(() => stored('os_sede_view', 'hq', [...VIEWS.map((v) => v.id), 'settings']));
+  // Every visit opens on the Sede (the owner's choice), whatever tab was last open.
+  const [view, setView] = useState('hq');
   const [section, setSection] = useState(() => stored('os_gaming_section', 'games', MODULES.filter((m) => m.id !== 'dashboard').map((m) => m.id)));
   const [meta, setMeta] = useState(null);
   const [system, setSystem] = useState(null);
@@ -109,11 +110,11 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const watching = useRef(false);   // true once this tab has seen the job running
 
   const pickTheme = (t) => { setTheme(t); localStorage.setItem('os_sede_theme', t); };
-  const pickView = useCallback((v) => { setView(v); localStorage.setItem('os_sede_view', v); }, []);
+  const pickView = useCallback((v) => { setView(v); }, []);
   const go = useCallback((id) => {
-    if (id === 'dashboard') { setView('painel'); localStorage.setItem('os_sede_view', 'painel'); window.scrollTo({ top: 0 }); return; }
+    if (id === 'dashboard') { setView('painel'); window.scrollTo({ top: 0 }); return; }
     setSection(id); localStorage.setItem('os_gaming_section', id);
-    setView('modules'); localStorage.setItem('os_sede_view', 'modules');
+    setView('modules');
     window.scrollTo({ top: 0 });
   }, []);
   const goHQ = useCallback(() => { pickView('hq'); window.scrollTo({ top: 0 }); }, [pickView]);

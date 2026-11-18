@@ -104,7 +104,7 @@ export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uplo
           sub={!m ? 'Carregando…' : redesOk ? `${m.totals.posts} post(s) · ${m.days} dias` : m.configured ? 'Não deu para ler agora' : conectar} />
         <Kpi icon={Heart} label="Curtidas"
           value={redesOk ? nf.format(m.totals.likes) : '—'}
-          sub={redesOk && m.totals.views ? `${((m.totals.likes / m.totals.views) * 100).toFixed(1)}% de quem viu` : `nos últimos ${days} dias`} />
+          sub={redesOk && m.totals.views ? `${((m.totals.likes / m.totals.views) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% de quem viu` : `nos últimos ${days} dias`} />
         <Kpi icon={Scissors} label="Cortes gerados" value={t.clips} sub={`+${semana} nos últimos 7 dias`} />
         <Kpi icon={Send} label="Publicados" value={t.published} sub={`+${enviadosSemana} nos últimos 7 dias`} />
       </div>
