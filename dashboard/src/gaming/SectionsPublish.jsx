@@ -297,7 +297,7 @@ function GeminiCard({ keys, apiKey }) {
       </p>
       <label htmlFor="gemini-chave" className="sr-only">Chave do Gemini</label>
       <input id="gemini-chave" type="password" autoComplete="off" spellCheck={false} className="input-field w-full font-mono text-sm"
-        placeholder="AIza…" value={chave} onChange={(e) => setChave(e.target.value)} />
+        placeholder="Cole a chave do AI Studio" value={chave} onChange={(e) => setChave(e.target.value)} />
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" className="btn-primary" disabled={!!busy || !chave.trim()} onClick={salvar}>
           {busy === 'salvar' ? 'Testando e salvando…' : 'Testar e salvar'}

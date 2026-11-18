@@ -16,7 +16,9 @@ import tempfile
 import httpx
 
 ENV = "GEMINI_API_KEY"
-_FORMATO = re.compile(r"^[A-Za-z0-9_\-]{20,200}$")
+# Only the basics: Google has more than one key format (AIza..., and newer
+# ones like "AQ.Ab8..." with a dot), so the Google test decides if it works.
+_FORMATO = re.compile(r"^[!-~]{20,300}$")      # printable ASCII, no spaces
 
 
 def path():
@@ -60,7 +62,7 @@ def status():
 def salvar(chave):
     chave = (chave or "").strip()
     if not _FORMATO.match(chave):
-        raise ChaveErro("Isso não parece uma chave do Gemini. Copie a chave inteira do AI Studio (começa com AIza).")
+        raise ChaveErro("Isso não parece uma chave do Gemini (tem espaço ou é curta demais). Copie a chave inteira do AI Studio.")
     destino = path()
     os.makedirs(os.path.dirname(destino), mode=0o700, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(destino), prefix=".gemini-")

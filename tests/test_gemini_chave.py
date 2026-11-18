@@ -29,11 +29,16 @@ def test_save_is_owner_only_and_sets_the_environment():
     assert os.environ["GEMINI_API_KEY"] == CHAVE
 
 
-@pytest.mark.parametrize("ruim", ["", "  ", "curta", "com espaço no meio da chave 123", None])
+@pytest.mark.parametrize("ruim", ["", "  ", "curta", "com espaço no meio da chave 123", "AQ.Ab8 com espaço no meio 12345", None])
 def test_rejects_what_is_not_a_key(ruim):
     with pytest.raises(gc.ChaveErro):
         gc.salvar(ruim)
     assert not os.path.exists(gc.path())
+
+
+@pytest.mark.parametrize("formato", ["AIzaSyTESTE_chave_de_mentira_1234567890", "AQ.Ab8TESTEdeMentira-chave_nova.formato123"])
+def test_accepts_old_and_new_google_key_formats(formato):
+    assert gc.salvar(formato)["configured"] is True
 
 
 def test_loaded_at_start_unless_env_already_has_one(monkeypatch):
