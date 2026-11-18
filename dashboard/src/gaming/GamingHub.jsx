@@ -6,7 +6,7 @@ import {
 import { apiFetch, apiJson } from '../lib/api';
 import { errText, JOB_KEY } from './util';
 import { ModuleCtx } from './ctx';
-import { enviarVideo, mensagemHttp } from './envio';
+import { enviarVideo, envioPendente, esquecerEnvioPendente, mensagemHttp } from './envio';
 import { Notice } from './ui';
 import SedeMap from './SedeMap';
 import Configuracoes from './Configuracoes';
@@ -47,6 +47,9 @@ const DEFAULT_FORM = {
   acknowledged: false,
 };
 
+const FORM_KEY = 'os_sede_form';
+const FORM_KEEP = ['game_id', 'category', 'clip_seconds', 'layout', 'engine', 'max_clips', 'fill', 'min_score', 'captions', 'zoom', 'auto_hook'];
+
 const ACTIVE = ['queued', 'processing'];
 const GPU_ENCODER = /nvenc|qsv|vaapi|amf|videotoolbox/i;
 const stored = (k, fallback, allowed) => {
@@ -68,7 +71,23 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const [dash, setDash] = useState(null);
   const [clips, setClips] = useState(null);
   const [pubs, setPubs] = useState(null);
-  const [form, setForm] = useState(DEFAULT_FORM);
+  // The new-cut choices survive a reload (never the file, the link or the
+  // rights confirmation).
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FORM_KEY) || '{}');
+      const keep = Object.fromEntries(Object.entries(saved).filter(([k, v]) => FORM_KEEP.includes(k) && typeof v === typeof DEFAULT_FORM[k]));
+      return { ...DEFAULT_FORM, ...keep };
+    } catch (_) { return DEFAULT_FORM; }
+  });
+  useEffect(() => {
+    if (games && form.game_id !== 'auto' && !games.some((g) => g.id === form.game_id)) {
+      setForm((f) => ({ ...f, game_id: 'auto' }));
+    }
+  }, [games, form.game_id]);
+  useEffect(() => {
+    try { localStorage.setItem(FORM_KEY, JSON.stringify(Object.fromEntries(FORM_KEEP.map((k) => [k, form[k]])))); } catch (_) { /* private mode */ }
+  }, [form]);
   const [job, setJob] = useState(() => {
     const id = localStorage.getItem(JOB_KEY);
     return id ? { id, status: 'processing', snap: null, restoring: true } : null;
@@ -110,6 +129,27 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     reloadAll();
   }, [reloadAll]);
 
+  // Work started on another device (PC <-> phone app) or before the browser
+  // storage was cleared: adopt the job the server is running, so every screen
+  // shows the agents at work instead of an idle room.
+  const trackedId = job?.id;
+  const trackedActive = !!job && ACTIVE.includes(job.status);
+  useEffect(() => {
+    if (trackedActive) return undefined;
+    let stop = false;
+    const look = async () => {
+      try {
+        const d = await apiJson('/api/gaming/queue');
+        if (stop || !d.current_job || d.current_job === trackedId) return;
+        localStorage.setItem(JOB_KEY, d.current_job);
+        setJob({ id: d.current_job, status: 'processing', snap: null, restoring: true });
+      } catch (_) { /* server busy or restarting: try again on the next tick */ }
+    };
+    look();
+    const t = setInterval(look, 5000);
+    return () => { stop = true; clearInterval(t); };
+  }, [trackedActive, trackedId]);
+
   // Follow the tracked job through the per-agent pipeline endpoint. A finished
   // job is fetched once, so the room still shows what the agents did.
   const jobId = job?.id;
@@ -150,6 +190,15 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   }, [jobId, jobActive, loadClips, reloadAll]);
 
   const [uploadPct, setUploadPct] = useState(null);
+  // An upload cut by a reload/close: tell how far it got and how to continue.
+  const [parado, setParado] = useState(null);
+  useEffect(() => {
+    const p = envioPendente();
+    if (!p) return;
+    apiJson(`/api/uploads/${p.id}`)
+      .then((d) => { if (!d.complete) setParado({ nome: p.nome, pct: Math.floor((d.bytes / p.tamanho) * 100) }); })
+      .catch(() => esquecerEnvioPendente());   // expired or server restarted
+  }, []);
   const start = async (file) => {
     setStarting(true); setStartError(''); setUploadPct(null);
     try {
@@ -167,6 +216,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       let source;
       if (f) {
         // In parts: one big request is refused by Codespaces ("413").
+        setParado(null);
         const uploadId = await enviarVideo(f, setUploadPct);
         source = { upload_id: uploadId };
       } else {
@@ -374,6 +424,13 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
         <main className="min-w-0 space-y-4">
           {loadError && <Notice tone="error">{loadError}</Notice>}
+          {parado && !uploadPct && !jobActive && (
+            <Notice tone="warn">
+              O envio de <b>{parado.nome}</b> parou em {parado.pct}% (a página foi fechada ou recarregada).
+              Toque em <b>Escolher vídeo e começar</b> e escolha o mesmo arquivo: ele continua de onde parou.{' '}
+              <button type="button" className="underline font-bold" onClick={() => { esquecerEnvioPendente(); setParado(null); }}>Descartar</button>
+            </Notice>
+          )}
 
           {view === 'hq' && (
             <>

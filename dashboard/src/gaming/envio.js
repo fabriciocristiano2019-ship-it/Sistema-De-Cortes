@@ -27,13 +27,45 @@ async function pedir(path, opts) {
   return text ? JSON.parse(text) : {};
 }
 
+// An unfinished upload is remembered in this browser: after a reload, picking
+// the same file again continues from the bytes the server already has.
+const PENDENTE = 'os_envio_pendente';
+const mesmoArquivo = (a, f) => a && a.nome === f.name && a.tamanho === f.size && a.modificado === f.lastModified;
+
+export function envioPendente() {
+  try { return JSON.parse(localStorage.getItem(PENDENTE) || 'null'); } catch { return null; }
+}
+
+function guardarPendente(v) {
+  try { if (v) localStorage.setItem(PENDENTE, JSON.stringify(v)); else localStorage.removeItem(PENDENTE); } catch { /* private mode */ }
+}
+
+export function esquecerEnvioPendente() { guardarPendente(null); }
+
+async function retomar(file) {
+  const p = envioPendente();
+  if (!mesmoArquivo(p, file)) return null;
+  try {
+    const d = await pedir(`/api/uploads/${p.id}`, { method: 'GET' });
+    if (d.complete || d.bytes > file.size) return null;
+    return { id: p.id, offset: d.bytes };
+  } catch { return null; }   // expired or server restarted: start over
+}
+
 export async function enviarVideo(file, onProgresso = () => {}) {
-  const slot = await pedir('/api/uploads', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name }),
-  });
-  const id = slot.upload_id;
+  let id;
   let offset = 0;
-  onProgresso(0);
+  const volta = await retomar(file);
+  if (volta) {
+    ({ id, offset } = volta);
+  } else {
+    const slot = await pedir('/api/uploads', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name }),
+    });
+    id = slot.upload_id;
+  }
+  guardarPendente({ id, nome: file.name, tamanho: file.size, modificado: file.lastModified, em: Date.now() });
+  onProgresso(Math.round((offset / file.size) * 100));
   while (offset < file.size) {
     const fim = Math.min(file.size, offset + PARTE);
     let tentativa = 0;
@@ -53,5 +85,6 @@ export async function enviarVideo(file, onProgresso = () => {}) {
     onProgresso(Math.round((offset / file.size) * 100));
   }
   await pedir(`/api/uploads/${id}/concluir`, { method: 'POST' });
+  guardarPendente(null);
   return id;
 }

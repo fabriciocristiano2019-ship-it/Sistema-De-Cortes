@@ -116,4 +116,4 @@ def test_queue_counts_only_running_and_waiting_jobs(monkeypatch):
     monkeypatch.setitem(gaming_api._STATE, "jobs", {
         "a": {"status": "processing"}, "b": {"status": "queued"}, "c": {"status": "queued"},
         "d": {"status": "completed"}, "e": {"status": "failed"}})
-    assert gaming_api._queue_counts() == {"jobs_active": 1, "jobs_queued": 2}
+    assert gaming_api._queue_counts() == {"jobs_active": 1, "jobs_queued": 2, "current_job": "a"}

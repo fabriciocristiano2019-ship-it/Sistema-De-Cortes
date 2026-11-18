@@ -803,8 +803,16 @@ async def system_status():
 
 def _queue_counts():
     jobs = _STATE["jobs"] or {}
+    # The newest job still running (else queued): lets a second device, or a
+    # browser whose storage was cleared, follow the work started elsewhere.
+    current = None
+    for status in ("queued", "processing"):
+        for jid, j in jobs.items():          # insertion order = creation order
+            if j.get("status") == status:
+                current = jid
     return {"jobs_active": sum(1 for j in jobs.values() if j.get("status") == "processing"),
-            "jobs_queued": sum(1 for j in jobs.values() if j.get("status") == "queued")}
+            "jobs_queued": sum(1 for j in jobs.values() if j.get("status") == "queued"),
+            "current_job": current}
 
 
 @router.get("/api/gaming/queue")

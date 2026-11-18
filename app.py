@@ -2049,6 +2049,18 @@ async def put_upload_part(upload_id: str, request: Request, offset: int = 0):
     return {"upload_id": upload_id, "bytes": slot["bytes"]}
 
 
+@app.get("/api/uploads/{upload_id}")
+async def upload_progress(upload_id: str, request: Request):
+    """How many bytes of an unfinished upload the server already has, so the
+    panel resumes from there after a page reload instead of starting over."""
+    slot = pending_uploads.get(upload_id)
+    if (not slot or time.time() - slot["created"] > UPLOAD_TTL_SECONDS
+            or (BILLING_ENABLED and slot.get("user_id") != await _owner_id(request))):
+        raise HTTPException(status_code=404, detail="Envio expirado ou desconhecido.")
+    have = os.path.getsize(slot["path"]) if os.path.exists(slot["path"]) else 0
+    return {"upload_id": upload_id, "bytes": have, "complete": bool(slot.get("complete"))}
+
+
 @app.post("/api/uploads/{upload_id}/concluir")
 async def finish_upload_parts(upload_id: str, request: Request):
     slot = pending_uploads.get(upload_id)
