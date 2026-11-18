@@ -85,8 +85,14 @@ LOUDNORM_FILTER = "loudnorm=I=-14:TP=-2.0:LRA=11"
 
 
 def audio_encode_args():
-    """AAC encode args for a delivered clip, with loudness normalisation."""
-    args = ["-c:a", "aac"]
+    """AAC encode args for a delivered clip, with loudness normalisation.
+
+    -ar 48000: loudnorm works at 192 kHz internally and, with no rate given,
+    the AAC encoder picked 96 kHz for every delivered clip (measured
+    18-nov-2026). Instagram Reels takes at most 48 kHz and TikTok/Shorts
+    expect 44.1/48 kHz, so the delivered rate is pinned (check found via the
+    short-video-distribution skill)."""
+    args = ["-c:a", "aac", "-ar", "48000"]
     if os.environ.get("AUDIO_NORMALIZE", "1").strip() != "0":
         args = ["-af", LOUDNORM_FILTER] + args
     return args

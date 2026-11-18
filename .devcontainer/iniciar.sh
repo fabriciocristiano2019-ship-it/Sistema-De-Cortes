@@ -36,6 +36,15 @@ if [ "${OPENSHORTS_AUTO_UPDATE:-1}" = "1" ] && [ -z "${OPENSHORTS_ATUALIZANDO:-}
   fi
 fi
 
+# Guarda e disco no Codespaces: cortes por 7 dias (o padrão do servidor é 24 h)
+# e limites que cabem no disco e na cota grátis (o padrão, 25 + 15 GB, passa
+# dos ~32 GB do Codespaces). Os mais antigos saem primeiro. Um valor no .env
+# continua valendo.
+for par in JOB_RETENTION_SECONDS=604800 OUTPUT_MAX_GB=10 UPLOADS_MAX_GB=4; do
+  nome="${par%%=*}"
+  if ! grep -qs "^${nome}=" .env && [ -z "${!nome:-}" ]; then export "$par"; fi
+done
+
 # setsid + nohup: os processos ficam ligados mesmo depois que este script
 # termina (sem isso o Codespaces os encerra junto com o comando de início).
 # Every background process gets its own output files: none may keep this

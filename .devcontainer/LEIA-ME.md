@@ -33,6 +33,7 @@ Abra codespace pelo navegador do celular (github.com/codespaces). Aba **PORTAS**
 - 120 horas de núcleo/mês. Codespace usa 2 núcleos: **~60 horas**.
 - 15 GB armazenamento/mês. Vídeos em `uploads/` e `output/`; apague os que não precisa.
 - **Desliga após 30 minutos sem uso**. Processamento longo: aumente em github.com/settings/codespaces → *Default idle timeout* (até 240 minutos).
+- **Cortes ficam guardados 7 dias** e ocupam no máximo 10 GB (vídeos enviados: 4 GB). Passando disso, os mais antigos são apagados primeiro. Baixe ou publique o que quiser manter. Mudar: `JOB_RETENTION_SECONDS`, `OUTPUT_MAX_GB`, `UPLOADS_MAX_GB` no `.env`.
 - **Pare o codespace ao terminar** (github.com/codespaces → ⋯ → Stop): ligado gasta horas mesmo parado.
 
 ## IA profissional (Gemini): cortes e títulos melhores

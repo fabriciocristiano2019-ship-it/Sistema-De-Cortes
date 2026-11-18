@@ -292,3 +292,16 @@ class TestPerformRecut:
                 reframe=True, runner=self._touching_runner,
                 renderer=lambda *a: False)
         assert all(not f.startswith("temp_") for f in os.listdir(tmp_path))
+
+
+def test_delivered_audio_is_48k_after_loudnorm(tmp_path):
+    """loudnorm resamples to 192 kHz; without -ar the AAC encoder picked 96 kHz,
+    above what Instagram Reels accepts (48 kHz max)."""
+    import subprocess
+    from ffmpeg_utils import audio_encode_args
+    out = tmp_path / "a.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "sine=frequency=440:duration=2", *audio_encode_args(), str(out)], check=True)
+    rate = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
+                           "stream=sample_rate", "-of", "csv=p=0", str(out)], capture_output=True, text=True).stdout.strip()
+    assert rate == "48000"
