@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, Loader2, Pencil, Save, Scissors, Type, X, Image as ImageIcon } from 'lucide-react';
+import { Check, Download, Loader2, Pencil, Save, Scissors, Send, Type, X, Image as ImageIcon } from 'lucide-react';
+import PublicarDialog from './PublicarDialog';
 import { errText, fmtDate, fmtTime, jsonReq, mediaUrl } from './util';
 import { somAprovado } from './sons';
 import { Badge, Empty, Field, Header, Notice, ScoreBar } from './ui';
@@ -356,7 +357,18 @@ export function SubtitlesSection({ clips, selected, onSelect, reload }) {
 }
 
 /* 08 · Biblioteca de vídeos ----------------------------------------------- */
-export function VideoLibrarySection({ clips, games, openEditor }) {
+export function VideoLibrarySection({ clips, games, openEditor, pubs = [], servicoPub = false, onPublicar, onAbrirChaves }) {
+  const [publicando, setPublicando] = useState(null);
+  // Networks each clip already went to (sent publications), for "Republicar".
+  const enviados = useMemo(() => {
+    const m = {};
+    for (const p of pubs || []) {
+      if (p.status !== 'enviado') continue;
+      const k = `${p.job_id}:${p.clip_index}`;
+      m[k] = [...new Set([...(m[k] || []), ...(p.platforms || [])])];
+    }
+    return m;
+  }, [pubs]);
   const [game, setGame] = useState('');
   const [status, setStatus] = useState('');
   const list = useMemo(() => (clips || []).filter((c) => (!game || c.game_id === game) && (!status || c.status === status)), [clips, game, status]);
@@ -382,9 +394,16 @@ export function VideoLibrarySection({ clips, games, openEditor }) {
                 <h3 className="text-sm text-ink line-clamp-2 break-words" title={c.video_title_for_youtube_short}>{c.video_title_for_youtube_short}</h3>
                 <p className="text-xs text-muted">{c.game_name} · {c.moment_label}</p>
                 <p className="font-mono text-xs text-muted">{fmtDate(c.created_at)}</p>
-                <div className="flex items-center justify-between mt-auto pt-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 mt-auto pt-1.5">
                   <Badge status={c.status} />
-                  <span className="flex gap-1">
+                  <span className="flex gap-0.5">
+                    {onPublicar && c.video_url && (
+                      <button className="btn-quiet btn-sm" onClick={() => setPublicando(c)}
+                        aria-label={enviados[`${c.job_id}:${c.clip_index}`] ? 'Publicar de novo' : 'Publicar'}
+                        title={enviados[`${c.job_id}:${c.clip_index}`] ? `Já publicado: ${enviados[`${c.job_id}:${c.clip_index}`].join(', ')}. Publicar de novo` : 'Publicar no YouTube ou outras redes'}>
+                        <Send size={14} className={enviados[`${c.job_id}:${c.clip_index}`] ? 'text-ok' : ''} />
+                      </button>
+                    )}
                     <button className="btn-quiet btn-sm" onClick={() => openEditor(c)} aria-label="Abrir no editor"><Scissors size={14} /></button>
                     {c.video_url && <a className="btn-quiet btn-sm" href={mediaUrl(c.video_url)} download aria-label="Baixar MP4"><Download size={14} /></a>}
                   </span>
@@ -393,6 +412,10 @@ export function VideoLibrarySection({ clips, games, openEditor }) {
             </article>
           ))}
         </div>
+      )}
+      {publicando && (
+        <PublicarDialog clip={publicando} jaFoi={enviados[`${publicando.job_id}:${publicando.clip_index}`] || []} servico={servicoPub}
+          onPublicar={onPublicar} onFechar={() => setPublicando(null)} onAbrirChaves={onAbrirChaves} />
       )}
     </div>
   );

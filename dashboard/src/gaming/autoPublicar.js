@@ -16,7 +16,11 @@ export function gravarAutoPub(cfg) {
   return lerAutoPub();
 }
 
-export const nomesRedes = (ids) => ids.map((id) => (REDES_AUTO.find((r) => r.id === id)?.label || id).replace(' (Shorts)', '')).join(' e ');
+const NOMES = { youtube: 'YouTube', tiktok: 'TikTok', instagram: 'Instagram' };
+export const nomesRedes = (ids) => {
+  const n = ids.map((id) => NOMES[id] || id);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} e ${n[n.length - 1]}` : n.join('');
+};
 
 // Title and description of a clip for YouTube: what the AI (or the local
 // engine) wrote, hashtags at the end.
