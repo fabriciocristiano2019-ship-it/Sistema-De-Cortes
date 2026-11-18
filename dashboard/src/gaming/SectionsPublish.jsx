@@ -245,6 +245,73 @@ function YoutubeCookiesCard() {
   );
 }
 
+// Gemini key saved on the server: one paste, valid on the PC and the phone app.
+// The key is never sent back (only its last 4 characters).
+function GeminiCard({ keys, apiKey }) {
+  const [st, setSt] = useState(null);
+  const [chave, setChave] = useState('');
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState(null);
+  useEffect(() => { apiJson('/api/gaming/gemini-chave').then(setSt).catch(() => {}); }, []);
+  const avisar = () => window.dispatchEvent(new Event('os-gemini-mudou'));
+  const chamar = async (tag, method, path, body) => {
+    setBusy(tag); setMsg(null);
+    try {
+      return await apiJson(path, { method, headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    } catch (e) { setMsg({ tone: 'error', text: errText(e) }); return null; } finally { setBusy(''); }
+  };
+  const testar = async () => {
+    const r = await chamar('testar', 'POST', '/api/gaming/gemini-chave/testar', chave.trim() ? { chave: chave.trim() } : {});
+    if (r) setMsg({ tone: r.ok ? 'ok' : 'error', text: r.mensagem });
+  };
+  const salvar = async () => {
+    const t = await chamar('salvar', 'POST', '/api/gaming/gemini-chave/testar', { chave: chave.trim() });
+    if (!t) return;
+    // A wrong key is not saved; a network failure is (the key may be fine).
+    if (!t.ok && !t.rede) { setMsg({ tone: 'error', text: `${t.mensagem} Nada foi salvo.` }); return; }
+    const r = await chamar('salvar', 'PUT', '/api/gaming/gemini-chave', { chave: chave.trim() });
+    if (!r) return;
+    setSt(r); setChave('');
+    if (apiKey) keys?.setApiKey(''); // a key typed only in this browser would win over the server one
+    setMsg(t.ok
+      ? { tone: 'ok', text: 'Chave salva no servidor: a IA profissional já vale no PC e no celular.' }
+      : { tone: 'warn', text: `Chave salva, mas não deu para testar agora: ${t.mensagem}` });
+    avisar();
+  };
+  const apagar = async () => {
+    if (!window.confirm('Apagar a chave do Gemini salva no servidor? Os próximos vídeos usarão o motor local gratuito.')) return;
+    const r = await chamar('apagar', 'DELETE', '/api/gaming/gemini-chave');
+    if (r) { setSt(r); setMsg({ tone: 'ok', text: 'Chave apagada.' }); avisar(); }
+  };
+  return (
+    <section className="card p-5 mb-5" aria-labelledby="gemini-h">
+      <h2 id="gemini-h" className="text-sm text-ink mb-1">IA profissional (Google Gemini)</h2>
+      <p className="text-xs text-muted mb-3 max-w-3xl">
+        Pegue a chave em <b>aistudio.google.com</b> → <b>Get API key</b> → <b>Create API key</b>, cole abaixo e salve.
+        Ela fica num arquivo protegido do servidor e vale no PC e no app do celular. O Google tem cota gratuita com limites; acima dela pode cobrar.
+      </p>
+      <p className="text-xs mb-3" aria-live="polite">
+        Situação: {st == null ? '…' : st.configured
+          ? <span className="text-ok">ligada ({st.source === 'secret' ? 'Secret do Codespaces / .env' : 'salva no painel'}, termina em …{st.final})</span>
+          : <span className="text-muted">desligada: usando o motor local gratuito</span>}
+      </p>
+      <label htmlFor="gemini-chave" className="sr-only">Chave do Gemini</label>
+      <input id="gemini-chave" type="password" autoComplete="off" spellCheck={false} className="input-field w-full font-mono text-sm"
+        placeholder="AIza…" value={chave} onChange={(e) => setChave(e.target.value)} />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="btn-primary" disabled={!!busy || !chave.trim()} onClick={salvar}>
+          {busy === 'salvar' ? 'Testando e salvando…' : 'Testar e salvar'}
+        </button>
+        <button type="button" className="btn-ghost" disabled={!!busy || (!chave.trim() && !st?.configured)} onClick={testar}>
+          {busy === 'testar' ? 'Testando…' : chave.trim() ? 'Só testar' : 'Testar a chave salva'}
+        </button>
+        {st?.source === 'painel' && <button type="button" className="btn-ghost" disabled={!!busy} onClick={apagar}>Apagar</button>}
+      </div>
+      {msg && <div className="mt-3"><Notice tone={msg.tone}>{msg.text}</Notice></div>}
+    </section>
+  );
+}
+
 export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys }) {
   const [sys, setSys] = useState(null);
   const [err, setErr] = useState('');
@@ -258,6 +325,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
       <Header ord="12 · CHAVES E INTEGRAÇÕES" title="Chaves e Integrações" hint="As chaves ficam no arquivo .env do servidor ou só neste navegador; nunca são gravadas nos vídeos nem nos registros.">
       </Header>
       {err && <div className="mb-4"><Notice tone="error">{err}</Notice></div>}
+      {keys && <GeminiCard keys={keys} apiKey={apiKey} />}
       {keys && (
         <section className="card p-5 mb-5" aria-label="Chaves opcionais">
           <h2 className="text-sm text-ink mb-1">Chaves opcionais</h2>
@@ -272,7 +340,7 @@ export function ConfigSection({ meta, apiKey, uploadPostKey, uploadUserId, keys 
             <Field label="Nome do perfil no Upload-Post" hint="O perfil onde suas redes estão conectadas.">
               <input id="cfg-upload-user" type="text" autoComplete="off" className="input-field w-full" value={uploadUserId || ''} onChange={(e) => keys.setUploadUserId(e.target.value.trim())} />
             </Field>
-            <Field label="Chave do Gemini (motor alternativo)" hint="Opcional. Cobrado pelo Google conforme o uso.">
+            <Field label="Chave do Gemini (só neste navegador)" hint="Prefira o quadro “IA profissional” acima: vale no PC e no celular.">
               <input id="cfg-gemini-key" type="password" autoComplete="off" className="input-field w-full" value={apiKey || ''} onChange={(e) => keys.setApiKey(e.target.value.trim())} />
             </Field>
           </div>

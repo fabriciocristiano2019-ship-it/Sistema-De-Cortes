@@ -127,6 +127,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   useEffect(() => {
     apiJson('/api/gaming/meta').then(setMeta).catch(() => {});
     reloadAll();
+    // Gemini key saved or removed in module 12: refresh the "IA profissional" state.
+    const mudou = () => apiJson('/api/gaming/meta').then(setMeta).catch(() => {});
+    window.addEventListener('os-gemini-mudou', mudou);
+    return () => window.removeEventListener('os-gemini-mudou', mudou);
   }, [reloadAll]);
 
   // Work started on another device (PC <-> phone app) or before the browser

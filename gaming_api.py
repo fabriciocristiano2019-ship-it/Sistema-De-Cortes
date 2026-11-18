@@ -666,6 +666,44 @@ async def postiz_check(request: Request):
          "active": not i.get("disabled") and not i.get("refreshNeeded")} for i in items]}
 
 
+@router.get("/api/gaming/gemini-chave")
+async def gemini_chave_status():
+    """Whether a Gemini key is set and where it came from (only its last 4 chars)."""
+    import gemini_chave
+    return gemini_chave.status()
+
+
+@router.put("/api/gaming/gemini-chave")
+async def gemini_chave_salvar(request: Request):
+    import gemini_chave
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Envie {\"chave\": \"...\"}")
+    try:
+        return await asyncio.to_thread(gemini_chave.salvar, (body or {}).get("chave") if isinstance(body, dict) else None)
+    except gemini_chave.ChaveErro as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/api/gaming/gemini-chave/testar")
+async def gemini_chave_testar(request: Request):
+    """Test a key (the one sent, else the saved one) by listing models: no quota used."""
+    import gemini_chave
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    chave = body.get("chave") if isinstance(body, dict) else None
+    return await asyncio.to_thread(gemini_chave.testar, chave)
+
+
+@router.delete("/api/gaming/gemini-chave")
+async def gemini_chave_remover():
+    import gemini_chave
+    return await asyncio.to_thread(gemini_chave.remover)
+
+
 @router.get("/api/gaming/youtube-cookies")
 async def yt_cookies_status():
     """Whether YouTube cookies exist (never their content)."""

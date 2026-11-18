@@ -30,6 +30,9 @@ import recut
 import layout_ranges
 
 load_dotenv()
+# Gemini key saved from the panel (gemini_chave.py): used when .env/secret set none.
+import gemini_chave as _gemini_chave
+_gemini_chave.carregar_no_ambiente()
 
 # Constants
 UPLOAD_DIR = "uploads"
