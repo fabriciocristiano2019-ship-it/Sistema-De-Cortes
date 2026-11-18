@@ -1,3 +1,4 @@
+import './gaming/tradutor.js'
 import { StrictMode, useState, useEffect, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
