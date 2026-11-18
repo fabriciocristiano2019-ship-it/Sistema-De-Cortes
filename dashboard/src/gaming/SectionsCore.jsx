@@ -76,7 +76,7 @@ export function ImportSection({ meta, form, setForm, onStart, starting, startErr
               {meta.engines.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
             </select>
           </Field>
-          <p className="text-sm text-ink2">Automático em todo corte: legendas animadas, zoom nos melhores momentos e texto de gancho.</p>
+          <p className="text-sm text-ink2">Automático em todo corte: legendas animadas e texto de gancho.</p>
           <label className="flex items-start gap-2 text-sm text-ink2">
             <input type="checkbox" className="mt-0.5" checked={form.acknowledged} onChange={(e) => set('acknowledged', e.target.checked)} />
             Confirmo que tenho direito de usar este vídeo.

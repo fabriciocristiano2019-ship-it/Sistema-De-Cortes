@@ -111,7 +111,7 @@ export function OrchestratorPanel({
       {!active && (
         <p className="mb-4 flex items-start gap-2 rounded-xl border border-rule2 px-3 py-2 text-[11px] leading-snug text-ink2">
           <Sparkles size={13} className="mt-px shrink-0 text-brass" aria-hidden="true" />
-          <span><b className="text-ink">Automático em todo corte:</b> legendas animadas, zoom nos melhores momentos e texto de gancho.</span>
+          <span><b className="text-ink">Automático em todo corte:</b> legendas animadas e texto de gancho.</span>
         </p>
       )}
 

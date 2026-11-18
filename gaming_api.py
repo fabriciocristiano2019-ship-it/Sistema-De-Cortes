@@ -54,7 +54,7 @@ _PUB_LOCK = threading.Lock()
 
 LAYOUTS = {
     "auto": {"label": "Automático", "strategy": None},
-    "vertical": {"label": "Shorts (tela cheia)", "strategy": "TRACK"},       # fills the phone screen; sides cropped
+    "vertical": {"label": "Shorts (tela cheia)", "strategy": "CENTER"},      # fixed centre crop filling the phone screen
     "full": {"label": "Jogo inteiro", "strategy": "WIDE"},   # full width: HUD, map and scoreboard kept
     "webcam": {"label": "Jogo + webcam", "strategy": "INSET"},
 }
@@ -132,7 +132,9 @@ def parse_gaming(raw):
                      "min_score": min_score, "moments": moments,
                      # True = always deliver max_clips when the video is long enough.
                      "fill": raw.get("fill") is True},
-        "zoom": bool(raw.get("zoom", True)),
+        # Punch-in zoom is off for gameplay (owner, 18-nov-2026: it pushed into
+        # the character's face and looked stretched). Kept as an explicit opt-in.
+        "zoom": raw.get("zoom") is True and os.environ.get("GAMING_ALLOW_ZOOM") == "1",
         "inset_box": inset_box,
         # Video found in "Buscar canais": who to credit on every clip.
         "credito": youtube_canais.limpar_credito(raw.get("credito")),

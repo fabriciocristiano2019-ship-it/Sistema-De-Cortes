@@ -50,14 +50,14 @@ const VIEWS = [
 ];
 
 const DEFAULT_FORM = {
-  file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'auto',
-  engine: 'auto', max_clips: 10, fill: true, min_score: 30, captions: true, zoom: true, auto_hook: true,
+  file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'vertical',
+  engine: 'auto', max_clips: 10, fill: true, min_score: 30, captions: true, zoom: false, auto_hook: true,
   acknowledged: false,
 };
 
 const FORM_KEY = 'os_sede_form';
 const FORM_KEEP = ['category', 'clip_seconds', 'layout', 'engine', 'max_clips', 'fill', 'min_score'];
-// Captions, zoom and hook text are always on (the owner's choice): not
+// Captions and hook text are always on, zoom always off (the owner's choice): not
 // remembered, so an old "off" saved in this browser cannot switch them off.
 
 const ACTIVE = ['queued', 'processing'];
@@ -361,6 +361,27 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   // goes through the same publication path as module 9/10 (Upload-Post or
   // Postiz, whichever is configured).
   const servicoPub = !!(uploadPostKey || meta?.upload_post_configured || postizKey());
+  // Publish one clip now on the given networks (as public). Throws on failure
+  // so the caller can show it; used by "publicar ao aprovar" and by the
+  // video library's Publicar/Republicar.
+  const publicarAgora = useCallback(async (clip, plataformas, tituloEscolhido) => {
+    const redes = nomesRedes(plataformas);
+    const { titulo, desc } = textoDoCorte(clip);
+    const headers = { ...(uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {}), ...postizHeaders() };
+    setToast({ text: `Publicando no ${redes}…` });
+    try {
+      const pub = await apiJson('/api/gaming/publications', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: clip.job_id, clip_index: clip.clip_index, platforms: plataformas,
+          title: tituloEscolhido || titulo, description: desc, user_id: uploadUserId || undefined, scheduled_at: null }),
+      });
+      await apiJson(`/api/gaming/publications/${pub.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: '{}' });
+      setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → Agenda.` });
+    } finally {
+      loadPubs().catch(() => {}); loadDash().catch(() => {});
+    }
+  }, [uploadPostKey, uploadUserId, loadPubs, loadDash]);
+
   const publicacao = useMemo(() => ({
     confirmar: () => {
       const cfg = lerAutoPub();
@@ -373,25 +394,13 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     publicar: async (clip) => {
       const cfg = lerAutoPub();
       if (!cfg.ativo || !cfg.plataformas.length || !servicoPub) return;
-      const redes = nomesRedes(cfg.plataformas);
-      setToast({ text: `Publicando no ${redes}…` });
-      const { titulo, desc } = textoDoCorte(clip);
-      const headers = { ...(uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {}), ...postizHeaders() };
       try {
-        const pub = await apiJson('/api/gaming/publications', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_id: clip.job_id, clip_index: clip.clip_index, platforms: cfg.plataformas,
-            title: titulo, description: desc, user_id: uploadUserId || undefined, scheduled_at: null }),
-        });
-        await apiJson(`/api/gaming/publications/${pub.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: '{}' });
-        setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → Agenda.` });
+        await publicarAgora(clip, cfg.plataformas);
       } catch (e) {
-        setToast({ tone: 'error', text: `O corte foi aprovado, mas a publicação no ${redes} falhou: ${errText(e)}` });
-      } finally {
-        loadPubs().catch(() => {}); loadDash().catch(() => {});
+        setToast({ tone: 'error', text: `O corte foi aprovado, mas a publicação no ${nomesRedes(cfg.plataformas)} falhou: ${errText(e)}` });
       }
     },
-  }), [servicoPub, uploadPostKey, uploadUserId, loadPubs, loadDash]);
+  }), [servicoPub, publicarAgora]);
 
   const moduleBody = {
     canais: <CanaisSection ocupado={starting || jobActive} erroInicio={startError} onCortar={(url, credito) => start(null, { url, credito })} />,
@@ -400,7 +409,8 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,
     editor: <EditorSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
     subtitles: <SubtitlesSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
-    videos: <VideoLibrarySection clips={clips} games={games} openEditor={openEditor} />,
+    videos: <VideoLibrarySection clips={clips} games={games} openEditor={openEditor} pubs={pubs} servicoPub={servicoPub}
+      onPublicar={publicarAgora} onAbrirChaves={() => go('config')} />,
     social: <SocialSection clips={clips} pubs={pubs} meta={meta} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />,
     schedule: <ScheduleSection clips={clips} pubs={pubs} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} />,
     history: <HistorySection dash={dash} pubs={pubs} clips={clips} />,

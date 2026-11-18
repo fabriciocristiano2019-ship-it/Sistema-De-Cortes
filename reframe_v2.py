@@ -372,6 +372,15 @@ def render(input_video, final_output_video, aspect_ratio, content_ranges=None,
         scenes = [(FrameTimecode(0, fps), FrameTimecode(total, fps))]
 
     scene_boundaries = [(s.get_frames(), e.get_frames()) for s, e in scenes]
+    # CENTER (Gaming Edition "Shorts"): the whole phone screen, a fixed 9:16
+    # window in the middle of every scene. TRACK would chase whatever person
+    # it detects - on gameplay that is the character, so the crop jumped and
+    # zoomed onto it. A user's hand-framed scene still wins (setdefault).
+    if force_strategy == 'CENTER':
+        force_strategy = 'TRACK'
+        crop_overrides = dict(crop_overrides or {})
+        for i in range(len(scenes)):
+            crop_overrides.setdefault(i, 0.5)
     if force_strategy:
         strategies = [force_strategy] * len(scenes)
         content_ranges = []  # no screencast/inset upgrades over an explicit choice

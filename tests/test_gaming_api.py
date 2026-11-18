@@ -62,8 +62,8 @@ def test_layout_options_map_to_render_strategies():
     assert env(layout="full")["FORCE_STRATEGY"] == "WIDE"
     # B: gameplay + webcam
     assert env(layout="webcam")["FORCE_STRATEGY"] == "INSET"
-    # C: adapted to vertical
-    assert env(layout="vertical")["FORCE_STRATEGY"] == "TRACK"
+    # C: Shorts, a fixed centre crop over the whole phone screen (no tracking)
+    assert env(layout="vertical")["FORCE_STRATEGY"] == "CENTER"
     assert "FORCE_STRATEGY" not in env(layout="auto")
 
 
@@ -72,12 +72,16 @@ def test_local_engine_never_enables_the_gemini_layout_picker():
     assert gaming_api.job_env(gaming_api.parse_gaming({"layout": "full", "engine": "gemini"}))["AUTO_LAYOUT"] == "0"
 
 
-def test_manual_webcam_box_and_zoom_reach_the_renderer():
+def test_manual_webcam_box_reaches_the_renderer_and_zoom_stays_off(monkeypatch):
+    monkeypatch.delenv("GAMING_ALLOW_ZOOM", raising=False)
     env = gaming_api.job_env(gaming_api.parse_gaming(
         {"layout": "webcam", "inset_box": [0.7, 0.05, 0.25, 0.3], "zoom": True}))
     assert env["INSET_BOX"] == "0.7000,0.0500,0.2500,0.3000"
-    assert env["PUNCH_IN"] == "1"
-    assert "PUNCH_IN" not in gaming_api.job_env(gaming_api.parse_gaming({"zoom": False}))
+    # The owner turned the punch-in zoom off: even an old panel asking for it gets none.
+    assert "PUNCH_IN" not in env
+    assert "PUNCH_IN" not in gaming_api.job_env(gaming_api.parse_gaming({}))
+    monkeypatch.setenv("GAMING_ALLOW_ZOOM", "1")
+    assert gaming_api.job_env(gaming_api.parse_gaming({"zoom": True}))["PUNCH_IN"] == "1"
 
 
 def test_job_config_records_what_was_asked(out):

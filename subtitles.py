@@ -276,12 +276,12 @@ AUTO_CAPTION_STYLE = {
     "style": "karaoke",
     "alignment": "bottom",
     "font_name": "Anton",
-    "font_size": 44,
+    "font_size": 32,          # was 44: the owner found it too big (18-nov-2026)
     "font_color": "#FFFFFF",
     "highlight_color": "#FFE500",
     "border_color": "#000000",
     "border_width": 4,
-    "effect": "pop",
+    "effect": "bounce",       # the spoken word jumps (more alive than "pop")
     "base_opacity": 1.0,
     "uppercase": True,
     "max_chars": 14,          # with Anton at this size, 14 never reaches the edges
@@ -354,7 +354,8 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
     TikTok/CapCut caption look). One dialogue event per word, back to back, so
     the highlight moves with the audio without flicker.
 
-    effect: "none" | "glow" (neon shine around the active word) |
+    effect: "none" | "bounce" (active word jumps in, group fades in) |
+            "glow" (neon shine around the active word) |
             "pop" (active word scales up) | "box" (thick colored outline).
     base_opacity: opacity of the non-active words — dimmed base text is the
     modern captioneer look (e.g. 0.4).
@@ -418,6 +419,11 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
         box_bord = max(4, int(outline_width) + 3)
         active_prefix = (f"{{\\c&HFFFFFF&\\3c{highlight_inline}"
                          f"\\bord{box_bord}\\blur0}}")
+    elif effect == "bounce":
+        # Shorts look: the spoken word jumps in yellow (small -> overshoot ->
+        # settle) while the rest of the group stays white and still.
+        active_prefix = (f"{{\\c{highlight_inline}"
+                         f"\\fscx78\\fscy78\\t(0,70,\\fscx122\\fscy122)\\t(70,150,\\fscx106\\fscy106)}}")
     elif effect == "pop":
         # Gentle pop. The old 75->112 range started the word so small that any
         # frame caught mid-animation read as a sizing bug rather than a beat.
@@ -474,9 +480,11 @@ def generate_ass(transcript, clip_start, clip_end, output_path,
                 else:
                     parts.append(text)
 
+            # A new group slides in (quick fade) instead of popping on hard.
+            entrada = "{\\fad(90,0)}" if effect == "bounce" and i == 0 else ""
             events.append(
                 f"Dialogue: 0,{_ass_time(ev_start)},{_ass_time(ev_end)},Default,,0,0,0,,"
-                f"{seam_prefix(ev_start)}{' '.join(parts)}"
+                f"{seam_prefix(ev_start)}{entrada}{' '.join(parts)}"
             )
 
     if not events:
