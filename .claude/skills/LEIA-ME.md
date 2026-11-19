@@ -13,12 +13,14 @@ Cópias fiéis dos originais, sem alteração no conteúdo. Cada pasta traz a li
 | `e2e-testing`, `production-audit`, `codebase-onboarding`, `search-first` | Testes no navegador, auditoria antes de publicar, guia do código, pesquisar antes de programar | affaan-m/ECC (3f14a10) | MIT |
 | `impeccable-design-polish`, `web-design-guidelines`, `ui-animation`, `design-md` | Acabamento e revisão do painel (padrões da Vercel), animações de interface, guia visual do projeto | nexu-io/open-design (0725880) | Apache-2.0 |
 | `short-video-distribution`, `remotion-video-creation`, `cost-aware-llm-pipeline` | Conferir cortes contra as regras de TikTok/Shorts/Reels, vídeos em React, custo do Gemini | affaan-m/ECC (3f14a10) | MIT |
+| `brand-intake`, `motion-brief-writer`, `motion-prompt-writer`, `motion-effects`, `reference-to-motion`, `animated-chart`, `milestone-reveal`, `launch-video`, `newsletter-promo`, `vox-explainer`, `title-sequence-3d`, `apple-launch-film`, `loop-cover`, `model-showdown`, `reel-export` | Motion graphics feitos em código (HTML com `window.seek`, exportado para MP4/GIF): aberturas, gráficos animados, marcos de seguidores, vídeos de lançamento, versão vertical para Reels/TikTok | charlie947/motion-graphics-skills (229022e) | MIT |
 
 ## Regras de uso neste projeto
 
 - **HyperFrames:** antes do primeiro uso, rode `npx hyperframes telemetry disable`. Não rode `events` nem `feedback` (enviam dados de uso). Recursos pagos da HeyGen (avatar, voz, `media-use`) não estão instalados e não devem ser contratados.
 - **ffmpeg-skill:** pede FFmpeg 6.1 ou mais novo. O Codespaces (Debian bookworm) vem com 5.1: a maioria dos comandos funciona, mas alguns podem recusar.
 - Nenhuma skill daqui pode receber chave de API colada no chat.
+- **Motion graphics (charlie947):** comece pelo `brand-intake` só se quiser um padrão visual próprio; ele cria `brand.md`, `MOTION.md` e acrescenta um bloco ao `CLAUDE.md` (confira antes de commitar: o `CLAUDE.md` daqui tem a regra de só subir com ordem do dono). Algumas skills sugerem instalar outras (`emilkowalski/skills` apple-design): pergunte antes. Para exportar, use a `hyperframes` já instalada (telemetria desligada). `motion-prompt-writer` e `reference-to-motion` escrevem prompts para o Claude Motion; não constroem nada sozinhas. Os `.zip` da pasta `downloads` do repositório original vieram vazios e não foram copiados.
 
 ## Avaliados e não instalados
 
