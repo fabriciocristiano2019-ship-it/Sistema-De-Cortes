@@ -49,6 +49,7 @@ class Pick(BaseModel):
     hashtags: List[str] = Field(description="5 a 8 hashtags")
     hook: str = Field(description="gancho na tela, 1 a 3 palavras em MAIÚSCULAS")
     reason: str = Field(description="por que este momento é bom (curto)")
+    placar: str = Field(default="", description="o que o placar/HUD do jogo mostra nos quadros (abates, kill feed, vitória), ou vazio")
 
 
 class Correction(BaseModel):
@@ -93,10 +94,14 @@ Para CADA candidato, decida:
 - hashtags: 5 a 8, começando com #, inclua o jogo.
 - hook: 1 a 3 palavras em MAIÚSCULAS para aparecer na tela (ex.: "QUE CLUTCH!").
 - reason: frase curta explicando a escolha.
+- placar: leia o placar e os avisos do jogo nos quadros (contador de abates, kill feed, "VOCÊ ELIMINOU",
+  "VITÓRIA", posição). Ex.: "abates 2 → 3", "kill feed: eliminou jogador", "banner VITÓRIA". Use isso para
+  decidir (uma eliminação vista no placar é um momento forte mesmo sem fala). Vazio se não houver nada.
 
 Também devolva corrections: palavras que a transcrição claramente errou (nomes do jogo, armas, mapas,
 gírias), só palavra única por palavra única. No máximo 30. Se não houver, lista vazia.
 
+{dica_canal}
 Candidatos (JSON):
 {candidates}
 """
@@ -226,6 +231,7 @@ def apply_verdict(verdict, cands, pool, game, settings, duration):
         tag_line = " ".join(tags)
         hook = re.sub(r"\s+", " ", str(p.get("hook") or "").strip().upper())[:28] or base.get("viral_hook_text")
         reason = str(p.get("reason") or "").strip()[:160]
+        placar = str(p.get("placar") or "").strip()[:120]
         base.update({
             "start": round(start, 2), "end": round(end, 2),
             "relevance_score": int(p.get("score")), "predicted_score": int(p.get("score")),
@@ -234,7 +240,8 @@ def apply_verdict(verdict, cands, pool, game, settings, duration):
             "video_description_for_tiktok": f"{desc} {tag_line}".strip(),
             "video_description_for_instagram": f"{desc}\n\n{tag_line}".strip(),
             "viral_hook_text": hook, "thumbnail_text": hook,
-            "evidence": ([f"IA: {reason}"] if reason else []) + list(base.get("evidence") or []),
+            "evidence": ([f"IA: {reason}"] if reason else []) + ([f"Placar: {placar}"] if placar else [])
+                        + list(base.get("evidence") or []),
             "analysis_engine": "gemini",
         })
         out.append(base)
@@ -267,6 +274,100 @@ def clean_title(raw, used=()):
     if not t or t.lower() in used:
         return None
     return t
+
+
+# --------------------------------------------------------------------------- #
+# Roteirista de títulos (owner's idea 2): two short text-only calls after the
+# clips are chosen. A brainstorm writes 5 titles per clip in different styles;
+# a critic, seeing every clip's options at once, picks one each so the titles
+# of a job do not repeat each other. Any failure keeps the editor's titles.
+# --------------------------------------------------------------------------- #
+class Opcoes(BaseModel):
+    id: int
+    opcoes: List[str] = Field(description="5 títulos diferentes")
+
+
+class Brainstorm(BaseModel):
+    cortes: List[Opcoes]
+
+
+class Escolha(BaseModel):
+    id: int
+    titulo: str
+    motivo: str = Field(default="")
+
+
+class Critica(BaseModel):
+    escolhas: List[Escolha]
+
+
+BRAINSTORM = """Você é roteirista de títulos de Shorts de gameplay para o público brasileiro.
+Jogo: {game}.
+Para CADA corte abaixo escreva 5 títulos em português do Brasil, cada um num estilo:
+1) a melhor frase que o jogador falou (adaptada, pode ter aspas);
+2) uma pergunta que dá curiosidade;
+3) a reação/emoção do momento;
+4) um desafio ou comparação ("1 contra 4", "no último segundo");
+5) o fato mais concreto (número de abates, arma, lugar, placar).
+Regras: 25 a 55 caracteres; o que dá vontade de assistir vem primeiro; verdadeiro (nada que o corte não
+mostre); no máximo 1 emoji no fim; sem hashtags; no máximo 1 palavra em MAIÚSCULAS; nada genérico como
+"Gameplay de X" ou "Momento incrível".
+Cortes (JSON):
+{cortes}
+"""
+
+CRITICA = """Você é o editor-chefe de um canal de Shorts de gameplay no Brasil. Para cada corte, escolha UM
+título entre as opções (pode ajustar uma palavra). Critérios, nesta ordem: verdadeiro em relação ao que
+aconteceu; prende nos primeiros 3 segundos de leitura; 25 a 55 caracteres; e os títulos escolhidos não podem
+se parecer entre si (nem começar igual). Responda com o id do corte, o título e um motivo curto.
+Opções (JSON):
+{opcoes}
+"""
+
+
+def _json_de(resp, modelo):
+    parsed = getattr(resp, "parsed", None)
+    if parsed is not None:
+        return parsed.model_dump() if hasattr(parsed, "model_dump") else dict(parsed)
+    return modelo.model_validate(json.loads(resp.text)).model_dump()
+
+
+def roteirizar(clips, transcript, game, client, log=print):
+    """Replace each clip's title by the critic's pick; returns how many changed."""
+    from google.genai import types
+    if not clips:
+        return 0
+    base = [{"id": i, "momento": c.get("moment_label") or c.get("moment_category"),
+             "fala": _words_between(transcript, c["start"], c["end"])[:300],
+             "placar": next((e[8:] for e in c.get("evidence") or [] if str(e).startswith("Placar: ")), ""),
+             "titulo_atual": c.get("video_title_for_youtube_short", "")} for i, c in enumerate(clips)]
+    cfg = lambda schema, temp: types.GenerateContentConfig(  # noqa: E731
+        response_mime_type="application/json", response_schema=schema, temperature=temp)
+    r1 = client.models.generate_content(
+        model=model_name(), contents=BRAINSTORM.format(game=game.get("name") or "Gameplay",
+                                                       cortes=json.dumps(base, ensure_ascii=False)),
+        config=cfg(Brainstorm, 0.9))
+    opcoes = {o["id"]: [t for t in (o.get("opcoes") or []) if isinstance(t, str)][:6]
+              for o in _json_de(r1, Brainstorm).get("cortes") or []}
+    if not opcoes:
+        return 0
+    lista = [{"id": i, "momento": base[i]["momento"], "opcoes": op} for i, op in opcoes.items() if 0 <= i < len(clips)]
+    r2 = client.models.generate_content(
+        model=model_name(), contents=CRITICA.format(opcoes=json.dumps(lista, ensure_ascii=False)),
+        config=cfg(Critica, 0.2))
+    usados, trocados = set(), 0
+    escolhas = {e["id"]: e for e in _json_de(r2, Critica).get("escolhas") or []}
+    for i, c in enumerate(clips):
+        e = escolhas.get(i)
+        novo = clean_title(e.get("titulo"), usados) if e else None
+        if novo and len(novo) >= 12:
+            c["video_title_for_youtube_short"] = novo
+            if e.get("motivo"):
+                c["evidence"] = [f"Título: {str(e['motivo'])[:120]}"] + list(c.get("evidence") or [])
+            trocados += 1
+        usados.add(c.get("video_title_for_youtube_short", "").lower())
+    log(f"✍️ Roteirista de títulos: {trocados} título(s) escolhido(s) entre 5 opções cada.")
+    return trocados
 
 
 def apply_corrections(transcript, corrections):
@@ -307,6 +408,7 @@ def judge(video_path, transcript, duration, game, settings, pool, api_key=None, 
             game=game.get("name") or "Gameplay", category=cat["label"],
             clip_seconds=float(settings.get("clip_seconds") or 30), max_clips=int(settings.get("max_clips") or 8),
             n=len(cands), moments=", ".join(profiles.MOMENTS),
+            dica_canal=str(settings.get("dica_canal") or ""),
             candidates=json.dumps([{k: v for k, v in c.items() if not k.startswith("_")} for c in cands],
                                   ensure_ascii=False))
         parts = [types.Part.from_text(text=prompt)]
@@ -334,6 +436,10 @@ def judge(video_path, transcript, duration, game, settings, pool, api_key=None, 
             log("🧠 IA não aprovou nenhum candidato — mantendo a seleção do motor local.")
             return None
         log(f"🧠 IA escolheu {len(clips)} corte(s) e escreveu títulos, descrições e ganchos.")
+        try:
+            roteirizar(clips, transcript, game, client, log=log)
+        except Exception as e:  # the editor's titles are good enough to keep
+            log(f"✍️ Roteirista de títulos indisponível agora ({type(e).__name__}); mantendo os títulos da IA.")
         return clips
     except Exception as e:  # noqa: BLE001 - any failure keeps the local result
         log(f"⚠️ IA profissional indisponível ({explain_error(e)}) — usando o motor local.")

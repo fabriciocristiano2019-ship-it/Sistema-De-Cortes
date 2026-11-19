@@ -102,6 +102,80 @@ def visual_features(path, should_cancel=None):
     return {"motion": motion, "cut": cut, "flash": flash, "red": red}
 
 
+# --------------------------------------------------------------------------- #
+# HUD reader ("leitor do placar"): the game's own notices - kill feed, "VOCÊ
+# ELIMINOU", the kill counter, a "VITÓRIA" banner. No OCR is installed, so it
+# does not read the words: it sees NEW TEXT appear in the places games put it
+# (corners, top band, centre banner) while the rest of the picture did not
+# change the same way (a camera pan changes everything, a notice one spot).
+# --------------------------------------------------------------------------- #
+HUD_W, HUD_H = 256, 144
+HUD_REGIOES = {                      # (x0, y0, x1, y1) as fractions of the frame
+    "topo": (0.25, 0.00, 0.75, 0.20),
+    "canto_direito": (0.62, 0.00, 1.00, 0.42),
+    "lateral_esquerda": (0.00, 0.12, 0.34, 0.55),
+    "centro": (0.20, 0.22, 0.80, 0.55),
+}
+HUD_BASE = 16                        # baseline: the previous 8 s
+
+
+def _densidade_texto(g):
+    """Share of sharp horizontal transitions: text and HUD glyphs, not scenery."""
+    return float(np.mean(np.abs(np.diff(g, axis=1)) > 45)) if g.size else 0.0
+
+
+def hud_score(dens, dens_total):
+    """Per-step HUD evidence from region text densities (T x R) and the whole
+    frame's (T). Pure function so it can be tested without video."""
+    dens = np.asarray(dens, dtype=float)
+    total = np.asarray(dens_total, dtype=float)
+    t = len(total)
+    if t == 0:
+        return np.zeros(0)
+
+    def base(x):
+        xp = np.pad(x, (HUD_BASE, 0), mode="edge")
+        w = np.lib.stride_tricks.sliding_window_view(xp, HUD_BASE)[:t]
+        return np.median(w, axis=1)
+
+    salto_total = np.maximum(total - base(total), 0)
+    melhor = np.zeros(t)
+    for r in range(dens.shape[1]):
+        x = dens[:, r]
+        b = base(x)
+        spread = np.median(np.abs(x - np.median(x))) + 0.01
+        z = (x - b - 1.5 * salto_total) / spread
+        melhor = np.maximum(melhor, z)
+    # A notice stays on screen: keep only what lasts at least 1 s (2 steps).
+    dur = np.minimum(melhor, np.roll(melhor, -1))
+    dur[-1] = melhor[-1] if t == 1 else min(melhor[-1], melhor[-2])
+    return np.clip(dur, 0, None)
+
+
+def hud_features(path, should_cancel=None):
+    """Return {"hud": per-step array}; empty when the video has no picture."""
+    fsize = HUD_W * HUD_H
+    args = ["ffmpeg", "-nostdin", "-v", "error", "-i", path, "-an",
+            "-vf", f"fps={VIS_FPS},scale={HUD_W}:{HUD_H}:flags=area,format=gray",
+            "-f", "rawvideo", "-"]
+    boxes = [(int(x0 * HUD_W), int(y0 * HUD_H), int(x1 * HUD_W), int(y1 * HUD_H))
+             for x0, y0, x1, y1 in HUD_REGIOES.values()]
+    dens, total = [], []
+    rest = b""
+    for buf in _ffmpeg_stream(args, fsize * 240, should_cancel):
+        buf = rest + buf
+        n = len(buf) // fsize
+        if n:
+            frames = np.frombuffer(buf[: n * fsize], dtype=np.uint8).reshape(n, HUD_H, HUD_W).astype(np.int16)
+            for g in frames:
+                dens.append([_densidade_texto(g[y0:y1, x0:x1]) for x0, y0, x1, y1 in boxes])
+                total.append(_densidade_texto(g))
+        rest = buf[n * fsize:]
+    if not total:
+        return {"hud": np.zeros(0)}
+    return {"hud": hud_score(np.array(dens), np.array(total))}
+
+
 def robust_z(x, window_steps=None, floor=0.0):
     """(x - median) / MAD, clipped at 0. Local baseline when window_steps given,
     so a loud game section does not hide every peak in a quiet one.

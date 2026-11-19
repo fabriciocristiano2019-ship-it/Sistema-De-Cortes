@@ -1752,6 +1752,17 @@ def gaming_detect(cfg, input_video, transcript, duration):
     settings = cfg.get("settings") or {}
     engine = (cfg.get("engine") or "local").lower()
     has_key = bool(os.getenv("GEMINI_API_KEY"))
+    # What the channel's views taught (gaming/aprendizado.py): a small bonus for
+    # the moment types that get more views, and a hint for Gemini.
+    try:
+        from gaming import aprendizado
+        _bonus = aprendizado.bonus(cfg.get("library_dir") or "")
+        _dica = aprendizado.dica_para_ia(cfg.get("library_dir") or "")
+    except Exception:
+        _bonus, _dica = {}, ""
+    if _bonus:
+        settings = {**settings, "aprendizado": _bonus, "dica_canal": _dica}
+        print("📈 Aprendizado do canal: " + (_dica or "ajuste pelos resultados anteriores."))
     use_gemini = engine == "gemini" or (engine == "auto" and has_key)
     if engine == "gemini" and not has_key:
         print("⚠️ Motor Gemini escolhido sem GEMINI_API_KEY — usando o motor local gratuito.")
@@ -1788,6 +1799,10 @@ def gaming_detect(cfg, input_video, transcript, duration):
             "engine": "gemini" if picked else "local", "identification": identification,
             "settings": settings, "analysis": clips_data.pop("analysis", None),
         }
+        if cfg.get("credito"):
+            # Video picked in "Buscar canais": credit the creator on every clip.
+            import youtube_canais
+            youtube_canais.aplicar_credito(clips_data.get("shorts"), cfg["credito"])
         return clips_data
 
     clips_data = None

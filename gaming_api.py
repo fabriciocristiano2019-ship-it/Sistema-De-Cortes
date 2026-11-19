@@ -435,6 +435,7 @@ async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None)
             continue
         layout = _job_layout(os.path.dirname(meta))
         source = library.display_source(job_id, data.get("source_video"))
+        musicas = _musica_cache(os.path.dirname(meta))
         for i, c in enumerate(data.get("shorts") or []):
             st = {True: "aprovado", False: "rejeitado"}.get(c.get("approved"), "pendente")
             if status and st != status:
@@ -445,9 +446,59 @@ async def all_clips(game_id: Optional[str] = None, status: Optional[str] = None)
                         "job_id": job_id, "clip_index": i, "status": st,
                         "layout": layout, "source": source,
                         "video_url": _clip_url(job_id, meta, i, c),
+                        "musica": _musica_valida(musicas, i, _clip_url(job_id, meta, i, c)),
                         "created_at": os.path.getmtime(meta)})
     out.sort(key=lambda c: (-c["created_at"], c["clip_index"]))
     return {"clips": out}
+
+
+# Verificador de música (gaming/musica.py). Results live in a sidecar, not in
+# the metadata: writing the metadata moves its date, and the panel orders jobs
+# by it (the Sede would jump to another job just because a clip was checked).
+def _musica_cache(job_dir):
+    try:
+        with open(os.path.join(job_dir, ".musica.json"), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _musica_valida(cache, index, url):
+    item = cache.get(str(index))
+    from urllib.parse import unquote
+    if item and url and item.get("arquivo") == unquote(url.rsplit("/", 1)[-1].split("?")[0]):
+        return {k: item[k] for k in ("porcentagem", "risco", "texto")}
+    return None
+
+
+@router.get("/api/gaming/clips/{job_id}/{index}/musica")
+async def clip_musica(job_id: str, index: int):
+    """Music under the delivered clip (cached per file: a new render re-checks)."""
+    _check_id(job_id)
+    metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
+    if not metas:
+        raise HTTPException(status_code=404, detail="Trabalho não encontrado")
+    job_dir = os.path.dirname(metas[0])
+    with open(metas[0], "r", encoding="utf-8") as f:
+        shorts = json.load(f).get("shorts") or []
+    if not 0 <= index < len(shorts):
+        raise HTTPException(status_code=404, detail="Corte não encontrado")
+    url = _clip_url(job_id, metas[0], index, shorts[index])
+    cache = _musica_cache(job_dir)
+    pronto = _musica_valida(cache, index, url)
+    if pronto:
+        return pronto
+    path = _clip_file(job_id, index)
+    if not path:
+        raise HTTPException(status_code=404, detail="O vídeo deste corte não foi encontrado no disco.")
+    from gaming import musica
+    res = await asyncio.to_thread(musica.analisar_arquivo, path)
+    cache[str(index)] = {**res, "arquivo": os.path.basename(path)}
+    tmp = os.path.join(job_dir, ".musica.json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False)
+    os.replace(tmp, os.path.join(job_dir, ".musica.json"))
+    return res
 
 
 @router.get("/api/gaming/dashboard")
@@ -1204,4 +1255,33 @@ async def social_metrics(request: Request, user: Optional[str] = None, days: int
             cursor = data.get("next_cursor")
             if not cursor or not data.get("has_more"):
                 break
+    try:
+        from gaming import aprendizado
+        await asyncio.to_thread(aprendizado.atualizar, _out(), rows, _load_pubs(), _info_do_corte)
+    except Exception as e:  # learning is a bonus: never break the numbers
+        print(f"⚠️ Aprendizado não atualizado: {e}")
     return {"configured": True, "days": days, "fetched_at": time.time(), **aggregate_post_metrics(rows)}
+
+
+def _info_do_corte(job_id, index):
+    """Moment type of a clip, for the learning history."""
+    if not job_id or not _ID_RE.fullmatch(str(job_id)):
+        return None
+    metas = glob.glob(os.path.join(_out(), job_id, "*_metadata.json"))
+    if not metas:
+        return None
+    try:
+        with open(metas[0], "r", encoding="utf-8") as f:
+            shorts = json.load(f).get("shorts") or []
+        c = shorts[index]
+    except (OSError, ValueError, IndexError):
+        return None
+    m = c.get("moment_category")
+    return {"moment": m, "label": c.get("moment_label") or profiles.MOMENTS.get(m, {}).get("label", m)} if m else None
+
+
+@router.get("/api/gaming/aprendizado")
+async def aprendizado_resumo():
+    """What the channel's views taught so far: best moment types and posting time."""
+    from gaming import aprendizado
+    return aprendizado.resumo(_out())

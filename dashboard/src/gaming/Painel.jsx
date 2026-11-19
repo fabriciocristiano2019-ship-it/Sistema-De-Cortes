@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, Eye, Heart, Loader2, RefreshCw, Scissors, Send } from 'lucide-react';
+import { CalendarClock, ChevronDown, Eye, Heart, Loader2, RefreshCw, Scissors, Send, TrendingUp } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtDate, PLATFORMS, safeHttpUrl, STATUS_LABEL } from './util';
 import { BarList, DayColumns, Notice } from './ui';
@@ -51,6 +51,52 @@ function Mini({ label, value }) {
     <div className="rounded-xl border border-rule bg-paper2 px-3 py-2">
       <p className="text-[11px] text-muted">{label}</p>
       <p className="font-mono text-sm font-bold tabular-nums text-ink">{value}</p>
+    </div>
+  );
+}
+
+// Ideas 1 and 4: what this channel's views taught (gaming/aprendizado.py).
+function Aprendizado({ m }) {
+  const [a, setA] = useState(null);
+  useEffect(() => { apiJson('/api/gaming/aprendizado').then(setA).catch(() => setA(null)); }, [m?.fetched_at]);
+  if (!a) return null;
+  const pronto = a.posts >= a.minimo;
+  return (
+    <div className="card p-5" aria-labelledby="apr-titulo">
+      <h3 id="apr-titulo" className="mb-1 flex items-center gap-2 text-sm font-bold text-ink">
+        <TrendingUp size={16} className="text-brass" aria-hidden="true" /> O que mais dá views no seu canal
+      </h3>
+      {!pronto ? (
+        <p className="text-sm text-muted">
+          Aprendendo com os seus posts: {a.posts} de {a.minimo} publicados pelo sistema com visualizações.
+          Quando chegar lá, os próximos cortes passam a priorizar o que funciona no seu canal.
+        </p>
+      ) : (
+        <>
+          <p className="mb-3 text-xs text-muted">Média de visualizações por post, por tipo de momento. Os tipos que rendem mais ganham preferência nos próximos cortes.</p>
+          <ul className="space-y-1.5">
+            {a.ranking.slice(0, 5).map((t) => {
+              const b = a.bonus?.[t.moment] || 0;
+              return (
+                <li key={t.moment} className="flex items-center gap-3 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-ink">{t.label}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted">{t.posts} post(s)</span>
+                  <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-ink">{nf.format(t.media_views)} views</span>
+                  <span className={`w-24 shrink-0 text-right text-[11px] font-bold ${b > 0 ? 'text-ok' : b < 0 ? 'text-warn' : 'text-muted'}`}>
+                    {b > 0 ? 'prioridade ↑' : b < 0 ? 'menos ↓' : 'neutro'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      {a.melhor_horario && (
+        <p className="mt-3 flex items-center gap-2 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ink">
+          <CalendarClock size={15} className="shrink-0 text-ok" aria-hidden="true" />
+          <span>Melhor horário para postar: <b>{a.melhor_horario.texto}</b> <span className="text-muted">({nf.format(a.melhor_horario.media_views)} views em média, {a.melhor_horario.amostras} posts)</span></span>
+        </p>
+      )}
     </div>
   );
 }
@@ -154,6 +200,8 @@ export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uplo
           </ul>
         )}
       </div>
+
+      <Aprendizado m={m} />
 
       <details className="card group p-5">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-ink">

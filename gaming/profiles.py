@@ -187,6 +187,7 @@ SIGNAL_MOMENT = {
     "cut": "inesperado",
     "laughter": "engracado",
     "speech_rate": "reacao",
+    "hud": "jogada",
 }
 
 _COMPILED = {k: [re.compile(p) for p in v["patterns"]] for k, v in MOMENTS.items()}

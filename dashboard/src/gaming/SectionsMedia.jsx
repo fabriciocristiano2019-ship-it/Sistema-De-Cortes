@@ -388,6 +388,9 @@ export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub =
               <div className="p-3 flex flex-col gap-1.5 flex-1">
                 <h3 className="text-sm text-ink line-clamp-2 break-words" title={c.video_title_for_youtube_short}>{c.video_title_for_youtube_short}</h3>
                 <p className="text-xs text-muted">{c.game_name} · {c.moment_label}</p>
+                {(c.musica?.risco === 'alto' || c.musica?.risco === 'medio') && (
+                  <p className={`text-[11px] font-bold ${c.musica.risco === 'alto' ? 'text-danger' : 'text-warn'}`} title={c.musica.texto}>♪ Música em {c.musica.porcentagem}% do corte</p>
+                )}
                 <p className="font-mono text-xs text-muted">{fmtDate(c.created_at)}</p>
                 <div className="flex flex-wrap items-center justify-between gap-1.5 mt-auto pt-1.5">
                   <Badge status={c.status} />

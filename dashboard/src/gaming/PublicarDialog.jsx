@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Send, X } from 'lucide-react';
+import { CalendarClock, Loader2, Music, Send, X } from 'lucide-react';
+import { apiJson } from '../lib/api';
 import { PLATFORMS } from './util';
 import { textoDoCorte } from './autoPublicar';
 import { Notice } from './ui';
@@ -22,6 +23,16 @@ export default function PublicarDialog({ clip, jaFoi = [], servico, onPublicar, 
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
   const ref = useRef(null);
+  // Idea 5: music under the clip (copyright risk). Idea 4: best time to post.
+  const [musica, setMusica] = useState(null);
+  const [horario, setHorario] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    apiJson(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}/musica`)
+      .then((r) => vivo && setMusica(r)).catch(() => vivo && setMusica({ risco: 'erro' }));
+    apiJson('/api/gaming/aprendizado').then((a) => vivo && setHorario(a.melhor_horario)).catch(() => {});
+    return () => { vivo = false; };
+  }, [clip.job_id, clip.clip_index]);
 
   useEffect(() => {
     const d = ref.current;
@@ -48,6 +59,18 @@ export default function PublicarDialog({ clip, jaFoi = [], servico, onPublicar, 
           <h2 id="pub-titulo" className="text-lg font-extrabold text-ink">{jaFoi.length ? 'Publicar de novo' : 'Publicar'}</h2>
           <button type="button" className="btn-quiet btn-sm" onClick={onFechar} aria-label="Fechar"><X size={16} /></button>
         </div>
+
+        {!musica ? (
+          <p className="flex items-center gap-2 text-xs text-muted"><Loader2 size={13} className="animate-spin" /> Conferindo se tem música de fundo…</p>
+        ) : musica.risco === 'alto' || musica.risco === 'medio' ? (
+          <Notice tone={musica.risco === 'alto' ? 'error' : 'warn'}><Music size={13} className="mr-1 inline" aria-hidden="true" />{musica.texto}</Notice>
+        ) : musica.risco === 'baixo' ? (
+          <p className="flex items-center gap-2 text-xs text-ok"><Music size={13} aria-hidden="true" /> Sem música de fundo: sem risco de direitos por música.</p>
+        ) : null}
+        {horario && (
+          <p className="flex items-start gap-2 text-xs text-ink2"><CalendarClock size={13} className="mt-px shrink-0 text-brass" aria-hidden="true" />
+            <span>Melhor horário no seu canal: <b className="text-ink">{horario.texto}</b>. Para agendar, use Módulos → Redes.</span></p>
+        )}
 
         {!servico ? (
           <Notice tone="warn">

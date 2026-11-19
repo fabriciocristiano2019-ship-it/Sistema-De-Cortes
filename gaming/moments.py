@@ -36,6 +36,7 @@ MODALITY = {
     "audio_peak": "audio", "audio_spike": "audio",
     "motion": "visual", "flash": "visual", "red": "visual",
     "keyword": "speech", "laughter": "speech", "speech_rate": "speech",
+    "hud": "hud",          # the game's own notice: a source of its own
 }
 # An audio track whose loudness barely moves (digital silence, a constant
 # hum) says nothing about moments; below this p10..p99 range it is ignored.
@@ -74,7 +75,7 @@ SIGNAL_LABELS = {
     "audio_peak": "pico de volume", "audio_spike": "aumento súbito de áudio",
     "motion": "muita ação na tela", "cut": "mudança brusca de cena", "flash": "clarão na tela",
     "red": "tela vermelha (dano)", "keyword": "fala do jogador", "laughter": "risadas",
-    "speech_rate": "fala acelerada",
+    "speech_rate": "fala acelerada", "hud": "aviso na tela do jogo (placar/kill feed)",
 }
 
 TITLE_TEMPLATES = {
@@ -352,8 +353,11 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         af = signals.audio_features(video_path, should_cancel)
         log("👁️ Análise visual (local)...")
         vf = signals.visual_features(video_path, should_cancel)
+        log("🎯 Leitor do placar: avisos do jogo na tela (local)...")
+        hf = signals.hud_features(video_path, should_cancel)
     else:
-        af, vf = features
+        af, vf = features[0], features[1]
+        hf = features[2] if len(features) > 2 else {"hud": np.zeros(0)}
     has_audio = len(af["rms_db"]) > 0
     audio_usable = bool(has_audio and float(
         np.percentile(af["rms_db"], 99) - np.percentile(af["rms_db"], 10)) >= MIN_AUDIO_RANGE_DB)
@@ -372,7 +376,9 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
         "keyword": np.clip(_fit(tf["keyword"], n) / 2.0, 0, 1),
         "laughter": np.clip(_fit(tf["laughter"], n) / 2.0, 0, 1),
         "speech_rate": _norm(_fit(tf["speech_rate"], n)),
+        "hud": _norm(_fit(hf["hud"], n)),
     }
+    weights.setdefault("hud", 0.12)
     if not audio_usable:  # redistribute audio weight to visuals instead of scoring zero
         moved = weights.pop("audio_peak", 0) + weights.pop("audio_spike", 0)
         for k in ("motion", "flash", "cut", "red"):
@@ -441,6 +447,8 @@ def detect_moments(video_path, transcript, duration, game=None, settings=None,
                 moment = profiles.SIGNAL_MOMENT.get(dominant, "reacao")
             if moment in boost:
                 val += 0.05
+            # What this channel's views taught (gaming/aprendizado.py).
+            val += float((settings.get("aprendizado") or {}).get(moment, 0.0))
             score = int(round(min(100, val / 0.5 * 100)))
             if not relaxed and score < min_score:
                 rejected_low += 1
