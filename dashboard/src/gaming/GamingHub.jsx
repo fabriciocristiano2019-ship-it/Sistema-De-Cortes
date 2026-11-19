@@ -72,7 +72,8 @@ const stored = (k, fallback, allowed) => {
 // the real pipeline stages of the backend, the console is its real output, and
 // the twelve modules reuse the same endpoints as the rest of the dashboard.
 export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
-  const [theme, setTheme] = useState(() => stored('os_sede_theme', 'classic', ['classic', 'nova']));
+  // Dark RGB is the house look since 19-nov-2026 (new key: everyone starts on it once).
+  const [theme, setTheme] = useState(() => stored('os_sede_tema', 'rgb', ['rgb', 'classic', 'nova']));
   // Every visit opens on the Sede (the owner's choice), whatever tab was last open.
   const [view, setView] = useState('hq');
   const [section, setSection] = useState(() => stored('os_gaming_section', 'import', MODULES.filter((m) => m.id !== 'dashboard').map((m) => m.id)));
@@ -107,7 +108,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const lastReady = useRef(0);
   const watching = useRef(false);   // true once this tab has seen the job running
 
-  const pickTheme = (t) => { setTheme(t); localStorage.setItem('os_sede_theme', t); };
+  const pickTheme = (t) => { setTheme(t); localStorage.setItem('os_sede_tema', t); };
   const pickView = useCallback((v) => { setView(v); }, []);
   const go = useCallback((id) => {
     if (id === 'dashboard') { setView('painel'); window.scrollTo({ top: 0 }); return; }
@@ -420,7 +421,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
 
 
   return (
-    <div className={`sede ${theme === 'nova' ? 'sede-nova' : 'sede-classic'} h-full overflow-y-auto`}>
+    <div className={`sede ${theme === 'nova' ? 'sede-nova' : theme === 'classic' ? 'sede-classic' : 'sede-rgb'} h-full overflow-y-auto`}>
       <SistemaVigia onVoltou={reloadAll} />
       <header className="sede-topo sticky top-0 z-40 border-b border-rule2 bg-paper/95 backdrop-blur-md px-4 md:px-6 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">

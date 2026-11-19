@@ -108,7 +108,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
   const posFull = anel(ids, 41, 39);
   const posMini = deitado ? anel(ids, 45, 41) : anel(ids, 41, 42);
   return (
-    <section aria-label="Sede virtual: agentes do fluxo" className="rounded-[20px] border border-rule2 overflow-hidden">
+    <section aria-label="Sede virtual: agentes do fluxo" className="sede-moldura rounded-[20px] border border-rule2 overflow-hidden">
       {/* Phones (standing or lying down): the same room, smaller — J.A.R.V.I.S. in the
           middle, the agents around it. Which map shows is decided in sede.css. */}
       <div className="sede-mini relative sede-map select-none">
@@ -134,7 +134,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
       <div className="sede-full relative sede-map h-[760px] select-none">
         <p className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-ink">
           <Radio size={13} className="text-ok" aria-hidden="true" />
-          SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : 'EDIÇÃO CLÁSSICA NEON'}
+          SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : theme === 'classic' ? 'EDIÇÃO CLÁSSICA NEON' : 'EDIÇÃO DARK RGB'}
         </p>
         <p className="absolute right-4 top-4 z-30 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] text-ink2">
           Clique em qualquer IA para abrir o módulo

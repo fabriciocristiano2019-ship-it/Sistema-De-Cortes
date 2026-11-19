@@ -57,7 +57,7 @@ export default function AcessoGate({ children }) {
   }
   if (state === 'open') return children;
   return (
-    <div className="sede sede-classic min-h-screen grid place-items-center px-4">
+    <div className="sede sede-rgb min-h-screen grid place-items-center px-4">
       <form onSubmit={entrar} className="w-full max-w-sm rounded-[20px] border border-rule2 bg-paper2 p-6 space-y-4" aria-labelledby="acesso-titulo">
         <div className="flex items-center gap-2">
           <Lock size={18} className="text-brass" aria-hidden="true" />

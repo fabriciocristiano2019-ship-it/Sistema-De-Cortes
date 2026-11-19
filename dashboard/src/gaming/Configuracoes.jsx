@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Archive, Copy, FileText, Power, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Archive, Copy, FileText, Power, Rainbow, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
@@ -154,6 +154,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
 
         <Card icon={Palette} title="Tema" id="cfg-tema">
           <div className="flex gap-2">
+            <Opcao on={theme === 'rgb'} onClick={() => onTheme('rgb')} icon={Rainbow}>Dark RGB</Opcao>
             <Opcao on={theme === 'classic'} onClick={() => onTheme('classic')} icon={Moon}>Escuro</Opcao>
             <Opcao on={theme === 'nova'} onClick={() => onTheme('nova')} icon={Sun}>Claro</Opcao>
           </div>

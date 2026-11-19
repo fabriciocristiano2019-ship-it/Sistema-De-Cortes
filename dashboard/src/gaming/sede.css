@@ -60,7 +60,36 @@
   --sede-core-ink: white;
 }
 
-.sede-classic, .sede-nova {
+/* Dark RGB (owner, 19-nov-2026): gamer look. Neutral near-black, and the
+ * one accent is the RGB band itself: an animated red-yellow-green-cyan-violet
+ * gradient on filled controls, the header line and the Sede frame. Text on it
+ * is near-black, readable over every stop of the band (contrast >= 5:1). */
+.sede-rgb {
+  color-scheme: dark;
+  --tw-paper: 10.5% 0.004 285;
+  --tw-paper2: 14.5% 0.006 285;
+  --tw-paper3: 19.5% 0.008 285;
+  --tw-ink: 98% 0.003 285;
+  --tw-ink2: 88% 0.008 285;
+  --tw-muted: 67% 0.015 285;
+  --tw-brass: 72% 0.2 320;
+  --tw-brassink: 12% 0.01 285;
+  --tw-coral: 75% 0.16 200;
+  --tw-ok: 82% 0.2 150;
+  --tw-warn: 84% 0.16 85;
+  --tw-danger: 65% 0.23 20;
+  --rgb-band: linear-gradient(90deg, #ff2d55, #ffb020, #22ff88, #00d4ff, #8a5cff, #ff2d55);
+  --sede-map: oklch(8.5% 0.004 285);
+  --sede-grid: oklch(72% 0.2 320 / 0.06);
+  --sede-line: oklch(75% 0.02 285 / 0.22);
+  --sede-glow: oklch(72% 0.2 320 / 0.38);
+  --sede-console: oklch(8% 0.004 285);
+  --sede-card-shadow: none;
+  --sede-core-chip: var(--rgb-band);
+  --sede-core-ink: oklch(12% 0.01 285);
+}
+
+.sede-classic, .sede-nova, .sede-rgb {
   --color-paper: oklch(var(--tw-paper));
   --color-paper-2: oklch(var(--tw-paper2));
   --color-paper-3: oklch(var(--tw-paper3));
@@ -214,4 +243,36 @@
  * a third of it. */
 @media (max-height: 520px) {
   .sede-topo { position: static; }
+  .sede-rgb .sede-topo { position: relative; }   /* keeps the RGB line under it */
+}
+
+/* ---- Dark RGB: the band on everything that is "on" ---- */
+@keyframes sedeRgb { to { background-position: 300% 0; } }
+.sede-rgb .sede-cta,
+.sede-rgb .sede-btn-accent,
+.sede-rgb .sede-seg button[aria-pressed="true"],
+.sede-rgb .sede-pill[aria-current="page"],
+.sede-rgb .sede-core-chip {
+  background: var(--rgb-band);
+  background-size: 300% 100%;
+  animation: sedeRgb 9s linear infinite;
+  color: oklch(12% 0.01 285);
+}
+.sede-rgb .sede-seg button[aria-pressed="true"] { box-shadow: 0 0 18px oklch(72% 0.2 320 / 0.45), 0 0 26px oklch(78% 0.15 220 / 0.3); }
+.sede-rgb .sede-seg.sede-seg-soft button[aria-pressed="true"] { background: oklch(72% 0.2 320 / 0.14); animation: none; color: var(--color-ink); box-shadow: inset 0 0 0 1px oklch(72% 0.2 320 / 0.5); }
+/* A thin RGB line under the header. */
+.sede-rgb .sede-topo { border-bottom-color: transparent; }
+.sede-rgb .sede-topo::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--rgb-band); background-size: 300% 100%; animation: sedeRgb 9s linear infinite;
+  box-shadow: 0 0 10px oklch(72% 0.2 320 / 0.6); pointer-events: none;
+}
+/* The Sede frame glows red on one side and blue on the other. */
+.sede-rgb .sede-moldura {
+  border-color: oklch(72% 0.2 320 / 0.35);
+  box-shadow: -10px 0 34px -14px #ff2d55, 10px 0 34px -14px #00d4ff, 0 12px 40px -18px #22ff88;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sede-rgb .sede-cta, .sede-rgb .sede-btn-accent, .sede-rgb .sede-seg button[aria-pressed="true"],
+  .sede-rgb .sede-pill[aria-current="page"], .sede-rgb .sede-core-chip, .sede-rgb .sede-topo::after { animation: none; }
 }
