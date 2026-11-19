@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Archive, FileText, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Archive, Copy, FileText, Power, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
@@ -10,6 +10,8 @@ import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
 import { sair } from './sair';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 import BackupCard from './Backup';
+import { apiJson } from '../lib/api';
+import { guardarCodespace, lerCodespace } from './codespace';
 
 function Card({ icon, title, children, id }) {
   return (
@@ -57,6 +59,47 @@ function AppCelular() {
   );
 }
 
+// The page GitHub shows for a stopped codespace is "page not found": the link
+// that wakes it, kept where the owner can save it before it happens.
+function Religar() {
+  const [cs, setCs] = useState(lerCodespace);
+  const [copiado, setCopiado] = useState(false);
+  useEffect(() => {
+    apiJson('/api/gaming/vivo').then((d) => { guardarCodespace(d.codespace); setCs(d.codespace || null); }).catch(() => {});
+  }, []);
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(cs.religar_url); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (_) { /* no clipboard */ }
+  };
+  return (
+    <Card icon={Power} title="Se o painel der “página não encontrada”" id="cfg-religar">
+      <p className="mb-3 text-sm text-ink2">
+        É o GitHub que desligou o Codespace por ficar sem uso. Não crie outro (viria vazio): religue este pelo link abaixo,
+        espere 1 a 2 minutos e abra o painel de novo. <b className="text-ink">Salve o link nos favoritos.</b>
+      </p>
+      {cs?.religar_url ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <a className="sede-btn-accent min-w-0 max-w-full truncate px-4" href={cs.religar_url} target="_blank" rel="noreferrer">{cs.religar_url.replace('https://', '')}</a>
+          <button type="button" onClick={copiar}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rule2 px-3 py-2 text-sm font-bold text-ink2 hover:border-brass">
+            <Copy size={14} aria-hidden="true" /> {copiado ? 'Copiado' : 'Copiar'}
+          </button>
+        </div>
+      ) : (
+        <p className="mb-4 text-sm text-ink2">
+          Fora do Codespaces não há o que religar. No Codespaces: <a className="underline" href="https://github.com/codespaces" target="_blank" rel="noreferrer">github.com/codespaces</a> → clique no seu.
+        </p>
+      )}
+      <p className="mb-1.5 text-xs font-bold text-ink">Para desligar menos e nunca perder os arquivos (uma vez só, no GitHub):</p>
+      <ol className="list-decimal space-y-1 pl-5 text-xs leading-relaxed text-ink2">
+        <li><a className="underline" href="https://github.com/settings/codespaces" target="_blank" rel="noreferrer">github.com/settings/codespaces</a> → <b>Default idle timeout</b>: 240 minutos (o máximo).</li>
+        <li>Na mesma página, <b>Default retention period</b>: 30 dias.</li>
+        <li><a className="underline" href="https://github.com/codespaces" target="_blank" rel="noreferrer">github.com/codespaces</a> → <b>⋯</b> do seu Codespace → desmarque <b>Auto-delete codespace</b>.</li>
+      </ol>
+      <p className="mt-2 text-xs text-muted">A cota grátis do GitHub é de cerca de 60 horas ligado por mês: deixar ligado o tempo todo gasta tudo em poucos dias.</p>
+    </Card>
+  );
+}
+
 const ABAS = [
   { id: 'geral', label: 'Geral', icon: User },
   { id: 'audio', label: 'Áudio', icon: Volume2 },
@@ -98,6 +141,8 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
         <div className="min-w-0 space-y-4">
           {aba === 'geral' && (
             <>
+        <Religar />
+
         <Card icon={User} title="Nome no topo" id="cfg-nome">
           <label htmlFor="cfg-nome-campo" className="mb-1.5 block text-xs font-bold text-ink">Nome exibido</label>
           <div className="flex gap-2">

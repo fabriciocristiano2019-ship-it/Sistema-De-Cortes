@@ -449,11 +449,18 @@ async def backup_resumo():
     return await asyncio.to_thread(backup.resumo, _out(), tem_cortes, _clip_url)
 
 
+def _zip_e_marca():
+    """The zip, then (only when the browser took all of it) the date of this
+    backup: the panel reminds about clips made after the last full backup."""
+    yield from backup.gerar_zip(_out(), tem_cortes, _clip_url)
+    backup.marcar_feito(_out())
+
+
 @router.get("/api/gaming/backup")
 def backup_baixar():
     from fastapi.responses import StreamingResponse
     nome = f"backup-cortes-{datetime.now().strftime('%Y-%m-%d')}.zip"
-    return StreamingResponse(backup.gerar_zip(_out(), tem_cortes, _clip_url), media_type="application/zip",
+    return StreamingResponse(_zip_e_marca(), media_type="application/zip",
                              headers={"Content-Disposition": f'attachment; filename="{nome}"',
                                       "Cache-Control": "no-store"})
 
@@ -1094,6 +1101,27 @@ def _dir_bytes(path):
             except OSError:
                 pass
     return total
+
+
+def codespace_info():
+    """Links of this codespace, or None outside Codespaces. religar opens the
+    codespace itself (VS Code in the browser): visiting it starts a stopped
+    codespace, and the panel comes back on its own (postStartCommand)."""
+    nome = (os.environ.get("CODESPACE_NAME") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9-]{1,100}", nome):
+        return None
+    dominio = (os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN") or "app.github.dev").strip()
+    if not re.fullmatch(r"[A-Za-z0-9.-]{1,100}", dominio):
+        dominio = "app.github.dev"
+    return {"nome": nome, "religar_url": f"https://{nome}.github.dev",
+            "painel_url": f"https://{nome}-5173.{dominio}", "lista_url": "https://github.com/codespaces"}
+
+
+@router.get("/api/gaming/vivo")
+async def vivo():
+    """Heartbeat the open panel polls: cheap on purpose (every 15 s). When it
+    stops answering, the panel says the codespace went down and how to wake it."""
+    return {"ok": True, "codespace": codespace_info()}
 
 
 @router.get("/api/gaming/system")

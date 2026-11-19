@@ -79,12 +79,30 @@ def arquivos(output_dir, tem_cortes, clip_url):
     return out
 
 
+def _marca(output_dir):
+    return os.path.join(_gaming_dir(output_dir), "ultimo_backup.json")
+
+
+def marcar_feito(output_dir, quando=None):
+    """Remember that a full backup reached the browser now."""
+    os.makedirs(_gaming_dir(output_dir), exist_ok=True)
+    _gravar_json(_marca(output_dir), {"ultimo": quando or time.time()})
+
+
+def ultimo_backup(output_dir):
+    return _ler_json(_marca(output_dir), {}).get("ultimo")
+
+
 def resumo(output_dir, tem_cortes, clip_url):
     lista = arquivos(output_dir, tem_cortes, clip_url)
     trabalhos = {a.split("/")[1] for a, _ in lista if a.startswith("jobs/")}
-    cortes = sum(1 for a, _ in lista if a.startswith("jobs/") and a.lower().endswith(_MIDIA))
+    videos = [p for a, p in lista if a.startswith("jobs/") and a.lower().endswith(_MIDIA)]
     tamanho = sum(os.path.getsize(p) for _, p in lista)
-    return {"trabalhos": len(trabalhos), "cortes": cortes, "bytes": tamanho}
+    ultimo = ultimo_backup(output_dir)
+    # Clips made (or restored with a date) after the last full backup.
+    sem = sum(1 for p in videos if not ultimo or os.path.getmtime(p) > ultimo)
+    return {"trabalhos": len(trabalhos), "cortes": len(videos), "bytes": tamanho,
+            "ultimo_backup": ultimo, "cortes_sem_backup": sem}
 
 
 class _Saida:

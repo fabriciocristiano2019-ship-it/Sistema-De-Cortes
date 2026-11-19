@@ -70,6 +70,9 @@ export default function BackupCard({ onRestaurado }) {
         {!resumo ? 'Contando os cortes…' : resumo.erro ? 'Não deu para contar os cortes agora.'
           : resumo.cortes === 0 ? 'Ainda não há cortes prontos para guardar (o histórico vai junto mesmo assim).'
             : `${resumo.cortes} corte${resumo.cortes > 1 ? 's' : ''} de ${resumo.trabalhos} vídeo${resumo.trabalhos > 1 ? 's' : ''} · cerca de ${tamanho(resumo.bytes)}`}
+        {resumo && !resumo.erro && (resumo.ultimo_backup
+          ? ` · último backup: ${new Date(resumo.ultimo_backup * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}${resumo.cortes_sem_backup ? ` (${resumo.cortes_sem_backup} corte${resumo.cortes_sem_backup > 1 ? 's' : ''} novo${resumo.cortes_sem_backup > 1 ? 's' : ''} desde então)` : ''}`
+          : ' · nenhum backup baixado ainda')}
       </p>
       <div className="flex flex-wrap gap-2">
         <a className="sede-btn-accent inline-flex items-center gap-1.5 px-4" href={getApiUrl('/api/gaming/backup')} download>

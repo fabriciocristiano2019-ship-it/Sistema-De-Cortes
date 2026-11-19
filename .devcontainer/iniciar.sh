@@ -115,6 +115,13 @@ if [ -n "$ok_api" ] && [ -n "$ok_web" ]; then
     echo "  http://127.0.0.1:5173"
   fi
   echo "(ou: aba PORTAS -> porta 5173 -> icone do globo)"
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    echo ""
+    echo "Se o painel der 'pagina nao encontrada', o GitHub desligou o Codespace."
+    echo "Religue ESTE (nao crie outro, viria vazio) e espere 1-2 minutos:"
+    echo "  https://${CODESPACE_NAME}.github.dev"
+    echo "Salve esse link nos favoritos."
+  fi
 else
   echo ""
   echo "O painel nao respondeu em 2 minutos. Veja os registros:"

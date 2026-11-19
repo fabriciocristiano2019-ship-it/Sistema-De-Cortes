@@ -135,3 +135,36 @@ def test_the_panel_routes_download_and_restore_in_parts(out, client, tmp_path_fa
     assert not os.listdir(novo / "gaming" / ".restaurar")          # the uploaded zip is gone
     assert client.post(f"/api/gaming/backup/restauracao/{rid}/concluir").status_code == 404
     assert client.get("/api/gaming/backup/resumo").json()["cortes"] == 2
+
+
+def test_a_full_download_marks_the_backup_and_new_clips_are_counted(out, client):
+    _job(out)
+    antes = client.get("/api/gaming/backup/resumo").json()
+    assert antes["ultimo_backup"] is None and antes["cortes_sem_backup"] == 2
+    assert client.get("/api/gaming/backup").status_code == 200
+    depois = client.get("/api/gaming/backup/resumo").json()
+    assert depois["ultimo_backup"] and depois["cortes_sem_backup"] == 0
+    novo = out / JOB / f"subtitled_2002_hooked_1002_{BASE}_clip_2.mp4"
+    t = depois["ultimo_backup"] + 60
+    os.utime(novo, (t, t))                      # a clip re-rendered after the backup
+    assert client.get("/api/gaming/backup/resumo").json()["cortes_sem_backup"] == 1
+
+
+def test_a_download_cut_halfway_does_not_count_as_a_backup(out):
+    _job(out)
+    g = gaming_api._zip_e_marca()
+    next(g)
+    g.close()                                   # the browser went away
+    assert backup.ultimo_backup(str(out)) is None
+
+
+def test_heartbeat_gives_the_wake_up_link_in_codespaces(client, monkeypatch):
+    monkeypatch.delenv("CODESPACE_NAME", raising=False)
+    assert client.get("/api/gaming/vivo").json() == {"ok": True, "codespace": None}
+    monkeypatch.setenv("CODESPACE_NAME", "studious-fiesta-abc123")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    cs = client.get("/api/gaming/vivo").json()["codespace"]
+    assert cs["religar_url"] == "https://studious-fiesta-abc123.github.dev"
+    assert cs["painel_url"] == "https://studious-fiesta-abc123-5173.app.github.dev"
+    monkeypatch.setenv("CODESPACE_NAME", "x.evil.com/")
+    assert client.get("/api/gaming/vivo").json()["codespace"] is None
