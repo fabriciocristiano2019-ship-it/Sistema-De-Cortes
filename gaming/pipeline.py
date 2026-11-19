@@ -58,6 +58,23 @@ AGENTS = [
 AGENT_IDS = [a["id"] for a in AGENTS]
 _BY_ID = {a["id"]: a for a in AGENTS}
 
+# Helpers of the main eight (owner's 5 ideas, 19-nov-2026), Marvel AIs by the
+# owner's rule. They do not count as pipeline steps (the "etapa N de 8" stays):
+# each one lights up when its own log line shows it really worked.
+AUXILIARES = [
+    {"id": "homer", "name": "Aprende com as views", "role": "H.O.M.E.R. · Aprendizado", "module": "dashboard",
+     "does": "Vê quais tipos de corte dão mais views no seu canal e dá preferência a eles."},
+    {"id": "x51", "name": "Leitor do placar", "role": "X-51 · Avisos do jogo", "module": "analysis",
+     "does": "Percebe avisos do jogo na tela (kill feed, banner de vitória, contador de abates)."},
+    {"id": "aida", "name": "Roteirista de títulos", "role": "A.I.D.A. · Títulos", "module": "clips",
+     "does": "Com o Gemini: escreve 5 títulos por corte e escolhe o melhor, sem repetir."},
+    {"id": "herbie", "name": "Verificador de música", "role": "H.E.R.B.I.E. · Direitos", "module": "videos",
+     "does": "Antes de publicar, avisa se o corte tem música de fundo (risco de direitos autorais)."},
+    {"id": "baymax", "name": "Melhor horário", "role": "BAYMAX · Agenda", "module": "schedule",
+     "does": "Descobre o dia e a hora em que os seus posts têm mais views."},
+]
+TODOS = AGENTS + AUXILIARES
+
 _STRATEGY_PT = {
     "WIDE": "A · tela inteira, HUD preservado",
     "INSET": "B · gameplay com webcam",
@@ -104,6 +121,10 @@ _RULES = [
     ("vision", r"switching to visual analysis", "Pouca ou nenhuma fala: a análise segue pelo áudio e pela imagem.", "warn"),
     ("vision", r"Motor local de momentos", None, "info"),
     ("vision", r"Análise de áudio|Análise visual", None, "info"),
+    ("x51", r"Leitor do placar", "Lendo os avisos do jogo na tela (kill feed, banners, placar)…", "info"),
+    ("homer", r"Aprendizado do canal: (?P<a>.+)", r"Aprendizado do canal: \g<a>", "ok"),
+    ("aida", r"Roteirista de títulos: (?P<a>.+)", r"\g<a>", "ok"),
+    ("aida", r"Roteirista de títulos indisponível", None, "warn"),
     ("vision", r"Analyzing with Gemini|Gemini vision|^\S*\s*Model: ", None, "info"),
     ("vision", r"Motor Gemini escolhido sem|Gemini falhou", None, "warn"),
     ("slicer", r"Selecionando janelas", None, "info"),
@@ -182,7 +203,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
     current step, an honest progress percentage and the tagged console lines.
     """
     logs = list(logs or [])
-    seen = {a: False for a in AGENT_IDS}
+    seen = {a["id"]: False for a in TODOS}
     last_agent = None
     console = []
     segments = 0
@@ -231,7 +252,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
     if finished and not any(seen.values()):
         # A job read back from disk after a restart: its log is gone, but it
         # completed, so every stage ran. Captions may have been off; unknown.
-        seen = {a: True for a in AGENT_IDS}
+        seen = {a["id"]: a["id"] in AGENT_IDS for a in TODOS}
     states = {}
     if not logs and not active and not finished:
         states = {a: "idle" for a in AGENT_IDS}
@@ -303,9 +324,22 @@ def snapshot(logs, status, times=None, clips_ready=None):
         done_n = sum(1 for a in AGENT_IDS if states.get(a) in ("done", "skipped"))
         step, step_label = min(len(AGENT_IDS), done_n + 1), ""
 
+    # The helpers follow the stage they belong to; on-demand ones stay ready.
+    def ajudante(dono, viu):
+        st = states.get(dono, "idle")
+        if viu:
+            return "done" if st in ("done", "skipped") or finished else "working"
+        if st in ("done", "skipped") or finished:
+            return "skipped"
+        return "idle" if st == "idle" else st if st in ("waiting", "stopped", "failed") else "waiting"
+    states["x51"] = ajudante("vision", seen["x51"])
+    states["homer"] = ajudante("vision", seen["homer"])
+    states["aida"] = ajudante("slicer", seen["aida"])
+    states["herbie"] = states["baymax"] = "idle"
+
     return {
         "status": status,
-        "agents": [{**a, "state": states.get(a["id"], "idle")} for a in AGENTS],
+        "agents": [{**a, "state": states.get(a["id"], "idle")} for a in TODOS],
         "working": working,
         "step": step, "steps": len(AGENT_IDS), "step_label": step_label,
         "progress": pct,

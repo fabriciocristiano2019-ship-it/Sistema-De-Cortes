@@ -233,7 +233,7 @@ async def gaming_meta():
         "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
         "postiz_configured": postiz.configured(),
         "defaults": library.DEFAULT_PREFS,
-        "agents": pipeline.AGENTS,
+        "agents": pipeline.TODOS,
     }
 
 

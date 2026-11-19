@@ -20,7 +20,12 @@ def logs():
 
 
 def states(snap):
-    return {a["id"]: a["state"] for a in snap["agents"]}
+    """The eight pipeline stages (the Marvel helpers are tested on their own)."""
+    return {a["id"]: a["state"] for a in snap["agents"] if a["id"] in pipeline.AGENT_IDS}
+
+
+def ajudantes(snap):
+    return {a["id"]: a["state"] for a in snap["agents"] if a["id"] not in pipeline.AGENT_IDS}
 
 
 def cut_after(logs, needle):
@@ -224,3 +229,22 @@ def test_unreachable_host_is_explained_once():
     texts = [c["text"] for c in pipeline.snapshot(log, "failed")["console"]]
     assert sum("Não foi possível acessar o site do link" in t for t in texts) == 1
     assert not any("gaierror" in t or "UnsafeURLError" in t for t in texts)
+
+
+def test_marvel_helpers_light_up_only_when_they_really_worked():
+    logs = ["Job started by worker", "🎮 Jogo selecionado: Free Fire — perfil FPS.",
+            "📈 Aprendizado do canal: No canal deste criador, os Shorts de Vitória têm mais visualizações.",
+            "🎯 Leitor do placar: avisos do jogo na tela (local)..."]
+    a = ajudantes(pipeline.snapshot(logs, "processing"))
+    assert a["x51"] == "working" and a["homer"] == "working"
+    assert a["aida"] == "waiting" and a["herbie"] == "idle" and a["baymax"] == "idle"
+    done = ajudantes(pipeline.snapshot(logs + ["✍️ Roteirista de títulos: 3 título(s) escolhido(s)",
+                                                       "Process finished successfully"], "completed"))
+    assert done["x51"] == done["homer"] == done["aida"] == "done"
+    sem = ajudantes(pipeline.snapshot(["Job started by worker", "Process finished successfully"], "completed"))
+    assert sem["aida"] == "skipped"                      # no Gemini: the writer had nothing to do
+
+
+def test_helpers_are_not_pipeline_steps():
+    snap = pipeline.snapshot(["Job started by worker"], "processing")
+    assert snap["steps"] == 8 and len(snap["agents"]) == 13

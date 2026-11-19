@@ -202,7 +202,7 @@
 
 /* Sede map: full map on computers, compact one on phones — standing up
  * (narrow) or lying down (short screen), where the 600px map does not fit. */
-.sede-mini { display: none; aspect-ratio: 1 / 1.12; }
+.sede-mini { display: none; aspect-ratio: 1 / 1.45; }
 @media (max-width: 767px), (max-height: 520px) {
   .sede-mini { display: block; }
   .sede-full { display: none; }

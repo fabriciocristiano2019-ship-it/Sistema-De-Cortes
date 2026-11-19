@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Maximize2, Radio } from 'lucide-react';
-import Wave from './Wave';
+import { Radio } from 'lucide-react';
 import JarvisOrb from './JarvisOrb';
-import { LOOK } from './agents';
+import { anel, LOOK } from './agents';
 
-// Phone lying down: two rows around J.A.R.V.I.S., clockwise in pipeline order,
-// so the centre column stays free for the orb and its label.
-const DEITADO = {
-  ingest: { x: 13, y: 23 }, library: { x: 31, y: 23 }, whisper: { x: 69, y: 23 }, vision: { x: 87, y: 23 },
-  slicer: { x: 87, y: 77 }, editor916: { x: 69, y: 77 }, captions: { x: 31, y: 77 }, social: { x: 13, y: 77 },
-};
 const QUERY_DEITADO = '(max-height: 520px) and (min-width: 568px)';
 
 function useDeitado() {
@@ -49,50 +42,37 @@ function lineStyle(state) {
   return { stroke: 'var(--sede-line)', width: 1.5 };
 }
 
-function AgentRoom({ agent, onOpen, detail, className = '', style, theme }) {
+// One agent: its sphere floating free (no box), its Marvel name and what it
+// does underneath. The sphere speeds up and glows while the agent works.
+function AgentNode({ agent, onOpen, detail, theme, size, compact, style }) {
   const look = LOOK[agent.id] || { color: '#64748b' };
   const badge = BADGE[agent.state] || BADGE.idle;
   const working = agent.state === 'working';
+  const nome = (agent.role || '').split(' · ')[0] || agent.name;
+  const tarefa = agent.state === 'failed' ? 'falhou' : agent.name;
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(agent)}
-      title={`${agent.does}${detail ? `\n${detail}` : ''}\nClique para abrir o módulo.`}
-      aria-label={`${agent.name}, ${agent.role}: ${badge.label.toLowerCase()}. Abrir módulo.`}
-      className={`text-left rounded-2xl border bg-paper2 p-2.5 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${working ? 'scale-[1.03]' : 'border-rule2 hover:border-brass/60'} ${className}`}
-      style={{
-        ...style,
-        ...(working ? { borderColor: look.color, boxShadow: `0 0 0 1px ${look.color}, 0 0 26px ${look.color}55` } : { boxShadow: 'var(--sede-card-shadow)' }),
-      }}
-    >
-      <span className="flex items-center justify-between gap-2 mb-2">
-        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${working ? 'animate-pulse' : ''}`} style={{ background: look.color }} />
-        <span
-          className={`rounded border px-1.5 py-px text-[9px] font-extrabold tracking-wider ${badge.cls}`}
-          style={working ? { color: look.color, borderColor: `${look.color}88`, background: `${look.color}22` } : undefined}
-        >
-          {badge.label}
-        </span>
+    <button type="button" onClick={() => onOpen(agent)}
+      title={`${nome}: ${agent.does}${detail ? `\n${detail}` : ''}\nClique para abrir o módulo.`}
+      aria-label={`${nome}, ${agent.name}: ${badge.label.toLowerCase()}. Abrir módulo.`}
+      className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center transition-transform duration-300 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass rounded-2xl ${working ? 'scale-110' : ''}`}
+      style={{ ...style, width: compact ? 64 : 128 }}>
+      <span className="relative grid place-items-center rounded-full"
+        style={working ? { filter: `drop-shadow(0 0 14px ${look.color})` } : undefined}>
+        <JarvisOrb size={size} busy={working} theme={theme} color={look.color} />
       </span>
-      <span
-        className="flex items-center gap-2 rounded-xl border border-rule px-1.5 py-1 mb-2"
-        style={{ background: `linear-gradient(100deg, color-mix(in oklab, ${look.color} 17%, var(--color-paper)) 0%, var(--color-paper) 88%)` }}
-      >
-        <JarvisOrb size={40} busy={working} theme={theme} color={look.color} className="shrink-0" />
-        <span className="flex-1 min-w-0 flex items-center">
-          <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={14} height={18}
-            color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
-        </span>
-        <Maximize2 size={12} className="text-muted shrink-0" aria-hidden="true" />
+      {/* A soft plate under the words so the line to J.A.R.V.I.S. never runs through them. */}
+      <span className="rounded-md px-1 py-px" style={{ background: 'color-mix(in oklab, var(--sede-map) 84%, transparent)' }}>
+        <span className={`block font-extrabold tracking-[0.08em] text-ink leading-tight ${compact ? 'text-[9px]' : 'text-[12px]'}`}
+          style={working ? { color: look.color } : undefined}>{nome}</span>
+        <span className={`block leading-tight line-clamp-2 ${compact ? 'text-[8px]' : 'text-[10.5px]'} ${agent.state === 'failed' ? 'text-danger font-bold' : working ? 'font-bold' : 'text-muted'}`}
+          style={working ? { color: look.color } : undefined}>{tarefa}</span>
       </span>
-      <span className="block text-[12px] font-extrabold tracking-tight text-ink leading-tight line-clamp-2">{agent.name}</span>
-      <span className="block text-[11px] text-muted truncate">{agent.role}</span>
     </button>
   );
 }
 
 // Lines from J.A.R.V.I.S. to each room; a dot travels along the busy ones.
-function Linhas({ agents, reduceMotion, posicoes = LOOK }) {
+function Linhas({ agents, reduceMotion, posicoes }) {
   return (
     <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
       {agents.map((a) => {
@@ -116,35 +96,17 @@ function Linhas({ agents, reduceMotion, posicoes = LOOK }) {
   );
 }
 
-// Compact room for phones: icon, live wave and name.
-function AgentMini({ agent, onOpen, style, theme }) {
-  const look = LOOK[agent.id] || { color: '#64748b' };
-  const badge = BADGE[agent.state] || BADGE.idle;
-  const working = agent.state === 'working';
-  return (
-    <button type="button" onClick={() => onOpen(agent)}
-      aria-label={`${agent.name}, ${agent.role}: ${badge.label.toLowerCase()}. Abrir módulo.`}
-      className={`absolute z-10 flex w-[84px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-xl border bg-paper2/95 px-1 pb-1.5 pt-1.5 text-center transition-transform duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${working ? 'scale-105' : 'border-rule2'}`}
-      style={{ ...style, ...(working ? { borderColor: look.color, boxShadow: `0 0 0 1px ${look.color}, 0 0 18px ${look.color}66` } : { boxShadow: 'var(--sede-card-shadow)' }) }}>
-      <span className="flex w-full items-center justify-center gap-1">
-        <JarvisOrb size={30} busy={working} theme={theme} color={look.color} className="shrink-0" />
-        <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={7} height={14}
-          color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
-      </span>
-      <span className="line-clamp-2 text-[9.5px] font-extrabold leading-tight text-ink">{agent.name}</span>
-      <span className={`rounded border px-1 text-[8px] font-extrabold tracking-wider ${badge.cls}`}
-        style={working ? { color: look.color, borderColor: `${look.color}88` } : undefined}>{badge.label}</span>
-    </button>
-  );
-}
-
 // The virtual room: eight agents around the orchestrator. Every state shown
 // here is the real state of that pipeline stage for the tracked job.
 export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
   const coreBadge = CORE_BADGE[core] || CORE_BADGE.idle;
   const busy = core === 'working';
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const posMini = useDeitado() ? DEITADO : LOOK;
+  const deitado = useDeitado();
+  const ids = agents.map((a) => a.id);
+  // Spheres on a ring around J.A.R.V.I.S. (13 of them: wide ellipse).
+  const posFull = anel(ids, 41, 39);
+  const posMini = deitado ? anel(ids, 45, 41) : anel(ids, 41, 42);
   return (
     <section aria-label="Sede virtual: agentes do fluxo" className="rounded-[20px] border border-rule2 overflow-hidden">
       {/* Phones (standing or lying down): the same room, smaller — J.A.R.V.I.S. in the
@@ -152,10 +114,10 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
       <div className="sede-mini relative sede-map select-none">
         <Linhas agents={agents} reduceMotion={reduceMotion} posicoes={posMini} />
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className={`relative h-[150px] w-[150px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
+          <div className={`relative h-[132px] w-[132px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
             style={{ background: 'radial-gradient(circle, var(--sede-map) 55%, transparent 72%)' }}>
             {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
-            <JarvisOrb size={150} busy={busy} theme={theme} className="absolute inset-0" />
+            <JarvisOrb size={132} busy={busy} theme={theme} className="absolute inset-0" />
             <span className="absolute inset-x-0 -bottom-4 flex flex-col items-center">
               <span className="text-[9.5px] font-extrabold tracking-[0.16em] text-ink" style={{ textShadow: '0 0 12px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
               <span className={`mt-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
@@ -163,10 +125,9 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
           </div>
         </div>
         {agents.map((a) => {
-          const look = posMini[a.id];
-          if (!look) return null;
-          return <AgentMini key={a.id} agent={a} onOpen={onOpen} theme={theme}
-            style={{ left: `${look.x}%`, top: `${look.y}%` }} />;
+          const p = posMini[a.id];
+          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={36} compact
+            detail={details[a.id]} style={{ left: `${p.x}%`, top: `${p.y}%` }} />;
         })}
       </div>
 
@@ -176,10 +137,10 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
           SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : 'EDIÇÃO CLÁSSICA NEON'}
         </p>
         <p className="absolute right-4 top-4 z-30 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] text-ink2">
-          Clique em qualquer sala para abrir o módulo
+          Clique em qualquer IA para abrir o módulo
         </p>
 
-        <Linhas agents={agents} reduceMotion={reduceMotion} />
+        <Linhas agents={agents} reduceMotion={reduceMotion} posicoes={posFull} />
 
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
           <div className={`relative h-[290px] w-[290px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
@@ -194,13 +155,9 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         </div>
 
         {agents.map((a) => {
-          const look = LOOK[a.id];
-          if (!look) return null;
-          return (
-            <AgentRoom key={a.id} agent={a} onOpen={onOpen} detail={details[a.id]} theme={theme}
-              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 hover:!-translate-y-[calc(50%+2px)]"
-              style={{ left: `${look.x}%`, top: `${look.y}%`, width: 'clamp(138px, 19%, 176px)' }} />
-          );
+          const p = posFull[a.id];
+          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={58}
+            detail={details[a.id]} style={{ left: `${p.x}%`, top: `${p.y}%` }} />;
         })}
       </div>
     </section>
