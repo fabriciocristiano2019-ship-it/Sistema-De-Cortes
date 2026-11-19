@@ -57,8 +57,11 @@ def test_burning_captions_keeps_the_frame_and_tags_the_file(tmp_path):
     info = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                                       "stream=color_range,color_space,color_primaries,color_transfer",
                                       "-of", "json", out], capture_output=True, check=True).stdout)["streams"][0]
-    assert info == {"color_range": "tv", "color_space": "bt709", "color_primaries": "bt709",
-                    "color_transfer": "bt709"}
+    # Range and matrix are what keep the apps from washing the clip out. Some
+    # ffmpeg builds (GitHub's runner) do not write primaries/transfer; when
+    # present they must be BT.709.
+    assert info["color_range"] == "tv" and info["color_space"] == "bt709", info
+    assert info.get("color_primaries", "bt709") == "bt709" and info.get("color_transfer", "bt709") == "bt709", info
 
 
 def test_captions_stay_out_of_the_bottom_500px():
