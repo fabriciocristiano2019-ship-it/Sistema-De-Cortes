@@ -261,8 +261,10 @@ def generate_srt(transcript, clip_start, clip_end, output_path, max_chars=20, ma
 # looked fine. 43 (15%) was still inside TikTok's own bottom band: TikTok covers
 # about 22% of the bottom, Reels 20%, Shorts 18% (safe-zone table of
 # kajisho5/ffmpeg-skill, references/gotchas.md#platform-safe-zones). 66 = 22.9%
-# keeps the caption baseline above all three.
-SAFE_MARGIN_V = 66
+# keeps the caption baseline above all three. 75 (26%, 500 px on 1920) is the
+# reel-export skill's rule (charlie947/motion-graphics-skills): nothing in the
+# bottom 500 px, where Reels/TikTok draw caption, username and buttons.
+SAFE_MARGIN_V = 75
 
 
 # The caption look applied automatically to every generated clip. Chosen by
@@ -621,6 +623,13 @@ def burn_subtitles(video_path, srt_path, output_path, alignment=2, fontsize=16,
     else:
         vf = (f"subtitles=filename='{safe_srt_path}':fontsdir='{safe_fonts_dir}'"
               f":charenc=UTF-8:force_style='{style_string}'")
+
+    # libass draws in RGB and ffmpeg blends it into the frame with the old
+    # BT.601 matrix, so the yellow active word came out #FFD900 instead of
+    # #FFE500 on a BT.709 player (measured). Burning on an RGB copy converted
+    # with BT.709 both ways keeps every caption colour as designed.
+    vf = (f"scale=in_color_matrix=bt709:in_range=tv,format=rgb24,{vf},"
+          "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p")
 
     cmd = [
         'ffmpeg', '-y',

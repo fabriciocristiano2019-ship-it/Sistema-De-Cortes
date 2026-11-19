@@ -22,12 +22,14 @@ def _clean_encoder_state(monkeypatch):
 
 
 def test_default_args_pin_historical_x264_settings():
+    tags = ["-color_range", "tv", "-colorspace", "bt709",
+            "-color_primaries", "bt709", "-color_trc", "bt709"]
     assert video_encode_args(QUALITY) == [
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18"]
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", *tags]
     assert video_encode_args(QUALITY_FAST) == [
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18"]
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", *tags]
     assert video_encode_args(DELIVERY) == [
-        "-c:v", "libx264", "-preset", "fast", "-crf", "22"]
+        "-c:v", "libx264", "-preset", "fast", "-crf", "22", *tags]
 
 
 def test_unknown_tier_raises():
@@ -44,7 +46,9 @@ def test_nvenc_mode_uses_nvenc_when_probe_passes(monkeypatch):
         assert "-cq" in args
         # Without an explicit yuv420p, RGB input makes nvenc emit GBR-space
         # H.264 that web players render with wrong colors.
-        assert args[-2:] == ["-pix_fmt", "yuv420p"]
+        assert args[args.index("-pix_fmt") + 1] == "yuv420p"
+        assert args[-8:] == ["-color_range", "tv", "-colorspace", "bt709",
+                             "-color_primaries", "bt709", "-color_trc", "bt709"]
 
 
 def test_nvenc_mode_falls_back_to_x264_when_probe_fails(monkeypatch):

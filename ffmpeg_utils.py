@@ -51,6 +51,14 @@ _NVENC_ARGS = {
 # stream (ffmpeg ignores them, verified). Spliced in before the output filename
 # at each final-artifact producer; kept out of video_encode_args() so that
 # stays purely codec/quality args.
+# Colour tags written on every encode (reel-export skill, charlie947): an
+# untagged clip leaves Instagram/TikTok/YouTube to guess its colours, and a
+# guess can come out washed out. The clips are HD gameplay, i.e. BT.709 limited
+# range (the pipeline crops and scales in YUV, never changing the matrix), so
+# the tags state what the pixels already are. Pure metadata: no pixel changes.
+COLOR_TAGS = ["-color_range", "tv", "-colorspace", "bt709",
+              "-color_primaries", "bt709", "-color_trc", "bt709"]
+
 METADATA_SCRUB = ["-map_metadata", "-1", "-map_chapters", "-1",
                   "-map_metadata:s:v", "-1", "-map_metadata:s:a", "-1"]
 
@@ -159,7 +167,7 @@ def video_encode_args(tier=QUALITY):
         print(f"🎞️ [Encoder] video encoder: {'h264_nvenc' if use_nvenc else 'libx264'} "
               f"(FFMPEG_ENCODER={mode})")
 
-    return list((_NVENC_ARGS if use_nvenc else _X264_ARGS)[tier])
+    return list((_NVENC_ARGS if use_nvenc else _X264_ARGS)[tier]) + COLOR_TAGS
 
 
 def escape_filter_value(value):
