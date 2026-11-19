@@ -51,10 +51,11 @@ if [ "${OPENSHORTS_AUTO_UPDATE:-1}" = "1" ] && [ -z "${OPENSHORTS_ATUALIZANDO:-}
   fi
 fi
 
-# Guarda e disco no Codespaces: cortes por 7 dias (o padrão do servidor é 24 h)
-# e limites que cabem no disco e na cota grátis (o padrão, 25 + 15 GB, passa
-# dos ~32 GB do Codespaces). Os mais antigos saem primeiro. Um valor no .env
-# continua valendo.
+# Guarda e disco no Codespaces: os cortes prontos ficam para sempre na
+# Biblioteca (aprovados ou não). Depois de 7 dias, ou quando a pasta passa de
+# 10 GB, saem só o vídeo original, as cópias intermediárias de cada corte e os
+# quadros de análise (os mais antigos primeiro). Uploads: 4 GB. Um valor no
+# .env continua valendo.
 for par in JOB_RETENTION_SECONDS=604800 OUTPUT_MAX_GB=10 UPLOADS_MAX_GB=4; do
   nome="${par%%=*}"
   if ! grep -qs "^${nome}=" .env && [ -z "${!nome:-}" ]; then export "$par"; fi

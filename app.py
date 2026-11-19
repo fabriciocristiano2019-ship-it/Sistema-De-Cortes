@@ -989,6 +989,13 @@ def _enforce_output_size_cap():
     for _mtime, path, job_id in candidates:
         if used <= cap:
             break
+        if gaming_api.tem_cortes(path):
+            # Finished clips stay in the library: only the heavy leftovers go.
+            freed = gaming_api.enxugar_trabalho(path)
+            used -= freed
+            if freed:
+                print(f"🧹 Size cap: slimmed {job_id} ({freed / 1024**2:.0f} MB), clips kept")
+            continue
         size = _dir_size(path)
         shutil.rmtree(path, ignore_errors=True)
         jobs.pop(job_id, None)
@@ -1015,6 +1022,12 @@ async def cleanup_jobs():
                 job_path = os.path.join(OUTPUT_DIR, job_id)
                 if os.path.isdir(job_path):
                     if JOB_RETENTION_SECONDS > 0 and now - os.path.getmtime(job_path) > JOB_RETENTION_SECONDS:
+                        if gaming_api.tem_cortes(job_path):
+                            # Its clips are the video library: keep them, drop the rest.
+                            freed = gaming_api.enxugar_trabalho(job_path)
+                            if freed:
+                                print(f"🧹 Old job {job_id}: {freed / 1024**2:.0f} MB freed, clips kept")
+                            continue
                         print(f"🧹 Purging old job: {job_id}")
                         shutil.rmtree(job_path, ignore_errors=True)
                         if job_id in jobs:

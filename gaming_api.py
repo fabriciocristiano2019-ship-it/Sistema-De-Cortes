@@ -33,6 +33,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -342,12 +343,78 @@ def _clip_url(job_id, meta_path, index, clip=None):
         name = unquote(str(clips[index]["video_url"]).rsplit("/", 1)[-1])
         if os.path.exists(os.path.join(job_dir, name)):
             return clips[index]["video_url"]
+    # The most finished copy wins: captioned, then hooked, then clean; the
+    # newest only breaks ties (file dates are lost on a copy or restore).
+    def acabamento(p):
+        nome = os.path.basename(p)
+        return (2 if nome.startswith("subtitled_") else 1 if nome.startswith("hooked_") else 0)
     cands = sorted(glob.glob(os.path.join(job_dir, f"*{base}_clip_{index + 1}.mp4")),
-                   key=lambda p: (-os.path.getmtime(p)))
+                   key=lambda p: (-acabamento(p), -os.path.getmtime(p)))
     cands = [c for c in cands if not os.path.basename(c).startswith("temp_")]
     if cands:
         return f"/videos/{job_id}/{os.path.basename(cands[0])}"
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Keep every finished clip (owner, 19-nov-2026): approved or not, a clip stays
+# in the video library so it can be posted again later. What ages out is only
+# what rendering needed: the source video, the clean and hooked copies of each
+# clip and the analysis frames - about two thirds of a job's disk.
+# --------------------------------------------------------------------------- #
+_MIDIA = (".mp4", ".mkv", ".webm", ".mov", ".m4a", ".m4v", ".wav", ".aac", ".mp3")
+_ENXUTO = ".enxuto"
+
+
+def tem_cortes(job_dir):
+    """True for a finished gaming job: one whose clips belong to the library."""
+    metas = glob.glob(os.path.join(job_dir, "*_metadata.json"))
+    if not metas or not os.path.exists(os.path.join(job_dir, "gaming_job.json")):
+        return False
+    try:
+        with open(metas[0], "r", encoding="utf-8") as f:
+            return bool(json.load(f).get("shorts"))
+    except (OSError, ValueError):
+        return False
+
+
+def enxugar_trabalho(job_dir):
+    """Delete everything but the delivered file of each clip; returns bytes freed.
+
+    The delivered file is the one the library plays (_clip_url). Small files
+    (metadata, captions, layout sidecars) stay. Done once per job (marker).
+    Editing an old clip again (recut, restyle captions) needs the clean copy,
+    so that stops working after this; playing, downloading and posting don't.
+    """
+    from urllib.parse import unquote
+    if os.path.exists(os.path.join(job_dir, _ENXUTO)) or not tem_cortes(job_dir):
+        return 0
+    meta = glob.glob(os.path.join(job_dir, "*_metadata.json"))[0]
+    job_id = os.path.basename(os.path.normpath(job_dir))
+    with open(meta, "r", encoding="utf-8") as f:
+        shorts = json.load(f).get("shorts") or []
+    manter = set()
+    for i, clip in enumerate(shorts):
+        url = _clip_url(job_id, meta, i, clip)
+        if url:
+            manter.add(unquote(url.rsplit("/", 1)[-1].split("?")[0]))
+    if len(manter) < len(shorts):
+        # A clip whose final file cannot be told apart: keep the whole job
+        # rather than risk deleting the only copy.
+        return 0
+    livre = 0
+    for nome in os.listdir(job_dir):
+        p = os.path.join(job_dir, nome)
+        if nome == ".quadros" and os.path.isdir(p):
+            for raiz, _d, arqs in os.walk(p):
+                livre += sum(os.path.getsize(os.path.join(raiz, a)) for a in arqs)
+            shutil.rmtree(p, ignore_errors=True)
+        elif os.path.isfile(p) and nome.lower().endswith(_MIDIA) and nome not in manter:
+            livre += os.path.getsize(p)
+            os.remove(p)
+    with open(os.path.join(job_dir, _ENXUTO), "w") as f:
+        f.write(str(int(time.time())))
+    return livre
 
 
 def _job_layout(job_dir):
