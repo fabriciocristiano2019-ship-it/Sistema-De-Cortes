@@ -67,13 +67,13 @@ export default function Legal() {
                 </div>
 
                 <div className="space-y-3 mb-12">
-                    {DOCS.map(({ title, desc, href, es }) => (
+                    {DOCS.map(({ title, desc, href, es, icon }) => (
                         <a
                             key={href}
                             href={href}
                             className="flex items-start gap-4 p-4 border border-rule rounded-card hover:border-brass transition-colors"
                         >
-                            <Icon size={18} className="text-brass shrink-0 mt-0.5" />
+                            {React.createElement(icon, { size: 18, className: 'text-brass shrink-0 mt-0.5', 'aria-hidden': true })}
                             <span>
                                 <span className="block text-ink font-medium">{title}</span>
                                 <span className="block text-sm text-muted mt-1">{desc}</span>
