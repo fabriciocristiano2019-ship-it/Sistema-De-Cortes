@@ -39,6 +39,15 @@ if mudou dashboard/package.json dashboard/package-lock.json; then
   (cd dashboard && npm install --no-audit --no-fund >/dev/null)
 fi
 
+# Narration (Piper) for codespaces created before it existed: one try a day.
+if [ ! -s "$HOME/.openshorts/vozes/pt_BR-faber-medium.onnx" ] || ! .venv/bin/python -c "import piper" 2>/dev/null; then
+  marca=".logs/.voz_tentativa"
+  if [ ! -f "$marca" ] || [ -n "$(find "$marca" -mmin +1440 2>/dev/null)" ]; then
+    touch "$marca"
+    timeout 600 bash .devcontainer/instalar_voz.sh || true
+  fi
+fi
+
 echo "3/4 Desligando a versão antiga..."
 pkill -f "uvicorn app:app" 2>/dev/null
 pkill -f "vite.*--port 5173" 2>/dev/null

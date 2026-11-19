@@ -28,6 +28,9 @@ pip install --no-cache-dir -r requirements.txt
 # Complementos oficiais do yt-dlp (scripts que o YouTube exige, rodados pelo Node.js).
 pip install --no-cache-dir --upgrade "yt-dlp[default]"
 
+echo "==> Narração dos cortes (opcional)"
+bash .devcontainer/instalar_voz.sh || true
+
 echo "==> Painel (Node)"
 (cd dashboard && npm ci --no-audit --no-fund)
 

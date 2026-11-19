@@ -54,10 +54,11 @@ _STATE = {"output_dir": None, "jobs": None, "app": None}
 _PUB_LOCK = threading.Lock()
 
 LAYOUTS = {
-    "auto": {"label": "Automático", "strategy": None},
-    "vertical": {"label": "Shorts (tela cheia)", "strategy": "CENTER"},      # fixed centre crop filling the phone screen
-    "full": {"label": "Jogo inteiro", "strategy": "WIDE"},   # full width: HUD, map and scoreboard kept
-    "webcam": {"label": "Jogo + webcam", "strategy": "INSET"},
+    # gaming/montagem.py: the whole game, never a zoom (owner, 19-nov-2026).
+    "auto": {"label": "Automático (webcam em cima se houver)", "strategy": None},
+    "full": {"label": "Jogo inteiro + fundo desfocado", "strategy": "PRO"},
+    "webcam": {"label": "Webcam em cima + jogo embaixo", "strategy": "PRO_CAM"},
+    "vertical": {"label": "Tela cheia (corta as laterais)", "strategy": "CENTER"},   # old centre crop, on request only
 }
 DURATIONS = [15, 30, 45, 60]
 ENGINES = {"local": "Local (gratuito)", "auto": "Automático (Gemini se houver chave)",

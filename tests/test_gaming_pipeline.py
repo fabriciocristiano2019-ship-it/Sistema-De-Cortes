@@ -247,4 +247,18 @@ def test_marvel_helpers_light_up_only_when_they_really_worked():
 
 def test_helpers_are_not_pipeline_steps():
     snap = pipeline.snapshot(["Job started by worker"], "processing")
-    assert snap["steps"] == 8 and len(snap["agents"]) == 13
+    assert snap["steps"] == 8 and len(snap["agents"]) == 14
+
+
+def test_montage_and_animated_opening_show_on_their_agents():
+    logs = ["Job started by worker", "Found 1 clips", "Processing Clip 1: 2.0s - 15.0s",
+            "   🎞️ Montagem pro_cam: jogo inteiro em y=600-1208, webcam em cima",
+            '   🪝 Abertura animada: "QUE SUSTO FOI ESSE?!" + narração: "Olha o susto que ele levou aqui."',
+            "   💬 Captions burned: subtitled_1_x.mp4"]
+    snap = pipeline.snapshot(logs, "processing")
+    textos = " | ".join(str(l) for l in snap["console"])
+    assert "webcam em cima, jogo inteiro embaixo, sem zoom" in textos
+    assert "Narração gravada: “Olha o susto que ele levou aqui.”" in textos
+    a = {x["id"]: x["state"] for x in snap["agents"]}
+    assert a["editor916"] == "done" and a["isaac"] in ("working", "done")
+    assert any(x["role"].startswith("I.S.A.A.C.") for x in snap["agents"])

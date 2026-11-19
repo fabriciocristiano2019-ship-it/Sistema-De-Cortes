@@ -51,7 +51,7 @@ const VIEWS = [
 ];
 
 const DEFAULT_FORM = {
-  file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'vertical',
+  file: null, url: '', game_id: 'auto', category: 'other', clip_seconds: 30, layout: 'auto',
   engine: 'auto', max_clips: 10, fill: true, min_score: 30, captions: true, zoom: false, auto_hook: true,
   acknowledged: false,
 };
@@ -89,6 +89,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
     try {
       const saved = JSON.parse(localStorage.getItem(FORM_KEY) || '{}');
       const keep = Object.fromEntries(Object.entries(saved).filter(([k, v]) => FORM_KEEP.includes(k) && typeof v === typeof DEFAULT_FORM[k]));
+      // 19-nov-2026: the centre crop ("zoom") stopped being the default; a
+      // saved choice of it is moved to the new montage once.
+      if (keep.layout === 'vertical' && localStorage.getItem('os_layout_v2') !== '1') keep.layout = 'auto';
+      try { localStorage.setItem('os_layout_v2', '1'); } catch (_) { /* private mode */ }
       return { ...DEFAULT_FORM, ...keep };
     } catch (_) { return DEFAULT_FORM; }
   });

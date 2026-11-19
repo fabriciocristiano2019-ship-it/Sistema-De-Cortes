@@ -15,10 +15,11 @@ export const LOOK = {
   social: { color: '#4f46e5' },
   herbie: { color: '#14b8a6' },
   baymax: { color: '#e2e8f0' },
+  isaac: { color: '#eab308' },
 };
 
 export const ORDEM = ['ingest', 'library', 'homer', 'whisper', 'vision', 'x51', 'slicer', 'aida',
-  'editor916', 'captions', 'social', 'herbie', 'baymax'];
+  'editor916', 'captions', 'isaac', 'social', 'herbie', 'baymax'];
 
 // Positions on an ellipse around the centre, in % of the map box.
 export function anel(ids, rx, ry) {

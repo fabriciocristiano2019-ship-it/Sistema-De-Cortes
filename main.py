@@ -1057,6 +1057,26 @@ def auto_hook_clip(clip_path, clip):
     Returns (hooked_path, hook_config), or None when skipped or failed — a
     hook problem must never cost the user the clip itself (same fail-open
     contract as auto_caption_clip)."""
+    # Gaming jobs: animated finish (title pop, flash, whoosh, progress bar,
+    # voice-over) over the montage instead of the static image card.
+    output_dir = os.path.dirname(clip_path)
+    if os.path.exists(os.path.join(output_dir, "gaming_job.json")):
+        try:
+            from gaming import acabamento, montagem, voz
+            titulo, fala = acabamento.roteiro(clip)
+            out_path = os.path.join(
+                output_dir, f"hooked_{int(time.time())}_{os.path.basename(clip_path)}")
+            narracao = voz.gerar(fala, os.path.join(output_dir, f".voz_{uuid.uuid4().hex[:8]}.wav"))
+            try:
+                acabamento.aplicar(clip_path, titulo, out_path, geo=montagem.ler(clip_path), voz=narracao)
+            finally:
+                if narracao and os.path.exists(narracao):
+                    os.remove(narracao)
+            print(f"   🪝 Abertura animada: \"{titulo}\"" + (f" + narração: \"{fala}\"" if narracao else " (sem voz instalada)"))
+            return out_path, {"text": titulo, "style": "animado", "position": "top",
+                              "duration_seconds": None, "narracao": fala if narracao else None}
+        except Exception as e:  # noqa: BLE001 - never cost the clip
+            print(f"   ⚠️ Abertura animada falhou ({type(e).__name__}: {e}); usando o gancho simples.")
     text = (clip.get('viral_hook_text') or '').strip()
     if not text:
         return None
@@ -1097,6 +1117,20 @@ def render_clip(input_video, final_output_video, output_format="auto",
     # C vertical): app.py sets FORCE_STRATEGY; an explicit editor choice wins.
     if force_strategy is None and not crop_overrides:
         force_strategy = (os.environ.get("FORCE_STRATEGY") or "").strip().upper() or None
+    # Gaming montage (gaming/montagem.py): whole game, no zoom; webcam stacked
+    # on top. Falls through to the classic renderer only if ffmpeg fails.
+    if force_strategy in ("PRO", "PRO_CAM") and not crop_overrides and output_format != "square":
+        from gaming import montagem
+        cam = None
+        if force_strategy == "PRO_CAM":
+            try:
+                w, h = montagem._dimensoes(input_video)
+                cam = montagem.caixa_da_camera(w, h)
+            except Exception:  # noqa: BLE001 - no box: plain montage
+                cam = None
+        if montagem.render(input_video, final_output_video, cam=cam):
+            return True
+        force_strategy = "WIDE"
     aspect = 1.0 if output_format == "square" else ASPECT_RATIO
     return process_video_to_vertical(input_video, final_output_video, aspect_ratio=aspect,
                                      force_strategy=force_strategy,
@@ -1677,17 +1711,31 @@ def gaming_auto_layout(cfg, input_video):
     """Layout "auto" for gameplay: webcam overlay found -> B (game + webcam),
     otherwise A (full screen, HUD kept). The generic reframe tracks faces and
     crops, which on gameplay cuts the HUD and the action."""
-    if (cfg.get("layout") or "auto") != "auto" or os.environ.get("FORCE_STRATEGY"):
+    layout = cfg.get("layout") or "auto"
+    forced = (os.environ.get("FORCE_STRATEGY") or "").upper()
+    # "Jogo + webcam" without a drawn box: find the webcam like "auto" does.
+    if layout != "auto" and not (forced == "PRO_CAM" and not os.environ.get("INSET_BOX")):
         return None
-    strategy = "WIDE"
+    if layout == "auto" and forced:
+        return None
+    strategy = "PRO"
     try:
         import camera_inset
-        if camera_inset.detect(input_video, samples=8):
-            strategy = "INSET"
+        import cv2
+        box = camera_inset.detect(input_video, samples=8)
+        if box:
+            cap = cv2.VideoCapture(input_video)
+            fw, fh = cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            cap.release()
+            if fw and fh:
+                x, y, w, h = box
+                os.environ["INSET_BOX"] = f"{x / fw:.4f},{y / fh:.4f},{w / fw:.4f},{h / fh:.4f}"
+                strategy = "PRO_CAM"
     except Exception as e:  # noqa: BLE001 - detection is a hint, never fatal
-        print(f"⚠️ Detecção de webcam indisponível ({e}); usando tela inteira.")
+        print(f"⚠️ Detecção de webcam indisponível ({e}); usando o jogo inteiro.")
     os.environ["FORCE_STRATEGY"] = strategy
-    label = "B · jogo + webcam (webcam detectada)" if strategy == "INSET" else "A · tela inteira, HUD preservado"
+    label = ("B · webcam em cima, jogo inteiro embaixo (webcam detectada)" if strategy == "PRO_CAM"
+             else "A · jogo inteiro sobre fundo desfocado, sem zoom")
     print(f"🖼️ Enquadramento automático: {label}.")
     return strategy
 

@@ -58,11 +58,11 @@ def test_selected_game_brings_its_category(out):
 
 def test_layout_options_map_to_render_strategies():
     env = lambda **kw: gaming_api.job_env(gaming_api.parse_gaming(kw))  # noqa: E731
-    # A: full screen keeps the whole frame, so the HUD is never cropped
-    assert env(layout="full")["FORCE_STRATEGY"] == "WIDE"
-    # B: gameplay + webcam
-    assert env(layout="webcam")["FORCE_STRATEGY"] == "INSET"
-    # C: Shorts, a fixed centre crop over the whole phone screen (no tracking)
+    # A: the whole game over a blurred copy, never a zoom (gaming/montagem.py)
+    assert env(layout="full")["FORCE_STRATEGY"] == "PRO"
+    # B: webcam on top, the whole game under it
+    assert env(layout="webcam")["FORCE_STRATEGY"] == "PRO_CAM"
+    # C: the old centre crop over the whole phone screen, only when chosen
     assert env(layout="vertical")["FORCE_STRATEGY"] == "CENTER"
     assert "FORCE_STRATEGY" not in env(layout="auto")
 

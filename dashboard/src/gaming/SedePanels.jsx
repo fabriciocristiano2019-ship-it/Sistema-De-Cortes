@@ -12,10 +12,10 @@ const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
 const ACTIVE = ['queued', 'processing'];
 
 const LAYOUT_HINT = {
-  auto: 'O sistema escolhe: jogo inteiro, ou jogo + webcam quando acha a sua câmera.',
-  vertical: 'Formato Shorts/Reels/TikTok: o vídeo ocupa a tela toda do celular. Corta as laterais do jogo.',
-  full: 'Mostra o jogo todo (vida, mapa e placar), com faixas em cima e embaixo.',
-  webcam: 'Jogo em cima e a sua câmera embaixo, maior.',
+  auto: 'Jogo inteiro, sem zoom, sobre fundo desfocado. Se achar a sua webcam, ela vai em cima e o jogo embaixo.',
+  full: 'Jogo inteiro (vida, mapa e placar), sem zoom, sobre uma cópia desfocada. Título em cima, legenda embaixo.',
+  webcam: 'Sua câmera grande em cima e o jogo inteiro embaixo. O canto da câmera dentro do jogo fica desfocado.',
+  vertical: 'Ocupa a tela toda do celular cortando as laterais do jogo (dá efeito de zoom).',
 };
 
 /* Orquestrador ------------------------------------------------------------ */
@@ -83,10 +83,10 @@ export function OrchestratorPanel({
         <div>
           <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-layout"><span className="sede-step">2</span>Enquadramento</label>
           <select id="sede-layout" className="sede-select w-full" disabled={active} value={form.layout} onChange={(e) => set('layout', e.target.value)}>
-            <option value="auto">Automático</option>
-            <option value="vertical">Shorts (tela cheia)</option>
-            <option value="full">Jogo inteiro</option>
-            <option value="webcam">Jogo + webcam</option>
+            <option value="auto">Automático (recomendado)</option>
+            <option value="full">Jogo inteiro + fundo desfocado</option>
+            <option value="webcam">Webcam em cima + jogo</option>
+            <option value="vertical">Tela cheia (corta laterais)</option>
           </select>
         </div>
       </div>

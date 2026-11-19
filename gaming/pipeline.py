@@ -72,10 +72,14 @@ AUXILIARES = [
      "does": "Antes de publicar, avisa se o corte tem música de fundo (risco de direitos autorais)."},
     {"id": "baymax", "name": "Melhor horário", "role": "BAYMAX · Agenda", "module": "schedule",
      "does": "Descobre o dia e a hora em que os seus posts têm mais views."},
+    {"id": "isaac", "name": "Narração", "role": "I.S.A.A.C. · Voz", "module": "editor",
+     "does": "Grava uma voz lendo a pergunta do gancho no começo do corte, com o som do jogo abaixado."},
 ]
 TODOS = AGENTS + AUXILIARES
 
 _STRATEGY_PT = {
+    "PRO": "A · jogo inteiro sobre fundo desfocado",
+    "PRO_CAM": "B · webcam em cima, jogo embaixo",
     "WIDE": "A · tela inteira, HUD preservado",
     "INSET": "B · gameplay com webcam",
     "TRACK": "C · vertical adaptado",
@@ -142,6 +146,14 @@ _RULES = [
     ("editor916", r"Scene engine|Reframe engine v2", None, "detail"),
     ("editor916", r"Processing clip:|Passthrough|Step \d|Found \d+ scenes|No scenes were detected|"
                   r"Frame loop|Clip saved to|Title:", None, "detail"),
+    ("isaac", r"Abertura animada: \"(?P<a>[^\"]+)\" \+ narração: \"(?P<b>[^\"]+)\"",
+     r"Narração gravada: “\g<b>”.", "ok"),
+    ("captions", r"Abertura animada: \"(?P<a>[^\"]+)\"",
+     r"Abertura animada: título “\g<a>” com flash, whoosh e barra de progresso.", "ok"),
+    ("editor916", r"Montagem pro_cam: jogo inteiro",
+     "Montagem: webcam em cima, jogo inteiro embaixo, sem zoom.", "ok"),
+    ("editor916", r"Montagem pro: jogo inteiro", "Montagem: jogo inteiro sobre fundo desfocado, sem zoom.", "ok"),
+    ("editor916", r"Montagem falhou", None, "warn"),
     ("captions", r"Captions burned", "Legendas palavra por palavra aplicadas.", "ok"),
     ("captions", r"Hook burned \((?P<a>[^)]*)\): (?P<b>.+)", r"Gancho inicial aplicado: “\g<b>”.", "ok"),
     ("captions", r"No words in range", "Sem fala neste trecho: corte entregue sem legenda.", "warn"),
@@ -240,7 +252,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
             m = int(mm.group(1))
     total = m
     started = _count(logs, r"Processing Clip \d+:")
-    reframed = _count(logs, r"Reframe v2 total|Reframe v2 failed|Merging\.\.\.")
+    reframed = _count(logs, r"Reframe v2 total|Reframe v2 failed|Merging\.\.\.|Montagem pro")
     ready = _count(logs, r"Clip \d+ ready")
     if clips_ready is not None:
         ready = max(ready, int(clips_ready))
@@ -335,6 +347,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
     states["x51"] = ajudante("vision", seen["x51"])
     states["homer"] = ajudante("vision", seen["homer"])
     states["aida"] = ajudante("slicer", seen["aida"])
+    states["isaac"] = ajudante("captions", seen["isaac"])
     states["herbie"] = states["baymax"] = "idle"
 
     return {
