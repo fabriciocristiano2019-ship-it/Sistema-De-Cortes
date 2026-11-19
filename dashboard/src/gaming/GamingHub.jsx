@@ -528,7 +528,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}
           {view === 'settings' && (
             <Configuracoes nome={nome} onNome={pickNome} theme={theme} onTheme={pickTheme} som={som} onSom={pickSom}
-              onAbrirChaves={() => go('config')} servicoPublicacao={servicoPub} />
+              onAbrirChaves={() => go('config')} servicoPublicacao={servicoPub} onRestaurado={reloadMedia} />
           )}
         </main>
       </div>

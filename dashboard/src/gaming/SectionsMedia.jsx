@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, Loader2, Pencil, Save, Scissors, Send, Type, X, Image as ImageIcon } from 'lucide-react';
+import { Archive, Check, Download, Loader2, Pencil, Save, Scissors, Send, Type, X, Image as ImageIcon } from 'lucide-react';
 import PublicarDialog from './PublicarDialog';
 import { errText, fmtDate, fmtTime, jsonReq, mediaUrl } from './util';
 import { somAprovado } from './sons';
 import { Badge, Empty, Field, Header, Notice, ScoreBar } from './ui';
+import { getApiUrl } from '../config';
 
 function ClipVideo({ clip, className = '' }) {
   if (!clip.video_url) {
@@ -379,6 +380,10 @@ export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub =
           <option value="">Todas as situações</option>
           <option value="pendente">Pendentes</option><option value="aprovado">Aprovados</option><option value="rejeitado">Rejeitados</option>
         </select>
+        <a className="btn-ghost inline-flex items-center gap-1.5" href={getApiUrl('/api/gaming/backup')} download
+          title="Um .zip com todos os cortes e o histórico. Para restaurar: Configurações → Backup.">
+          <Archive size={15} aria-hidden="true" /> Baixar backup
+        </a>
       </Header>
       {list.length === 0 ? <Empty title="Nenhum vídeo aqui">Ajuste os filtros ou processe uma gameplay.</Empty> : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Archive, FileText, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
@@ -9,6 +9,7 @@ import { NOME_PADRAO } from './nome';
 import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
 import { sair } from './sair';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
+import BackupCard from './Backup';
 
 function Card({ icon, title, children, id }) {
   return (
@@ -62,6 +63,7 @@ const ABAS = [
   { id: 'publicacao', label: 'Publicação', icon: Send },
   { id: 'celular', label: 'Celular', icon: Smartphone },
   { id: 'conta', label: 'Conta e chaves', icon: KeyRound },
+  { id: 'backup', label: 'Backup', icon: Archive },
   { id: 'termos', label: 'Termos e privacidade', icon: ShieldCheck },
 ];
 const ABA_KEY = 'os_cfg_aba';
@@ -71,7 +73,7 @@ const abaSalva = () => {
 
 // One subject at a time: a list of sections on the left (a row of tabs on the
 // phone) and only the chosen one open.
-export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false }) {
+export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false, onRestaurado }) {
   const [aba, setAba] = useState(abaSalva);
   const [vol, setVol] = useState(volumeAtual);
   const [autoPub, setAutoPub] = useState(lerAutoPub);
@@ -193,6 +195,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
             </>
           )}
           {aba === 'celular' && <AppCelular />}
+          {aba === 'backup' && <BackupCard onRestaurado={onRestaurado} />}
           {aba === 'conta' && (
             <>
         <Card icon={LogOut} title="Acesso" id="cfg-acesso">

@@ -34,6 +34,7 @@ Abra codespace pelo navegador do celular (github.com/codespaces). Aba **PORTAS**
 - 15 GB armazenamento/mês. Vídeos em `uploads/` e `output/`; apague os que não precisa.
 - **Desliga após 30 minutos sem uso**. Processamento longo: aumente em github.com/settings/codespaces → *Default idle timeout* (até 240 minutos).
 - **Cortes prontos ficam guardados para sempre** na Biblioteca de Vídeos (aprovados ou não), para publicar de novo quando quiser. Depois de 7 dias, ou passando de 10 GB, o sistema apaga só o vídeo original e as cópias intermediárias de cada corte (o corte final fica). Com isso, editar de novo um corte antigo no editor deixa de funcionar; assistir, baixar e publicar continuam. Vídeos enviados: 4 GB. Mudar: `JOB_RETENTION_SECONDS`, `OUTPUT_MAX_GB`, `UPLOADS_MAX_GB` no `.env`.
+- **Backup:** tudo isso fica só dentro do Codespace; apagar o Codespace apaga os cortes e o histórico (o GitHub guarda só o código). Em Configurações → Backup, **Baixar backup** gera um .zip com os cortes prontos e o histórico; **Restaurar backup** traz tudo de volta num Codespace novo, sem apagar nada. As chaves não vão no backup.
 - O disco do codespace tem ~32 GB: cada corte final ocupa uns 10 a 50 MB. Apague o codespace e os cortes vão junto.
 - **Pare o codespace ao terminar** (github.com/codespaces → ⋯ → Stop): ligado gasta horas mesmo parado.
 

@@ -44,7 +44,7 @@ import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
-from gaming import library, pipeline, postiz, profiles
+from gaming import backup, library, pipeline, postiz, profiles
 import youtube_canais
 from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
 from gaming.moments import fmt_ts
@@ -424,6 +424,87 @@ def _job_layout(job_dir):
             return json.load(f).get("layout")
     except (OSError, ValueError):
         return None
+
+
+# --------------------------------------------------------------------------- #
+# Backup (gaming/backup.py): one .zip with every finished clip and the history,
+# to take to a new codespace. The restore arrives in parts (Codespaces' port
+# forwarding refuses a big file in one request), like a gameplay upload.
+# --------------------------------------------------------------------------- #
+_RESTAURACOES = {}
+_RESTAURA_TTL = 6 * 3600
+_RESTAURA_PARTE = 32 * 1024 * 1024
+
+
+def _restauracao(rid):
+    _check_id(rid, "id")
+    r = _RESTAURACOES.get(rid)
+    if not r or time.time() - r["criado"] > _RESTAURA_TTL:
+        raise HTTPException(status_code=404, detail="Envio do backup expirado. Escolha o arquivo de novo.")
+    return r
+
+
+@router.get("/api/gaming/backup/resumo")
+async def backup_resumo():
+    return await asyncio.to_thread(backup.resumo, _out(), tem_cortes, _clip_url)
+
+
+@router.get("/api/gaming/backup")
+def backup_baixar():
+    from fastapi.responses import StreamingResponse
+    nome = f"backup-cortes-{datetime.now().strftime('%Y-%m-%d')}.zip"
+    return StreamingResponse(backup.gerar_zip(_out(), tem_cortes, _clip_url), media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{nome}"',
+                                      "Cache-Control": "no-store"})
+
+
+@router.post("/api/gaming/backup/restauracao")
+async def backup_restauracao_nova():
+    pasta = os.path.join(_out(), "gaming", ".restaurar")
+    os.makedirs(pasta, exist_ok=True)
+    agora = time.time()
+    for rid, r in list(_RESTAURACOES.items()):          # forget abandoned ones
+        if agora - r["criado"] > _RESTAURA_TTL:
+            _RESTAURACOES.pop(rid, None)
+            try:
+                os.remove(r["path"])
+            except OSError:
+                pass
+    rid = uuid.uuid4().hex
+    _RESTAURACOES[rid] = {"path": os.path.join(pasta, rid + ".zip"), "criado": agora}
+    open(_RESTAURACOES[rid]["path"], "wb").close()
+    return {"id": rid}
+
+
+@router.put("/api/gaming/backup/restauracao/{rid}/parte")
+async def backup_restauracao_parte(rid: str, request: Request, offset: int = 0):
+    r = _restauracao(rid)
+    atual = os.path.getsize(r["path"]) if os.path.exists(r["path"]) else 0
+    corpo = await request.body()
+    if not corpo or len(corpo) > _RESTAURA_PARTE:
+        raise HTTPException(status_code=400, detail="Pedaço vazio ou grande demais.")
+    if offset + len(corpo) <= atual:
+        return {"bytes": atual, "repetido": True}
+    if offset != atual:
+        raise HTTPException(status_code=409, detail=f"Pedaço fora de ordem: esperado a partir do byte {atual}.")
+    with open(r["path"], "ab") as f:
+        f.write(corpo)
+    return {"bytes": atual + len(corpo)}
+
+
+@router.post("/api/gaming/backup/restauracao/{rid}/concluir")
+async def backup_restauracao_concluir(rid: str):
+    r = _restauracao(rid)
+    try:
+        return await asyncio.to_thread(backup.restaurar, _out(), r["path"])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        _RESTAURACOES.pop(rid, None)
+        try:
+            os.remove(r["path"])
+        except OSError:
+            pass
 
 
 @router.get("/api/gaming/clips")

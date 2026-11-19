@@ -16,7 +16,7 @@ export function mensagemHttp(status, text) {
   return text || `Erro ${status}`;
 }
 
-async function pedir(path, opts) {
+export async function pedir(path, opts) {
   const res = await apiFetch(path, opts);
   const text = await res.text();
   if (!res.ok) {
