@@ -25,18 +25,6 @@ function useDeitado() {
   return on;
 }
 
-// Black or white text, whichever contrasts more with the badge colour (WCAG
-// relative luminance): white on the light cyan/blue badges read at 2.4:1.
-function inkOn(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return '#fff';
-  const lin = (i) => { const c = parseInt(m[1].slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
-  const L = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
-  return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? '#0b1020' : '#fff';
-}
-
-
-
 const BADGE = {
   idle: { label: 'PRONTO', cls: 'text-brass border-brass/30 bg-brass/10' },
   waiting: { label: 'AGUARDANDO', cls: 'text-warn border-warn/35 bg-warn/10' },
@@ -61,7 +49,7 @@ function lineStyle(state) {
   return { stroke: 'var(--sede-line)', width: 1.5 };
 }
 
-function AgentRoom({ agent, onOpen, detail, className = '', style }) {
+function AgentRoom({ agent, onOpen, detail, className = '', style, theme }) {
   const look = LOOK[agent.id] || { color: '#64748b' };
   const badge = BADGE[agent.state] || BADGE.idle;
   const working = agent.state === 'working';
@@ -87,10 +75,10 @@ function AgentRoom({ agent, onOpen, detail, className = '', style }) {
         </span>
       </span>
       <span
-        className="flex items-center gap-2 rounded-xl border border-rule px-2 py-2 mb-2"
+        className="flex items-center gap-2 rounded-xl border border-rule px-1.5 py-1 mb-2"
         style={{ background: `linear-gradient(100deg, color-mix(in oklab, ${look.color} 17%, var(--color-paper)) 0%, var(--color-paper) 88%)` }}
       >
-        <span className="grid place-items-center h-6 w-7 rounded-md text-[10px] font-extrabold shrink-0" style={{ background: look.color, color: inkOn(look.color) }}>IA</span>
+        <JarvisOrb size={40} busy={working} theme={theme} color={look.color} className="shrink-0" />
         <span className="flex-1 min-w-0 flex items-center">
           <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={14} height={18}
             color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
@@ -129,7 +117,7 @@ function Linhas({ agents, reduceMotion, posicoes = LOOK }) {
 }
 
 // Compact room for phones: icon, live wave and name.
-function AgentMini({ agent, onOpen, style }) {
+function AgentMini({ agent, onOpen, style, theme }) {
   const look = LOOK[agent.id] || { color: '#64748b' };
   const badge = BADGE[agent.state] || BADGE.idle;
   const working = agent.state === 'working';
@@ -139,8 +127,7 @@ function AgentMini({ agent, onOpen, style }) {
       className={`absolute z-10 flex w-[84px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-xl border bg-paper2/95 px-1 pb-1.5 pt-1.5 text-center transition-transform duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${working ? 'scale-105' : 'border-rule2'}`}
       style={{ ...style, ...(working ? { borderColor: look.color, boxShadow: `0 0 0 1px ${look.color}, 0 0 18px ${look.color}66` } : { boxShadow: 'var(--sede-card-shadow)' }) }}>
       <span className="flex w-full items-center justify-center gap-1">
-        <span className={`grid h-6 w-6 place-items-center rounded-md text-[9px] font-extrabold ${working ? 'animate-pulse' : ''}`}
-          style={{ background: look.color, color: inkOn(look.color) }}>IA</span>
+        <JarvisOrb size={30} busy={working} theme={theme} color={look.color} className="shrink-0" />
         <Wave mode={working ? 'on' : agent.state === 'done' ? 'done' : 'rest'} bars={7} height={14}
           color={working || agent.state === 'done' ? look.color : 'var(--color-muted)'} />
       </span>
@@ -165,10 +152,10 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
       <div className="sede-mini relative sede-map select-none">
         <Linhas agents={agents} reduceMotion={reduceMotion} posicoes={posMini} />
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className={`relative h-[104px] w-[104px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
+          <div className={`relative h-[150px] w-[150px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
             style={{ background: 'radial-gradient(circle, var(--sede-map) 55%, transparent 72%)' }}>
             {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
-            <JarvisOrb size={104} busy={busy} theme={theme} className="absolute inset-0" />
+            <JarvisOrb size={150} busy={busy} theme={theme} className="absolute inset-0" />
             <span className="absolute inset-x-0 -bottom-4 flex flex-col items-center">
               <span className="text-[9.5px] font-extrabold tracking-[0.16em] text-ink" style={{ textShadow: '0 0 12px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
               <span className={`mt-0.5 rounded-full px-1.5 py-px text-[8px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
@@ -178,12 +165,12 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         {agents.map((a) => {
           const look = posMini[a.id];
           if (!look) return null;
-          return <AgentMini key={a.id} agent={a} onOpen={onOpen}
+          return <AgentMini key={a.id} agent={a} onOpen={onOpen} theme={theme}
             style={{ left: `${look.x}%`, top: `${look.y}%` }} />;
         })}
       </div>
 
-      <div className="sede-full relative sede-map h-[600px] select-none">
+      <div className="sede-full relative sede-map h-[680px] select-none">
         <p className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-ink">
           <Radio size={13} className="text-ok" aria-hidden="true" />
           SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : 'EDIÇÃO CLÁSSICA NEON'}
@@ -195,12 +182,12 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         <Linhas agents={agents} reduceMotion={reduceMotion} />
 
         <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className={`relative h-44 w-44 rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
+          <div className={`relative h-[290px] w-[290px] rounded-full transition-transform duration-700 ${busy ? 'scale-105' : ''}`}
             style={{ background: 'radial-gradient(circle, var(--sede-map) 55%, transparent 72%)' }}>
             {[1, 2, 3].map((n) => <span key={n} className={`sede-ripple r${n} ${busy && !reduceMotion ? 'sede-ripple-on' : ''}`} aria-hidden="true" />)}
-            <JarvisOrb size={176} busy={busy} theme={theme} className="absolute inset-0" />
+            <JarvisOrb size={290} busy={busy} theme={theme} className="absolute inset-0" />
             <span className="absolute inset-x-0 -bottom-3 flex flex-col items-center">
-              <span className="text-[11px] font-extrabold tracking-[0.18em] text-ink" style={{ textShadow: '0 0 12px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
+              <span className="text-[15px] font-extrabold tracking-[0.2em] text-ink" style={{ textShadow: '0 0 16px var(--sede-glow)' }}>J.A.R.V.I.S.</span>
               <span className={`mt-1 rounded-full px-2 py-px text-[8.5px] font-extrabold tracking-wider ${coreBadge.cls}`}>{coreBadge.label}</span>
             </span>
           </div>
@@ -210,7 +197,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
           const look = LOOK[a.id];
           if (!look) return null;
           return (
-            <AgentRoom key={a.id} agent={a} onOpen={onOpen} detail={details[a.id]}
+            <AgentRoom key={a.id} agent={a} onOpen={onOpen} detail={details[a.id]} theme={theme}
               className="absolute z-10 -translate-x-1/2 -translate-y-1/2 hover:!-translate-y-[calc(50%+2px)]"
               style={{ left: `${look.x}%`, top: `${look.y}%`, width: 'clamp(138px, 19%, 176px)' }} />
           );

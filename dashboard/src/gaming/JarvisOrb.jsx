@@ -29,7 +29,15 @@ function buildSphere(n) {
   return { pts, edges: [...edges].map((e) => e.split('-').map(Number)) };
 }
 
-export default function JarvisOrb({ size = 160, busy = false, theme = 'classic', className = '' }) {
+// color: the sphere's own colour (each agent has one). Without it the sphere
+// is J.A.R.V.I.S. himself: bright cyan, the brain of the room.
+function rgbDe(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return null;
+  return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+}
+
+export default function JarvisOrb({ size = 160, busy = false, theme = 'classic', className = '', color = null }) {
   const ref = useRef(null);
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -43,9 +51,13 @@ export default function JarvisOrb({ size = 160, busy = false, theme = 'classic',
     cv.height = size * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const dark = theme !== 'nova';
-    const rgb = dark ? '110, 215, 255' : '14, 116, 190';
-    const core = dark ? '190, 245, 255' : '8, 80, 150';
-    const { pts, edges } = buildSphere(size > 80 ? 150 : 56);
+    const proprio = rgbDe(color);
+    const rgb = proprio ? proprio.join(', ') : dark ? '0, 229, 255' : '0, 140, 190';
+    // The heart: the colour pushed towards white (dark) or kept deep (light).
+    const core = proprio
+      ? proprio.map((c) => (dark ? Math.round(c + (255 - c) * 0.6) : Math.round(c * 0.75))).join(', ')
+      : dark ? '200, 250, 255' : '0, 95, 140';
+    const { pts, edges } = buildSphere(size > 200 ? 230 : size > 80 ? 150 : size > 44 ? 56 : 40);
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const proj = pts.map(() => [0, 0, 0]);
     let angle = 0.6;
@@ -121,7 +133,7 @@ export default function JarvisOrb({ size = 160, busy = false, theme = 'classic',
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [size, theme]);
+  }, [size, theme, color]);
 
   return <canvas ref={ref} className={className} style={{ width: size, height: size }} aria-hidden="true" />;
 }
