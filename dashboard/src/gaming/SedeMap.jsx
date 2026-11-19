@@ -55,7 +55,7 @@ function AgentNode({ agent, onOpen, detail, theme, size, compact, style }) {
       title={`${nome}: ${agent.does}${detail ? `\n${detail}` : ''}\nClique para abrir o módulo.`}
       aria-label={`${nome}, ${agent.name}: ${badge.label.toLowerCase()}. Abrir módulo.`}
       className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center transition-transform duration-300 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass rounded-2xl ${working ? 'scale-110' : ''}`}
-      style={{ ...style, width: compact ? 64 : 128 }}>
+      style={{ ...style, width: compact ? 70 : 140 }}>
       <span className="relative grid place-items-center rounded-full"
         style={working ? { filter: `drop-shadow(0 0 14px ${look.color})` } : undefined}>
         <JarvisOrb size={size} busy={working} theme={theme} color={look.color} />
@@ -126,12 +126,12 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
         </div>
         {agents.map((a) => {
           const p = posMini[a.id];
-          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={36} compact
+          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={50} compact
             detail={details[a.id]} style={{ left: `${p.x}%`, top: `${p.y}%` }} />;
         })}
       </div>
 
-      <div className="sede-full relative sede-map h-[680px] select-none">
+      <div className="sede-full relative sede-map h-[760px] select-none">
         <p className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full border border-rule2 bg-paper2/90 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-ink">
           <Radio size={13} className="text-ok" aria-hidden="true" />
           SEDE VIRTUAL — {theme === 'nova' ? 'EDIÇÃO NOVA CORPORATIVA' : 'EDIÇÃO CLÁSSICA NEON'}
@@ -156,7 +156,7 @@ export default function SedeMap({ agents, core, theme, onOpen, details = {} }) {
 
         {agents.map((a) => {
           const p = posFull[a.id];
-          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={58}
+          return p && <AgentNode key={a.id} agent={a} onOpen={onOpen} theme={theme} size={88}
             detail={details[a.id]} style={{ left: `${p.x}%`, top: `${p.y}%` }} />;
         })}
       </div>
