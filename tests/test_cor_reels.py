@@ -1,7 +1,7 @@
 """Colour and safe zone of the delivered clip (reel-export skill, 19-nov-2026).
 
-Measured before the fix: no colour tags on the file, and the yellow active
-word of the captions came out #FFD900 instead of #FFE500 on a BT.709 player.
+Measured before the fix: no colour tags on the file, and captions reaching
+into the bottom 500 px that Reels/TikTok cover.
 """
 import json
 import shutil
@@ -35,7 +35,7 @@ def _rgb_no_meio(path):
     return out[0], out[1], out[2]
 
 
-def test_caption_yellow_keeps_its_colour_and_the_file_is_tagged(tmp_path):
+def test_burning_captions_keeps_the_frame_and_tags_the_file(tmp_path):
     base = str(tmp_path / "base.mp4")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x202020:s=1080x1920:d=1:r=30",
                     "-c:v", "libx264", "-crf", "12", base], check=True)
@@ -44,7 +44,16 @@ def test_caption_yellow_keeps_its_colour_and_the_file_is_tagged(tmp_path):
     out = str(tmp_path / "out.mp4")
     assert subtitles.burn_subtitles(base, str(ass), out) is not False
     r, g, b = _rgb_no_meio(out)
-    assert abs(r - 0xFF) <= 3 and abs(g - 0xE5) <= 4 and b <= 6, (r, g, b)   # was 0xD9 green
+    assert r >= 0xF5 and 0xCC <= g <= 0xEC and b <= 0x14, (r, g, b)    # still a bright yellow
+    # The frame around it is untouched: a version-dependent RGB round trip
+    # once turned the whole picture grey on GitHub's runner.
+    fundo = subprocess.run(["ffmpeg", "-v", "error", "-ss", "0.5", "-i", out, "-frames:v", "1", "-vf",
+                            "crop=8:8:40:40,format=gray", "-f", "rawvideo", "-"],
+                           capture_output=True, check=True).stdout
+    base_y = subprocess.run(["ffmpeg", "-v", "error", "-ss", "0.5", "-i", base, "-frames:v", "1", "-vf",
+                             "crop=8:8:40:40,format=gray", "-f", "rawvideo", "-"],
+                            capture_output=True, check=True).stdout
+    assert abs(fundo[0] - base_y[0]) <= 2, (fundo[0], base_y[0])
     info = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                                       "stream=color_range,color_space,color_primaries,color_transfer",
                                       "-of", "json", out], capture_output=True, check=True).stdout)["streams"][0]

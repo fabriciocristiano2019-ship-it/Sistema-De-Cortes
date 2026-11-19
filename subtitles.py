@@ -624,12 +624,11 @@ def burn_subtitles(video_path, srt_path, output_path, alignment=2, fontsize=16,
         vf = (f"subtitles=filename='{safe_srt_path}':fontsdir='{safe_fonts_dir}'"
               f":charenc=UTF-8:force_style='{style_string}'")
 
-    # libass draws in RGB and ffmpeg blends it into the frame with the old
-    # BT.601 matrix, so the yellow active word came out #FFD900 instead of
-    # #FFE500 on a BT.709 player (measured). Burning on an RGB copy converted
-    # with BT.709 both ways keeps every caption colour as designed.
-    vf = (f"scale=in_color_matrix=bt709:in_range=tv,format=rgb24,{vf},"
-          "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p")
+    # Not done on purpose: burning on an RGB copy (BT.709 both ways) fixed the
+    # yellow word with this machine's ffmpeg 6.1, but GitHub's runner turned
+    # the whole frame darker and greyer with the same command (swscale range
+    # handling differs by build/CPU). A slightly orange yellow beats a washed
+    # out clip on some machine: keep the frame in YUV.
 
     cmd = [
         'ffmpeg', '-y',
