@@ -282,6 +282,16 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
       publicacao?.publicar(c);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
+  // Rejecting only marks the clip: the video stays in the library (Módulos →
+  // Vídeos, filter "Rejeitados") to look at again, and can still be approved.
+  const reject = async (c) => {
+    const key = `${c.job_id}:${c.clip_index}`;
+    setBusy(key); setErr('');
+    try {
+      await jsonReq(`/api/gaming/clips/${c.job_id}/${c.clip_index}`, 'PATCH', { approved: false });
+      await onReload();
+    } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
+  };
   return (
     <section aria-label="Cortes identificados" className="rounded-[20px] border border-rule2 bg-paper2 p-4 min-w-0" style={{ boxShadow: 'var(--sede-card-shadow)' }}>
       <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
@@ -333,21 +343,34 @@ export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEdito
                     <p className="mt-1.5 text-[11px] text-muted line-clamp-2" title={c.evidence.join(' · ')}>Evidências: {c.evidence.join(' · ')}</p>
                   )}
                   <div className="flex-1 min-h-3" />
-                  <div className="flex items-center gap-2 border-t border-rule pt-3">
-                    {c.status === 'aprovado' ? (
-                      <span className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ok/40 py-1.5 text-xs font-bold text-ok"><Check size={14} /> Aprovado</span>
-                    ) : (
-                      <button type="button" disabled={!ready || busy === key} onClick={(e) => { e.stopPropagation(); approve(c); }}
-                        className="sede-btn-accent flex flex-1 items-center justify-center gap-1.5 !py-1.5 disabled:opacity-50">
-                        {busy === key ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        {ready ? 'Aprovar' : 'Renderizando…'}
-                      </button>
+                  <div className="space-y-2 border-t border-rule pt-3">
+                    <div className="flex items-center gap-2">
+                      {c.status === 'aprovado' ? (
+                        <span className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ok/40 py-1.5 text-xs font-bold text-ok"><Check size={14} /> Aprovado</span>
+                      ) : (
+                        <button type="button" disabled={!ready || busy === key} onClick={(e) => { e.stopPropagation(); approve(c); }}
+                          className="sede-btn-accent flex flex-1 items-center justify-center gap-1.5 !py-1.5 disabled:opacity-50">
+                          {busy === key ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          {ready ? (c.status === 'rejeitado' ? 'Aprovar mesmo assim' : 'Aprovar') : 'Renderizando…'}
+                        </button>
+                      )}
+                      {ready && (
+                        <a href={mediaUrl(c.video_url)} download onClick={(e) => e.stopPropagation()} title="Baixar o MP4" aria-label="Baixar o MP4 deste corte"
+                          className="grid h-8 w-8 place-items-center rounded-lg border border-rule2 text-ink2 hover:border-brass hover:text-brass">
+                          <Download size={14} />
+                        </a>
+                      )}
+                    </div>
+                    {ready && c.status === 'rejeitado' && (
+                      <p className="flex items-center justify-center gap-1.5 rounded-lg border border-danger/40 bg-danger/10 py-1.5 text-xs font-bold text-danger">
+                        <X size={14} aria-hidden="true" /> Rejeitado · guardado na Biblioteca
+                      </p>
                     )}
-                    {ready && (
-                      <a href={mediaUrl(c.video_url)} download onClick={(e) => e.stopPropagation()} title="Baixar o MP4" aria-label="Baixar o MP4 deste corte"
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-rule2 text-ink2 hover:border-brass hover:text-brass">
-                        <Download size={14} />
-                      </a>
+                    {ready && c.status !== 'aprovado' && c.status !== 'rejeitado' && (
+                      <button type="button" disabled={busy === key} onClick={(e) => { e.stopPropagation(); reject(c); }}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-danger/50 py-1.5 text-xs font-bold text-danger hover:bg-danger/10 disabled:opacity-50">
+                        <X size={14} aria-hidden="true" /> Rejeitar
+                      </button>
                     )}
                   </div>
                 </div>
