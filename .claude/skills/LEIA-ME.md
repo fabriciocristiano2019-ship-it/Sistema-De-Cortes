@@ -22,6 +22,27 @@ Cópias fiéis dos originais, sem alteração no conteúdo. Cada pasta traz a li
 - Nenhuma skill daqui pode receber chave de API colada no chat.
 - **Motion graphics (charlie947):** comece pelo `brand-intake` só se quiser um padrão visual próprio; ele cria `brand.md`, `MOTION.md` e acrescenta um bloco ao `CLAUDE.md` (confira antes de commitar: o `CLAUDE.md` daqui tem a regra de só subir com ordem do dono). Algumas skills sugerem instalar outras (`emilkowalski/skills` apple-design): pergunte antes. Para exportar, use a `hyperframes` já instalada (telemetria desligada). `motion-prompt-writer` e `reference-to-motion` escrevem prompts para o Claude Motion; não constroem nada sozinhas. Os `.zip` da pasta `downloads` do repositório original vieram vazios e não foram copiados.
 
+## Plugins oficiais da Anthropic (`.claude/settings.json`)
+
+Ligados no projeto a partir de `anthropics/claude-plugins-official` (Apache-2.0, commit d7d3279):
+`frontend-design` (painel React), `code-review` e `pr-review-toolkit` (revisão), `feature-dev` (funções novas
+passo a passo), `code-simplifier` (limpeza de código) e `claude-md-management` (manter o CLAUDE.md em dia).
+
+- No seu PC: abra o Claude Code nesta pasta, aceite a confiança da pasta e rode uma vez
+  `claude plugin install <nome>@claude-plugins-official --scope project` para cada um.
+- Sessões na nuvem (claude.ai/code) **não** carregam plugins do repositório; lá valem as skills desta pasta.
+- Fora de propósito: `security-guidance` (instala um SDK a cada sessão e chama a API do Claude a cada resposta,
+  custo escondido), os de LSP (pedem programas extras), `playwright` (o projeto já testa com Playwright direto)
+  e os de outras linguagens ou serviços.
+
+## Headroom (headroomlabs-ai/headroom, Apache-2.0): no seu Claude Code, não no sistema
+
+Comprime o que a IA lê para gastar menos tokens. Não entra no código do sistema: ele comprime mensagens no
+formato OpenAI/Anthropic, e o sistema fala com o Gemini pela biblioteca `google-genai`; e o que vai para a IA é
+transcrição (texto corrido) e imagens, onde o próprio projeto mede economia pequena. Onde ajuda: nas suas
+sessões longas do Claude Code no PC, com `uv tool install --python 3.13 "headroom-ai[all]"` e `headroom wrap claude`
+(desfaz com `headroom unwrap claude`).
+
 ## Avaliados e não instalados
 
 | Repositório | Motivo |

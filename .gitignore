@@ -38,6 +38,7 @@ output/
 .agent/
 .claude/*
 !.claude/skills/
+!.claude/settings.json
 # skills/ holds third-party installs (symlinks); our own published skill is versioned
 skills/*
 !skills/openshorts/
