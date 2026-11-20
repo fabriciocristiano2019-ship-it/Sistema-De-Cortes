@@ -23,6 +23,9 @@ where curl >nul 2>nul
 if not errorlevel 1 (
     for /f "usebackq delims=" %%Q in (`curl -s -m 5 "http://localhost:%PORTA_API%/api/gaming/queue" 2^>nul`) do set "FILA=%%Q"
 )
+rem With the access password on, the answer is a login error (no
+rem jobs_active): only a real queue answer can mean "busy".
+if defined FILA echo !FILA! | findstr "jobs_active" >nul || set "FILA="
 if defined FILA (
     echo !FILA! | findstr /R "jobs_active.:0" >nul
     if errorlevel 1 (

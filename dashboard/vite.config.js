@@ -27,6 +27,8 @@ export default defineConfig({
     allowedHosts: [
       // GitHub Codespaces: the panel is opened at <name>-5173.app.github.dev
       '.app.github.dev',
+      // Tailscale (painel no PC de casa aberto pelo celular): <pc>.<rede>.ts.net
+      '.ts.net',
       'openshorts.app',
       'www.openshorts.app'
     ],
