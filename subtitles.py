@@ -275,22 +275,24 @@ SAFE_MARGIN_V = 75
 # fully opaque (dimming it tested worse over bright scenes). This is a starting
 # point, not a cage — the subtitle modal still overrides every field.
 AUTO_CAPTION_STYLE = {
+    # 19-nov-2026: the owner's model Short - heavy rounded sans in capitals,
+    # white with a purple outline, the spoken word in pink, 1-3 words at a time.
     "style": "karaoke",
     "alignment": "bottom",
-    "font_name": "Anton",
-    "font_size": 32,          # was 44: the owner found it too big (18-nov-2026)
+    "font_name": "Montserrat Black",
+    "font_size": 19,
     "font_color": "#FFFFFF",
-    "highlight_color": "#FFE500",
-    "border_color": "#000000",
-    "border_width": 4,
-    "effect": "bounce",       # the spoken word jumps (more alive than "pop")
+    "highlight_color": "#FF4FD8",
+    "border_color": "#5B0FA8",
+    "border_width": 2,
+    "effect": "pop",          # the spoken word swells a little
     "base_opacity": 1.0,
     "uppercase": True,
-    "max_chars": 14,          # with Anton at this size, 14 never reaches the edges
+    "max_chars": 16,
     "max_duration": 1.4,
     "max_words": 3,           # short punchy groups, the Shorts/TikTok rhythm
     "clean_punct": True,      # no stray commas and periods on screen
-    "shadow": 2,              # soft drop shadow for bright backgrounds
+    "shadow": 0.8,            # soft drop shadow for bright backgrounds
     "bridge_gap": 0.35,       # hold through short pauses instead of blinking
 }
 

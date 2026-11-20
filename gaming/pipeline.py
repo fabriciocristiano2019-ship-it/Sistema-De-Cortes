@@ -78,8 +78,8 @@ AUXILIARES = [
 TODOS = AGENTS + AUXILIARES
 
 _STRATEGY_PT = {
-    "PRO": "A · jogo inteiro sobre fundo desfocado",
-    "PRO_CAM": "B · webcam em cima, jogo embaixo",
+    "PRO": "Shorts · jogo em tela cheia",
+    "PRO_CAM": "Shorts · webcam em cima, jogo embaixo",
     "WIDE": "A · tela inteira, HUD preservado",
     "INSET": "B · gameplay com webcam",
     "TRACK": "C · vertical adaptado",
@@ -149,10 +149,10 @@ _RULES = [
     ("isaac", r"Abertura animada: \"(?P<a>[^\"]+)\" \+ narração: \"(?P<b>[^\"]+)\"",
      r"Narração gravada: “\g<b>”.", "ok"),
     ("captions", r"Abertura animada: \"(?P<a>[^\"]+)\"",
-     r"Abertura animada: título “\g<a>” com flash, whoosh e barra de progresso.", "ok"),
-    ("editor916", r"Montagem pro_cam: jogo inteiro",
-     "Montagem: webcam em cima, jogo inteiro embaixo, sem zoom.", "ok"),
-    ("editor916", r"Montagem pro: jogo inteiro", "Montagem: jogo inteiro sobre fundo desfocado, sem zoom.", "ok"),
+     r"Título na faixa vermelha: “\g<a>”, com flash e whoosh na entrada.", "ok"),
+    ("editor916", r"Montagem shorts_cam:",
+     "Montagem Shorts: webcam no cartão neon em cima, jogo em tela cheia embaixo.", "ok"),
+    ("editor916", r"Montagem shorts:", "Montagem Shorts: jogo em tela cheia.", "ok"),
     ("editor916", r"Montagem falhou", None, "warn"),
     ("captions", r"Captions burned", "Legendas palavra por palavra aplicadas.", "ok"),
     ("captions", r"Hook burned \((?P<a>[^)]*)\): (?P<b>.+)", r"Gancho inicial aplicado: “\g<b>”.", "ok"),
@@ -252,7 +252,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
             m = int(mm.group(1))
     total = m
     started = _count(logs, r"Processing Clip \d+:")
-    reframed = _count(logs, r"Reframe v2 total|Reframe v2 failed|Merging\.\.\.|Montagem pro")
+    reframed = _count(logs, r"Reframe v2 total|Reframe v2 failed|Merging\.\.\.|Montagem shorts")
     ready = _count(logs, r"Clip \d+ ready")
     if clips_ready is not None:
         ready = max(ready, int(clips_ready))

@@ -11,12 +11,6 @@ const CLIP_COUNTS = [1, 3, 5, 8, 10, 15, 20, 30];
 
 const ACTIVE = ['queued', 'processing'];
 
-const LAYOUT_HINT = {
-  auto: 'Jogo inteiro, sem zoom, sobre fundo desfocado. Se achar a sua webcam, ela vai em cima e o jogo embaixo.',
-  full: 'Jogo inteiro (vida, mapa e placar), sem zoom, sobre uma cópia desfocada. Título em cima, legenda embaixo.',
-  webcam: 'Sua câmera grande em cima e o jogo inteiro embaixo. O canto da câmera dentro do jogo fica desfocado.',
-  vertical: 'Ocupa a tela toda do celular cortando as laterais do jogo (dá efeito de zoom).',
-};
 
 /* Orquestrador ------------------------------------------------------------ */
 
@@ -81,17 +75,12 @@ export function OrchestratorPanel({
           </select>
         </div>
         <div>
-          <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-layout"><span className="sede-step">2</span>Enquadramento</label>
-          <select id="sede-layout" className="sede-select w-full" disabled={active} value={form.layout} onChange={(e) => set('layout', e.target.value)}>
-            <option value="auto">Automático (recomendado)</option>
-            <option value="full">Jogo inteiro + fundo desfocado</option>
-            <option value="webcam">Webcam em cima + jogo</option>
-            <option value="vertical">Tela cheia (corta laterais)</option>
-          </select>
+          <p className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5"><span className="sede-step">2</span>Formato</p>
+          <p className="sede-select flex w-full items-center !bg-none" aria-label="Formato do corte">Shorts (tela cheia)</p>
         </div>
       </div>
 
-      {!active && <p className="mb-3 text-[10.5px] leading-snug text-muted">{LAYOUT_HINT[form.layout] || LAYOUT_HINT.auto}</p>}
+      {!active && <p className="mb-3 text-[10.5px] leading-snug text-muted">Formato dos Shorts: com webcam, ela vai num cartão em cima e o jogo embaixo; sem webcam, o jogo ocupa a tela toda.</p>}
 
       <div className="mb-3">
         <label className="flex items-center gap-2 text-xs font-bold text-ink mb-1.5" htmlFor="sede-qtd"><span className="sede-step">3</span>Quantidade de cortes</label>

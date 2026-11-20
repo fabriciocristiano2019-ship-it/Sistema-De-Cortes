@@ -1,30 +1,34 @@
-"""Montagem profissional 9:16 para gameplay (owner, 19-nov-2026).
+"""Montagem dos Shorts no modelo escolhido pelo dono (19-nov-2026).
 
-The old default cut the middle third of a 16:9 frame and blew it up to fill
-the phone: a zoom on whoever stood in the centre, HUD and action cut off. Pro
-gaming Shorts do it differently, and so does this:
+One format only, copied from the reference Short the owner sent (a gameplay
+reaction with the streamer's webcam on top):
 
-  sem webcam   the WHOLE game (HUD included) across the full width, over a
-               blurred, darkened copy of itself; the empty band above it holds
-               the animated title, the one below it the captions.
-  com webcam   the streamer's camera enlarged on TOP, the whole game under it
-               (stacked: action and reaction both in view, same place in every
-               clip). The webcam corner inside the game is blurred so the face
-               does not show twice.
+  com webcam   dark purple background with a magenta glow; the webcam in a
+               card with rounded corners and a thin neon border on top
+               (x 44-1036, y 84-716); the game full width and full height from
+               the seam down (y 760-1920, sides cropped like any Short). The
+               title (a torn red paper strip) sits on the seam - drawn by
+               gaming/acabamento.py.
+  sem webcam   the game fills the whole phone screen.
 
-Pure ffmpeg, one pass, no zoom anywhere. A sidecar <clip>.montagem.json tells
-the finishing step (title, captions, progress bar) where everything is.
+Pure ffmpeg plus two still images drawn once with PIL (background + neon
+frame, and the rounded-corner mask). A sidecar <clip>.montagem.json tells the
+finishing step where the title and captions go.
 """
 import json
 import os
 import subprocess
+import tempfile
 
 from ffmpeg_utils import METADATA_SCRUB, QUALITY_FAST, audio_encode_args, video_encode_args
 
 W, H = 1080, 1920
 TOPO_SEGURO = 200          # platform UI over the top ~10%
 BASE_SEGURA = 1420         # nothing important below this (Reels/TikTok UI)
-CAM_H = 600                # camera band height when stacked
+CARTAO = (44, 84, 992, 632)   # webcam card: x, y, w, h
+RAIO = 34
+Y_JOGO = 760               # the game starts here when the webcam is on top
+CAM_H = Y_JOGO             # kept for callers: height of the camera area
 
 
 def _par(n):
@@ -33,49 +37,59 @@ def _par(n):
 
 
 def geometria(src_w, src_h, cam=None):
-    """Where the game (and camera) go on the 1080x1920 canvas."""
-    jogo_h = _par(W * src_h / max(src_w, 1))
+    """Where things go on the 1080x1920 canvas."""
     if cam:
-        y_jogo = CAM_H
-        return {"tipo": "pro_cam", "jogo": [y_jogo, y_jogo + jogo_h], "cam": [0, CAM_H],
-                "titulo_y": CAM_H, "legenda_base": min(BASE_SEGURA, y_jogo + jogo_h + 190)}
-    # Game a little above the middle: title band on top, captions under it.
-    y_jogo = _par(max(TOPO_SEGURO + 420, (H - jogo_h) / 2 - 40))
-    return {"tipo": "pro", "jogo": [y_jogo, y_jogo + jogo_h], "cam": None,
-            "titulo_y": (TOPO_SEGURO + y_jogo) // 2 + 20,
-            "legenda_base": min(BASE_SEGURA, y_jogo + jogo_h + 190)}
+        x, y, w, h = CARTAO
+        return {"tipo": "shorts_cam", "jogo": [Y_JOGO, H], "cam": [y, y + h],
+                "titulo_y": Y_JOGO + 86, "legenda_base": BASE_SEGURA}
+    return {"tipo": "shorts", "jogo": [0, H], "cam": None,
+            "titulo_y": TOPO_SEGURO + 170, "legenda_base": BASE_SEGURA}
+
+
+def desenhar_fundo(pasta):
+    """Background + neon card frame (1080x1920) and the card's rounded mask."""
+    from PIL import Image, ImageDraw, ImageFilter
+    fundo = Image.new("RGB", (W, H), (20, 6, 30))
+    d = ImageDraw.Draw(fundo)
+    for yy in range(Y_JOGO + 40):
+        t = yy / (Y_JOGO + 40)
+        # deep purple at the top, a warmer magenta towards the seam
+        d.line([(0, yy), (W, yy)], fill=(int(46 + 52 * t), int(10 + 8 * t), int(70 + 40 * t)))
+    x, y, w, h = CARTAO
+    brilho = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(brilho)
+    bd.rounded_rectangle([x - 14, y - 14, x + w + 14, y + h + 14], RAIO + 12, fill=(214, 64, 255, 150))
+    brilho = brilho.filter(ImageFilter.GaussianBlur(26))
+    fundo = Image.alpha_composite(fundo.convert("RGBA"), brilho)
+    d = ImageDraw.Draw(fundo)
+    d.rounded_rectangle([x - 4, y - 4, x + w + 4, y + h + 4], RAIO + 4, outline=(250, 196, 255, 255), width=4)
+    caminho_fundo = os.path.join(pasta, "fundo.png")
+    fundo.convert("RGB").save(caminho_fundo)
+    mascara = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mascara).rounded_rectangle([0, 0, w - 1, h - 1], RAIO, fill=255)
+    caminho_mascara = os.path.join(pasta, "mascara.png")
+    mascara.save(caminho_mascara)
+    return caminho_fundo, caminho_mascara
 
 
 def filtergraph(src_w, src_h, cam=None):
-    """ffmpeg filter_complex for the montage; output label [v]."""
+    """ffmpeg filter_complex; inputs: 0 video, 1 background, 2 card mask. Output [v]."""
     g = geometria(src_w, src_h, cam)
-    jogo_h = g["jogo"][1] - g["jogo"][0]
+    if not cam:
+        return (f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v]", g)
+    x, y, w, h = (int(v) for v in cam)
+    cx, cy, cw, ch = CARTAO
+    jogo_h = H - Y_JOGO
     partes = [
-        # Background: the game itself, covering the frame, blurred and dimmed.
-        f"[0:v]split=3[a][b][c]",
-        f"[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-        f"boxblur=luma_radius=40:luma_power=2,eq=brightness=-0.16:saturation=1.3[fundo]",
+        "[0:v]split[a][b]",
+        f"[a]scale={W}:{jogo_h}:force_original_aspect_ratio=increase,crop={W}:{jogo_h}[jogo]",
+        f"[b]crop={w}:{h}:{x}:{y},scale={cw}:{ch}:force_original_aspect_ratio=increase,crop={cw}:{ch},"
+        "format=rgba[cam]",
+        "[2:v]format=gray[masc]",
+        "[cam][masc]alphamerge[camr]",
+        f"[1:v][jogo]overlay=0:{Y_JOGO}:shortest=1[c1]",
+        f"[c1][camr]overlay={cx}:{cy}:shortest=1,setsar=1[v]",
     ]
-    jogo = "[b]"
-    if cam:
-        x, y, w, h = (int(v) for v in cam)
-        # Blur the webcam corner inside the game: the face is already on top.
-        partes.append(f"{jogo}split[b1][b2]")
-        partes.append(f"[b2]crop={w}:{h}:{x}:{y},boxblur=luma_radius=24:luma_power=2[mancha]")
-        partes.append(f"[b1][mancha]overlay={x}:{y}[jogo0]")
-        jogo = "[jogo0]"
-        partes.append(f"[c]crop={w}:{h}:{x}:{y},scale={W}:{CAM_H}:force_original_aspect_ratio=increase,"
-                      f"crop={W}:{CAM_H}[cam]")
-    else:
-        partes.append("[c]nullsink")
-    partes.append(f"{jogo}scale={W}:{jogo_h}[jogo]")
-    partes.append(f"[fundo][jogo]overlay=0:{g['jogo'][0]}[comp]")
-    if cam:
-        partes.append(f"[comp][cam]overlay=0:0[comp2]")
-        # A thin bright seam between camera and game reads as a designed split.
-        partes.append(f"[comp2]drawbox=x=0:y={CAM_H - 3}:w={W}:h=6:color=white@0.85:t=fill,setsar=1[v]")
-    else:
-        partes.append("[comp]setsar=1[v]")
     return ";".join(partes), g
 
 
@@ -119,16 +133,21 @@ def render(input_video, output_video, cam=None):
     """Render the montage. Returns True on success."""
     src_w, src_h = _dimensoes(input_video)
     graph, g = filtergraph(src_w, src_h, cam)
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", input_video,
-           "-filter_complex", graph, "-map", "[v]", "-map", "0:a:0?",
-           *video_encode_args(QUALITY_FAST), "-pix_fmt", "yuv420p", *audio_encode_args(),
-           *METADATA_SCRUB, "-movflags", "+faststart", output_video]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    with tempfile.TemporaryDirectory() as tmp:
+        entradas = ["-i", input_video]
+        if cam:
+            fundo, mascara = desenhar_fundo(tmp)
+            entradas += ["-loop", "1", "-i", fundo, "-loop", "1", "-i", mascara]
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", *entradas,
+               "-filter_complex", graph, "-map", "[v]", "-map", "0:a:0?", "-shortest",
+               *video_encode_args(QUALITY_FAST), "-pix_fmt", "yuv420p", *audio_encode_args(),
+               *METADATA_SCRUB, "-movflags", "+faststart", output_video]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     if r.returncode != 0:
         print(f"   ⚠️ Montagem falhou: {r.stderr[-400:]}")
         return False
     with open(lado(output_video), "w", encoding="utf-8") as f:
         json.dump(g, f)
-    print(f"   🎞️ Montagem {g['tipo']}: jogo inteiro em y={g['jogo'][0]}-{g['jogo'][1]}"
-          + (", webcam em cima" if cam else ", fundo desfocado"))
+    print(f"   🎞️ Montagem {g['tipo']}: "
+          + ("webcam no cartão em cima, jogo em tela cheia embaixo" if cam else "jogo em tela cheia"))
     return True

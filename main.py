@@ -1018,9 +1018,13 @@ def auto_caption_clip(clip_path, transcript, clip_start, clip_end, split_ranges=
         if split_ranges is None:
             import layout_ranges as _layouts
             split_ranges = _layouts.split_ranges(_layouts.read(clip_path))
+        # Gaming Shorts model: captions lower, like the owner's reference
+        # (bottom at y~1560 of 1920, still above the app's caption block).
+        margem = 54 if os.path.exists(clip_path + ".montagem.json") or (
+            "_clip_" in stem and os.path.exists(os.path.join(output_dir, "gaming_job.json"))) else _subs.SAFE_MARGIN_V
         if not _subs.generate_ass(
                 transcript, clip_start, clip_end, ass_path,
-                split_ranges=split_ranges,
+                split_ranges=split_ranges, margin_v=margem,
                 max_chars=style["max_chars"], max_duration=style["max_duration"],
                 alignment=style["alignment"], fontsize=style["font_size"],
                 font_name=style["font_name"], font_color=style["font_color"],
@@ -1711,13 +1715,12 @@ def gaming_auto_layout(cfg, input_video):
     """Layout "auto" for gameplay: webcam overlay found -> B (game + webcam),
     otherwise A (full screen, HUD kept). The generic reframe tracks faces and
     crops, which on gameplay cuts the HUD and the action."""
-    layout = cfg.get("layout") or "auto"
     forced = (os.environ.get("FORCE_STRATEGY") or "").upper()
     # "Jogo + webcam" without a drawn box: find the webcam like "auto" does.
-    if layout != "auto" and not (forced == "PRO_CAM" and not os.environ.get("INSET_BOX")):
-        return None
-    if layout == "auto" and forced:
-        return None
+    if forced == "PRO_CAM" and os.environ.get("INSET_BOX"):
+        return None                     # the box was drawn by hand
+    if forced and forced not in ("PRO", "PRO_CAM"):
+        return None                     # an explicit editor choice
     strategy = "PRO"
     try:
         import camera_inset
@@ -1734,8 +1737,8 @@ def gaming_auto_layout(cfg, input_video):
     except Exception as e:  # noqa: BLE001 - detection is a hint, never fatal
         print(f"⚠️ Detecção de webcam indisponível ({e}); usando o jogo inteiro.")
     os.environ["FORCE_STRATEGY"] = strategy
-    label = ("B · webcam em cima, jogo inteiro embaixo (webcam detectada)" if strategy == "PRO_CAM"
-             else "A · jogo inteiro sobre fundo desfocado, sem zoom")
+    label = ("Shorts com a webcam no cartão em cima (webcam detectada)" if strategy == "PRO_CAM"
+             else "Shorts em tela cheia")
     print(f"🖼️ Enquadramento automático: {label}.")
     return strategy
 

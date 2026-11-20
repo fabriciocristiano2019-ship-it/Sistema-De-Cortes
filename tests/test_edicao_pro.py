@@ -11,22 +11,23 @@ from gaming import acabamento, montagem, voz
 FFMPEG = shutil.which("ffmpeg") is not None
 
 
-def test_montage_keeps_the_whole_game_and_never_zooms():
+def test_one_format_shorts_full_screen_without_webcam():
     g = montagem.geometria(1920, 1080)
-    assert g["tipo"] == "pro" and g["jogo"][1] - g["jogo"][0] == 608      # 1080 wide, 16:9 kept
-    assert montagem.TOPO_SEGURO < g["titulo_y"] < g["jogo"][0]            # title in the band above
-    assert g["legenda_base"] <= 1420                                       # captions out of the app UI
+    assert g["tipo"] == "shorts" and g["jogo"] == [0, 1920]
+    assert montagem.TOPO_SEGURO < g["titulo_y"] < 600 and g["legenda_base"] <= 1420
     graph, _ = montagem.filtergraph(1920, 1080)
-    assert "scale=1080:608" in graph and "boxblur" in graph
-    assert "zoompan" not in graph and "crop=1080:1920" in graph            # only the blurred fill is cropped
+    assert "crop=1080:1920" in graph
 
 
-def test_webcam_goes_on_top_and_its_corner_is_blurred_in_the_game():
+def test_webcam_card_on_top_and_game_full_width_below():
     g = montagem.geometria(1920, 1080, cam=(1500, 700, 380, 330))
-    assert g["tipo"] == "pro_cam" and g["cam"] == [0, montagem.CAM_H] and g["jogo"][0] == montagem.CAM_H
+    x, y, w, h = montagem.CARTAO
+    assert g["tipo"] == "shorts_cam" and g["jogo"] == [montagem.Y_JOGO, 1920] and g["cam"] == [y, y + h]
+    assert y + h < montagem.Y_JOGO < g["titulo_y"] < 1000          # title strip on the seam
     graph, _ = montagem.filtergraph(1920, 1080, cam=(1500, 700, 380, 330))
-    assert "crop=380:330:1500:700,boxblur" in graph        # the face is not shown twice
-    assert "overlay=0:0" in graph                          # camera band at the top
+    assert "crop=380:330:1500:700" in graph and "alphamerge" in graph   # rounded card
+    assert f"crop=1080:{1920 - montagem.Y_JOGO}" in graph                # game fills the bottom
+    assert "shortest=1" in graph                                         # ends with the game
 
 
 def test_camera_box_comes_from_fractions(monkeypatch):
@@ -51,26 +52,26 @@ def test_titles_break_into_two_balanced_lines():
     assert acabamento.quebrar("GG") == ["GG"]
 
 
-def test_opening_has_flash_pop_title_and_progress_bar(tmp_path):
+def test_opening_flash_and_title_on_a_torn_red_strip(tmp_path):
     p = tmp_path / "a.ass"
-    acabamento.gerar_ass(str(p), "ELE NÃO ESPERAVA ISSO", 13.5, {"tipo": "pro", "jogo": [620, 1226], "titulo_y": 430})
+    acabamento.gerar_ass(str(p), "A ROCKSTAR REALMENTE PENSOU EM TUDO", 13.5, {"tipo": "shorts_cam", "titulo_y": 846})
     s = p.read_text(encoding="utf-8")
     assert "PlayResX: 1080" in s and "PlayResY: 1920" in s
-    assert ",Flash," in s and "\\fad(0,240)" in s                       # opening flash
-    assert "\\fscx30\\fscy30" in s and "\\fscx112" in s                 # pop in
-    assert "\\t(110," in s                                              # second line a beat later
-    assert "\\c&H0000D4FF&}ESPERAVA" in s or "\\c&H0000D4FF&}ISSO" in s  # key words in yellow
-    assert "\\clip(0,0,0,1920)\\t(0,13500,\\clip(0,0,1080,1920))" in s  # bar fills over the clip
-    assert "\\pos(0,1226)" in s                                        # under the game
+    assert ",Flash," in s and "\\fad(0,240)" in s                    # opening flash
+    assert ",Faixa," in s and ",Papel," in s and acabamento.VERMELHO in s  # red strip on white torn paper
+    assert "\\fscx55\\fscy55" in s and "\\fscx106" in s            # pops in
+    faixa = [l for l in s.splitlines() if ",Faixa," in l][0]
+    assert "\\pos(540,846)" in faixa and faixa.count(" l ") > 60      # jagged edges
+    assert "0:00:13.50" in faixa                                        # stays the whole clip
+    titulo = [l for l in s.splitlines() if ",Titulo," in l]
+    assert [t.rsplit("}", 1)[1] for t in titulo] == ["A ROCKSTAR REALMENTE", "PENSOU EM TUDO"]
 
 
-def test_with_webcam_the_title_stays_inside_the_camera(tmp_path):
-    p = tmp_path / "b.ass"
-    acabamento.gerar_ass(str(p), "QUE SUSTO FOI ESSE?!", 10, {"tipo": "pro_cam", "jogo": [600, 1206], "titulo_y": 600})
-    faixa = [l for l in p.read_text(encoding="utf-8").splitlines() if ",Faixa," in l][0]
-    y0 = int(faixa.split("\\pos(0,")[1].split(")")[0])
-    altura = int(faixa.split(" l 1080 0 1080 ")[1].split()[0])
-    assert y0 + altura <= 600                    # never over the game's HUD
+def test_the_strip_is_the_same_every_time_for_a_title(tmp_path):
+    a, b = tmp_path / "a.ass", tmp_path / "b.ass"
+    acabamento.gerar_ass(str(a), "OLHA O QUE ELE FEZ", 5)
+    acabamento.gerar_ass(str(b), "OLHA O QUE ELE FEZ", 5)
+    assert a.read_text(encoding="utf-8") == b.read_text(encoding="utf-8")
 
 
 def test_no_voice_installed_means_no_narration_not_an_error(monkeypatch, tmp_path):
@@ -89,7 +90,7 @@ def test_real_render_of_montage_and_opening(tmp_path):
                    check=True)
     m = str(tmp_path / "m.mp4")
     assert montagem.render(src, m)
-    assert montagem.ler(m)["tipo"] == "pro"
+    assert montagem.ler(m)["tipo"] == "shorts"
     voz_wav = str(tmp_path / "voz.wav")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=220:d=1", voz_wav], check=True)
     out = str(tmp_path / "a.mp4")

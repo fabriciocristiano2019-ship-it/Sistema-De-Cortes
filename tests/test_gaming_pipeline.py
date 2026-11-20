@@ -252,12 +252,12 @@ def test_helpers_are_not_pipeline_steps():
 
 def test_montage_and_animated_opening_show_on_their_agents():
     logs = ["Job started by worker", "Found 1 clips", "Processing Clip 1: 2.0s - 15.0s",
-            "   🎞️ Montagem pro_cam: jogo inteiro em y=600-1208, webcam em cima",
+            "   🎞️ Montagem shorts_cam: webcam no cartão em cima, jogo em tela cheia embaixo",
             '   🪝 Abertura animada: "QUE SUSTO FOI ESSE?!" + narração: "Olha o susto que ele levou aqui."',
             "   💬 Captions burned: subtitled_1_x.mp4"]
     snap = pipeline.snapshot(logs, "processing")
     textos = " | ".join(str(l) for l in snap["console"])
-    assert "webcam em cima, jogo inteiro embaixo, sem zoom" in textos
+    assert "webcam no cartão neon em cima, jogo em tela cheia embaixo" in textos
     assert "Narração gravada: “Olha o susto que ele levou aqui.”" in textos
     a = {x["id"]: x["state"] for x in snap["agents"]}
     assert a["editor916"] == "done" and a["isaac"] in ("working", "done")

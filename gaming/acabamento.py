@@ -4,10 +4,9 @@ One ffmpeg pass on top of the montage (gaming/montagem.py), all drawn with
 ASS so it needs no new program and renders the same on every machine:
 
   0.00-0.25 s  white flash and a whoosh: the cut opens with a punch
-  0.00-0.30 s  the title pops in (scale 30% -> 112% -> 100%) and stays on top;
-               the key words are yellow, the rest white with a heavy outline
-  all clip     a progress bar fills under the game (people watch to the end
-               when they can see the end coming)
+  0.00-0.30 s  the title, on a torn red paper strip like the owner's model
+               Short, pops in and stays for the whole clip (on the seam between
+               webcam and game, or near the top without webcam)
   start        optional voice-over (gaming/voz.py) reading the hook question,
                with the game sound lowered while it talks
 
@@ -26,6 +25,7 @@ W, H = 1080, 1920
 AMARELO = "&H0000D4FF&"      # ASS is BGR: #FFD400
 BRANCO = "&H00FFFFFF&"
 PRETO = "&H00000000&"
+VERMELHO = "&H001A12D8&"   # #D8121A, the strip of the model Short
 
 _EMOJI = re.compile("[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U00002B00-\U00002BFF︎️‍]+")
 
@@ -114,49 +114,54 @@ def _t(seg):
     return f"{h}:{m:02d}:{seg % 60:05.2f}"
 
 
+def _faixa_rasgada(largura, altura, semente):
+    """ASS drawing of a torn paper strip (0,0)-(largura,altura): jagged top and
+    bottom edges, slightly uneven sides. Seeded, so a clip always looks the same."""
+    import random
+    r = random.Random(semente)
+    passo = 26
+    topo = [(0, r.randint(0, 10))]
+    for x in range(passo, largura, passo):
+        topo.append((x, r.randint(0, 14)))
+    topo.append((largura, r.randint(0, 10)))
+    base = [(largura - r.randint(0, 8), altura - r.randint(0, 10))]
+    for x in range(largura - passo, 0, -passo):
+        base.append((x, altura - r.randint(0, 14)))
+    base.append((r.randint(0, 8), altura - r.randint(0, 10)))
+    pts = topo + base
+    return "m " + " l ".join(f"{x} {y}" for x, y in pts)
+
+
 def gerar_ass(path, titulo, duracao, geo=None):
-    geo = geo or {"tipo": "pro", "jogo": [620, 1228], "titulo_y": 430}
-    y_titulo = int(geo.get("titulo_y") or 430)
-    jogo_fim = int((geo.get("jogo") or [620, 1228])[1])
-    cam = geo.get("tipo") == "pro_cam"
-    # With the webcam on top the title is a slim strip at the bottom of the
-    # camera (chest height), so it never covers the face.
-    linhas = quebrar(titulo, por_linha=22 if cam else 15)
-    chave = _palavras_chave(titulo)
+    """Opening flash + the title on a torn red paper strip (the owner's model
+    Short), popping in and staying for the whole clip."""
+    geo = geo or {"tipo": "shorts", "jogo": [0, H], "titulo_y": 370}
+    y = int(geo.get("titulo_y") or 370)
+    # Like the model: big condensed capitals, two lines once it is not tiny.
+    linhas = quebrar(titulo, por_linha=12)
     maior = max(len(l) for l in linhas)
-    if cam:
-        tamanho = 98 if maior <= 20 else 80
-    else:
-        tamanho = 150 if maior <= 9 else 128 if maior <= 13 else 108 if maior <= 17 else 92
+    tamanho = 118 if maior <= 13 else 100 if maior <= 18 else 84 if maior <= 24 else 70
+    alt = int(tamanho * 1.02)
+    larg_faixa, alt_faixa = 930, alt * len(linhas) + 50
     fim = _t(duracao)
-    ev = []
-    # 1) opening flash
-    ev.append(f"Dialogue: 0,{_t(0)},{_t(0.28)},Flash,,0,0,0,,"
-              f"{{\\an7\\pos(0,0)\\p1\\fad(0,240)}}m 0 0 l {W} 0 {W} {H} 0 {H}{{\\p0}}")
-    # 2) title: each line pops in, the second a beat later (stagger)
-    alt = int(tamanho * 1.08)
-    topo = y_titulo - (alt * (len(linhas) - 1)) // 2
-    if geo.get("tipo") == "pro_cam":
-        # Stacked: the title sits on the seam between camera and game, on a
-        # dark band so it reads over both.
-        # The whole band stays inside the camera, never over the game's HUD.
-        faixa_y1 = y_titulo - 6
-        faixa_y0 = faixa_y1 - alt * len(linhas) - 24
-        topo = faixa_y0 + 12 + alt // 2
-        ev.append(f"Dialogue: 1,{_t(0)},{fim},Faixa,,0,0,0,,"
-                  f"{{\\an7\\pos(0,{faixa_y0})\\p1\\fad(120,0)}}m 0 0 l {W} 0 {W} {faixa_y1 - faixa_y0} 0 {faixa_y1 - faixa_y0}{{\\p0}}")
+    semente = sum(map(ord, titulo))
+    faixa = _faixa_rasgada(larg_faixa, alt_faixa, semente)
+    papel = _faixa_rasgada(larg_faixa + 8, alt_faixa + 14, semente + 1)
+    pop = "\\fscx55\\fscy55\\t(0,170,\\fscx106\\fscy106)\\t(170,280,\\fscx100\\fscy100)"
+    ev = [
+        # opening flash
+        f"Dialogue: 0,{_t(0)},{_t(0.28)},Flash,,0,0,0,,"
+        f"{{\\an7\\pos(0,0)\\p1\\fad(0,240)}}m 0 0 l {W} 0 {W} {H} 0 {H}{{\\p0}}",
+        # white torn paper behind, the red strip on it (two layers = the torn edge)
+        f"Dialogue: 1,{_t(0)},{fim},Papel,,0,0,0,,{{\\an5\\pos({W // 2},{y - 4}){pop}\\p1}}{papel}{{\\p0}}",
+        f"Dialogue: 2,{_t(0)},{fim},Faixa,,0,0,0,,{{\\an5\\pos({W // 2},{y}){pop}\\p1}}{faixa}{{\\p0}}",
+    ]
+    topo = y - (alt * (len(linhas) - 1)) // 2
     for i, linha in enumerate(linhas):
-        atraso = int(i * 110)
-        anim = (f"\\an5\\pos({W // 2},{topo + i * alt})\\fscx30\\fscy30\\alpha&HFF&"
-                f"\\t({atraso},{atraso + 1},\\alpha&H00&)"
-                f"\\t({atraso},{atraso + 190},\\fscx112\\fscy112)"
-                f"\\t({atraso + 190},{atraso + 300},\\fscx100\\fscy100)")
-        ev.append(f"Dialogue: 2,{_t(0)},{fim},Titulo,,0,0,0,,{{{anim}}}{_destaque(linha, chave)}")
-    # 3) progress bar under the game, filling over the whole clip
-    ms = int(duracao * 1000)
-    ev.append(f"Dialogue: 3,{_t(0)},{fim},Barra,,0,0,0,,"
-              f"{{\\an7\\pos(0,{jogo_fim})\\p1\\clip(0,0,0,{H})\\t(0,{ms},\\clip(0,0,{W},{H}))}}"
-              f"m 0 0 l {W} 0 {W} 12 0 12{{\\p0}}")
+        atraso = 60 + i * 90
+        anim = (f"\\an5\\pos({W // 2},{topo + i * alt})\\alpha&HFF&\\t({atraso},{atraso + 1},\\alpha&H00&)"
+                f"\\fscx70\\fscy70\\t({atraso},{atraso + 200},\\fscx100\\fscy100)")
+        ev.append(f"Dialogue: 3,{_t(0)},{fim},Titulo,,0,0,0,,{{{anim}}}{_ass_escape(linha)}")
     cab = (
         "[Script Info]\nScriptType: v4.00+\n"
         f"PlayResX: {W}\nPlayResY: {H}\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n"
@@ -164,10 +169,10 @@ def gerar_ass(path, titulo, duracao, geo=None):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Titulo,Anton,{tamanho},{BRANCO},{BRANCO},{PRETO},&H64000000&,0,0,0,0,100,100,1,0,1,9,5,5,60,60,0,1\n"
-        f"Style: Flash,Anton,10,&H40FFFFFF&,&H40FFFFFF&,&HFF000000&,&HFF000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n"
-        f"Style: Faixa,Anton,10,&H50000000&,&H50000000&,&HFF000000&,&HFF000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n"
-        f"Style: Barra,Anton,10,{AMARELO},{AMARELO},&HFF000000&,&HFF000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n\n"
+        f"Style: Titulo,Anton,{tamanho},{BRANCO},{BRANCO},{PRETO},&H70000000&,0,0,0,0,100,100,1,0,1,0,4,5,60,60,0,1\n"
+        "Style: Flash,Anton,10,&H40FFFFFF&,&H40FFFFFF&,&HFF000000&,&HFF000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n"
+        "Style: Papel,Anton,10,&H10F2F2F2&,&H10F2F2F2&,&HFF000000&,&H80000000&,0,0,0,0,100,100,0,0,1,0,5,7,0,0,0,1\n"
+        f"Style: Faixa,Anton,10,{VERMELHO},{VERMELHO},&HFF000000&,&HFF000000&,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     with open(path, "w", encoding="utf-8") as f:

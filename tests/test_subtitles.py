@@ -260,7 +260,7 @@ class TestAutoCaptionDefaults:
         # so the default must be a family baked into the image.
         from subtitles import AUTO_CAPTION_STYLE
         assert AUTO_CAPTION_STYLE["font_name"] in {
-            "Anton", "Liberation Sans", "Liberation Serif", "DejaVu Sans"}
+            "Anton", "Montserrat Black", "Liberation Sans", "Liberation Serif", "DejaVu Sans"}
 
     def test_highlight_differs_from_body_text(self):
         # The whole point of the karaoke look: the active word must stand out.

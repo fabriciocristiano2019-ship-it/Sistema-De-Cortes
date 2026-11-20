@@ -219,7 +219,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       const f = file || (extra ? null : form.file);
       const gaming = {
         ...(extra?.credito ? { credito: extra.credito } : {}),
-        game_id: form.game_id, category: form.category, engine: form.engine, layout: form.layout,
+        game_id: form.game_id, category: form.category, engine: form.engine, layout: 'auto',
         clip_seconds: Number(form.clip_seconds), max_clips: Number(form.max_clips),
         min_score: Number(form.min_score), zoom: !!form.zoom, fill: form.fill !== false,
       };

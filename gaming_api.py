@@ -54,11 +54,13 @@ _STATE = {"output_dir": None, "jobs": None, "app": None}
 _PUB_LOCK = threading.Lock()
 
 LAYOUTS = {
-    # gaming/montagem.py: the whole game, never a zoom (owner, 19-nov-2026).
-    "auto": {"label": "Automático (webcam em cima se houver)", "strategy": None},
-    "full": {"label": "Jogo inteiro + fundo desfocado", "strategy": "PRO"},
-    "webcam": {"label": "Webcam em cima + jogo embaixo", "strategy": "PRO_CAM"},
-    "vertical": {"label": "Tela cheia (corta as laterais)", "strategy": "CENTER"},   # old centre crop, on request only
+    # One format since 19-nov-2026 (owner): the Shorts model of gaming/montagem.py.
+    # Webcam found (or drawn) -> neon card on top, game full screen below;
+    # no webcam -> the game fills the screen. Old values stay accepted.
+    "auto": {"label": "Shorts (tela cheia)", "strategy": None},
+    "webcam": {"label": "Shorts com webcam em cima", "strategy": "PRO_CAM"},
+    "full": {"label": "Shorts (tela cheia)", "strategy": None},
+    "vertical": {"label": "Shorts (tela cheia)", "strategy": None},
 }
 DURATIONS = [15, 30, 45, 60]
 ENGINES = {"local": "Local (gratuito)", "auto": "Automático (Gemini se houver chave)",
@@ -227,7 +229,7 @@ async def gaming_meta():
     return {
         "categories": profiles.category_list(),
         "moments": profiles.moment_list(),
-        "layouts": [{"id": k, "label": v["label"]} for k, v in LAYOUTS.items()],
+        "layouts": [{"id": "auto", "label": LAYOUTS["auto"]["label"]}],   # one format (owner)
         "durations": DURATIONS,
         "engines": [{"id": k, "label": v} for k, v in ENGINES.items()],
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),

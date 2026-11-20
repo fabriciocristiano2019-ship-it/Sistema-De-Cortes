@@ -58,12 +58,11 @@ def test_selected_game_brings_its_category(out):
 
 def test_layout_options_map_to_render_strategies():
     env = lambda **kw: gaming_api.job_env(gaming_api.parse_gaming(kw))  # noqa: E731
-    # A: the whole game over a blurred copy, never a zoom (gaming/montagem.py)
-    assert env(layout="full")["FORCE_STRATEGY"] == "PRO"
-    # B: webcam on top, the whole game under it
+    # One format (owner, 19-nov-2026): the Shorts montage; "webcam" pins the
+    # card on top, every other value (old saved forms too) means automatic.
     assert env(layout="webcam")["FORCE_STRATEGY"] == "PRO_CAM"
-    # C: the old centre crop over the whole phone screen, only when chosen
-    assert env(layout="vertical")["FORCE_STRATEGY"] == "CENTER"
+    for antigo in ("full", "vertical"):
+        assert "FORCE_STRATEGY" not in env(layout=antigo)
     assert "FORCE_STRATEGY" not in env(layout="auto")
 
 

@@ -54,9 +54,7 @@ export function ImportSection({ meta, form, setForm, onStart, starting, startErr
             </div>
           </Field>
           <Field label="Formato do vídeo (1080×1920, 9:16)">
-            <select className="input-field w-full" value={form.layout} onChange={(e) => set('layout', e.target.value)}>
-              {meta.layouts.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-            </select>
+            <p className="text-sm text-ink2">Shorts em tela cheia. Se o vídeo tiver webcam, ela vai num cartão em cima e o jogo embaixo.</p>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Máximo de cortes">
