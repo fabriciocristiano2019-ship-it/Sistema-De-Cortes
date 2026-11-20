@@ -22,3 +22,23 @@ def test_no_jsx_component_is_used_without_being_defined():
             if not re.search(r"\b" + nome + r"\b", resto):
                 faltando.append(f"{f.relative_to(SRC)}: <{nome}>")
     assert not faltando, "componentes sem definição: " + ", ".join(faltando)
+
+
+def test_every_lucide_icon_imported_exists():
+    """An icon name that this lucide-react version does not export builds a
+    panel that never opens (TriangleAlert, 20-nov-2026, caught at build)."""
+    import pytest
+    dts = SRC.parent / "node_modules" / "lucide-react" / "dist" / "lucide-react.d.ts"
+    if not dts.is_file():
+        pytest.skip("node_modules ausente")
+    txt = dts.read_text(encoding="utf-8")
+    existe = set(re.findall(r"declare const (\w+)", txt)) | set(re.findall(r"\bas (\w+)", txt))
+    faltando = []
+    for f in sorted(SRC.rglob("*.js*")):
+        if f.suffix not in (".js", ".jsx"):
+            continue
+        for bloco in re.findall(r"import\s*\{([^}]*)\}\s*from\s*['\"]lucide-react['\"]", f.read_text(encoding="utf-8")):
+            for nome in (n.strip().split(" as ")[0].strip() for n in bloco.split(",")):
+                if nome and nome not in existe:
+                    faltando.append(f"{f.relative_to(SRC)}: {nome}")
+    assert not faltando, "ícones que não existem no lucide-react: " + ", ".join(faltando)

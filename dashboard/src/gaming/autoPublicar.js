@@ -1,7 +1,10 @@
-// "Publicar ao aprovar": settings kept in this browser. For now YouTube only
-// (the owner's choice); the platforms list is ready for Instagram/TikTok.
+// "Publicar ao aprovar": settings kept in this browser. YouTube and Instagram
+// (Reels); the Instagram tab in Settings turns Instagram on.
 const KEY = 'os_auto_publicar';
-export const REDES_AUTO = [{ id: 'youtube', label: 'YouTube (Shorts)', publico: true }];
+export const REDES_AUTO = [
+  { id: 'youtube', label: 'YouTube (Shorts)', publico: true },
+  { id: 'instagram', label: 'Instagram (Reels)', publico: true },
+];
 
 export function lerAutoPub() {
   try {
@@ -26,7 +29,8 @@ export const nomesRedes = (ids) => {
 // engine) wrote, hashtags at the end.
 export function textoDoCorte(clip) {
   const titulo = (clip.video_title_for_youtube_short || clip.title || 'Gameplay').slice(0, 100);
-  const tags = Array.isArray(clip.hashtags) ? clip.hashtags.join(' ') : '';
+  // Instagram refuses a caption with more than 30 hashtags.
+  const tags = Array.isArray(clip.hashtags) ? clip.hashtags.slice(0, 30).join(' ') : '';
   const desc = [clip.description || '', tags].filter(Boolean).join('\n\n').slice(0, 2200);
   return { titulo, desc };
 }

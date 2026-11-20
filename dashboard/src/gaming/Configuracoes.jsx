@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Archive, Copy, FileText, Power, Rainbow, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Archive, Copy, Instagram, FileText, Power, Rainbow, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
@@ -10,6 +10,7 @@ import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
 import { sair } from './sair';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 import BackupCard from './Backup';
+import InstagramIntegracao from './InstagramIntegracao';
 import { apiJson } from '../lib/api';
 import { guardarCodespace, lerCodespace } from './codespace';
 
@@ -104,6 +105,7 @@ const ABAS = [
   { id: 'geral', label: 'Geral', icon: User },
   { id: 'audio', label: 'Áudio', icon: Volume2 },
   { id: 'publicacao', label: 'Publicação', icon: Send },
+  { id: 'instagram', label: 'Instagram', icon: Instagram },
   { id: 'celular', label: 'Celular', icon: Smartphone },
   { id: 'conta', label: 'Conta e chaves', icon: KeyRound },
   { id: 'backup', label: 'Backup', icon: Archive },
@@ -116,7 +118,7 @@ const abaSalva = () => {
 
 // One subject at a time: a list of sections on the left (a row of tabs on the
 // phone) and only the chosen one open.
-export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false, onRestaurado }) {
+export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false, onRestaurado, uploadPostKey = '', uploadUserId = '', onPerfilUploadPost }) {
   const [aba, setAba] = useState(abaSalva);
   const [vol, setVol] = useState(volumeAtual);
   const [autoPub, setAutoPub] = useState(lerAutoPub);
@@ -124,7 +126,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
   const [volMus, setVolMus] = useState(volumeMusica);
   const [rascunho, setRascunho] = useState(nome);
   const salvarNome = () => onNome(rascunho.trim() || NOME_PADRAO);
-  const escolher = (id) => { setAba(id); try { localStorage.setItem(ABA_KEY, id); } catch (_) { /* private mode */ } };
+  const escolher = (id) => { setAba(id); setAutoPub(lerAutoPub()); try { localStorage.setItem(ABA_KEY, id); } catch (_) { /* private mode */ } };
 
   return (
     <div className="rounded-[20px] border border-rule2 bg-paper2/60 p-4 md:p-5">
@@ -227,7 +229,10 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
               {r.label} · <span className="text-muted">publicado como público</span>
             </label>
           ))}
-          <p className="mt-2 text-[11px] text-muted">Instagram e TikTok entram depois.</p>
+          <p className="mt-2 text-[11px] text-muted">
+            Instagram: veja se a conta está conectada na aba{' '}
+            <button type="button" className="font-bold underline" onClick={() => escolher('instagram')}>Instagram</button>. TikTok entra depois.
+          </p>
           {servicoPublicacao ? (
             <p className="mt-3 text-xs text-ok">Serviço de publicação configurado.</p>
           ) : (
@@ -239,6 +244,9 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
         </Card>
 
             </>
+          )}
+          {aba === 'instagram' && (
+            <InstagramIntegracao uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} onPerfil={onPerfilUploadPost} onAbrirChaves={onAbrirChaves} />
           )}
           {aba === 'celular' && <AppCelular />}
           {aba === 'backup' && <BackupCard onRestaurado={onRestaurado} />}

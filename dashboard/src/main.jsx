@@ -6,6 +6,7 @@ import App from './App.jsx'
 import AcessoGate from './gaming/AcessoGate.jsx'
 import TermosLGPD from './gaming/TermosLGPD.jsx'
 import ErroTela from './gaming/ErroTela.jsx'
+import { instalarRecuperacao } from './gaming/recuperar.js'
 const Landing = lazy(() => import('./Landing.jsx'))
 const Legal = lazy(() => import('./Legal.jsx'))
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -116,6 +117,7 @@ function Root() {
 // Before React mounts: AuthContext rewrites the URL on auth redirects, which
 // would destroy the referrer and any UTM params we still need to read.
 captureAttribution();
+instalarRecuperacao();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

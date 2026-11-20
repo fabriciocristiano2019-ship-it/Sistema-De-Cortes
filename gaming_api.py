@@ -880,6 +880,17 @@ async def postiz_check(request: Request):
          "active": not i.get("disabled") and not i.get("refreshNeeded")} for i in items]}
 
 
+@router.get("/api/gaming/instagram")
+async def instagram_status(request: Request, perfil: Optional[str] = None):
+    """Instagram tab: is the account connected, on which profile (read only)."""
+    from gaming import instagram
+    if perfil is not None and not re.fullmatch(r"[A-Za-z0-9_.@ -]{0,80}", perfil):
+        raise HTTPException(status_code=400, detail="Perfil inválido")
+    return await asyncio.to_thread(
+        instagram.status, request.headers.get("x-upload-post-key"), request.headers.get("x-postiz-key"),
+        _postiz_url_from_header(request.headers.get("x-postiz-url")), perfil)
+
+
 @router.get("/api/gaming/gemini-chave")
 async def gemini_chave_status():
     """Whether a Gemini key is set and where it came from (only its last 4 chars)."""
