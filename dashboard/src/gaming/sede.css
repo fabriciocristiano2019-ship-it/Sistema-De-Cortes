@@ -321,3 +321,81 @@
   .linha-prod-base { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .linha-prod-etapa.is-working { animation: none; } }
+
+/* Palco do agente ("segue o vídeo"): the studio of the ad - warm spotlights,
+   the agent's card with its stage number, a big two-tone caption. */
+.palco { position: relative; border-radius: 18px; padding: 26px 18px 16px; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #2a1d0b 0%, #120d06 55%, #0a0704 100%); border: 1px solid #3a2a10; color: #f5e6c8; }
+.palco-luzes { position: absolute; inset: 0 0 auto 0; height: 100%; display: flex; justify-content: space-around; pointer-events: none; }
+.palco-luzes i { position: relative; width: 40px; height: 10px; border-radius: 0 0 20px 20px; background: #1d150a; box-shadow: 0 2px 0 #f5b301; }
+.palco-luzes i::after { content: ""; position: absolute; left: 50%; top: 10px; width: 260px; height: 260px; transform: translateX(-50%);
+  background: radial-gradient(50% 60% at 50% 0%, rgba(255,190,80,.16), transparent 70%); }
+.palco-grade { position: relative; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+.palco-cartao { border-radius: 14px; padding: 12px; background: #17110a; border: 2px solid #3a2d18; position: relative; }
+.palco-cartao::before { content: ""; position: absolute; left: 10px; right: 10px; top: -2px; height: 5px; border-radius: 4px;
+  background: repeating-linear-gradient(135deg, #f5b301 0 8px, #1a1408 8px 16px); }
+.palco-cartao.is-working { border-color: #f59e0b; box-shadow: 0 0 26px rgba(245,158,11,.25); }
+.palco-cartao.is-done { border-color: #4ade80; }
+.palco-topo { display: flex; align-items: center; gap: 8px; font: 800 13px/1 ui-monospace, "DejaVu Sans Mono", monospace; margin-bottom: 10px; }
+.palco-num { background: #f97316; color: #1b1103; padding: 3px 6px; border-radius: 5px; }
+.palco-nome { color: #fff; letter-spacing: .06em; }
+.palco-agente { margin-left: auto; color: #d9a54a; font-size: 10.5px; letter-spacing: .1em; }
+.palco-luz { width: 10px; height: 10px; border-radius: 50%; background: #5b4a2e; }
+.palco-luz.is-working { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: linha-pulsa 1s infinite; }
+.palco-luz.is-done { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.palco-corpo { min-height: 150px; display: grid; place-items: center; }
+.palco-legenda { font: 600 11px/1.35 ui-monospace, "DejaVu Sans Mono", monospace; color: #cdb88f; text-align: center; margin-top: 8px; }
+.palco-lado { min-width: 0; }
+.palco-frase { font-weight: 900; font-size: clamp(26px, 3.4vw, 44px); line-height: 1.02; letter-spacing: -.01em; text-transform: uppercase; }
+.palco-frase span { color: #fff; } .palco-frase em { font-style: normal; color: #f59e0b; display: block; }
+.palco-status { margin-top: 10px; font-size: 13px; color: #d9c08a; min-height: 2.6em; }
+.palco-dots { display: flex; gap: 6px; margin-top: 10px; }
+.palco-dots button { width: 22px; height: 6px; border-radius: 99px; border: 0; background: #3a2d18; cursor: pointer; }
+.palco-dots button.is-atual { background: #f59e0b; }
+.palco-dots button[aria-current="step"] { outline: 2px solid #fbbf24; outline-offset: 2px; }
+/* 01 radar */
+.palco-radar { position: relative; width: 150px; height: 150px; border-radius: 50%; border: 2px solid #f59e0b55;
+  background: radial-gradient(circle, transparent 30%, #f59e0b22 31%, transparent 32%, transparent 60%, #f59e0b22 61%, transparent 62%), #1a1208; overflow: hidden; }
+.palco-radar-varre { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(249,115,22,.55), transparent 25%); }
+.palco-radar-varre.is-on { animation: palco-gira 2.4s linear infinite; }
+.palco-radar i { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #f97316; box-shadow: 0 0 8px #f97316; }
+@keyframes palco-gira { to { transform: rotate(360deg); } }
+/* 02 roteiro */
+.palco-roteiro { display: flex; gap: 10px; align-items: center; width: 100%; }
+.palco-papel { flex: 1; min-width: 0; background: #f6ecd6; color: #2a1f10; border-radius: 6px; padding: 10px 12px; transform: rotate(-1.5deg);
+  font: 600 11px/1.5 ui-monospace, "DejaVu Sans Mono", monospace; box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+.palco-papel p { overflow-wrap: anywhere; } .palco-papel-nome { color: #8a7752; margin-bottom: 4px; }
+.palco-papel mark { background: #fbbf24; color: #2a1f10; padding: 0 3px; }
+.palco-tags { display: grid; gap: 6px; } .palco-tags span { padding: 6px 8px; border-radius: 6px; border: 1px solid #5b4a2e; font: 900 11px/1 system-ui; color: #d9c08a; text-align: center; }
+.palco-tags span.is-on { background: #f97316; color: #1b1103; border-color: #f97316; }
+/* 03 voz */
+.palco-voz { width: 100%; }
+.palco-ondas { display: flex; align-items: center; justify-content: center; gap: 4px; height: 90px; }
+.palco-ondas i { width: 6px; border-radius: 3px; background: linear-gradient(#fbbf24, #f97316); opacity: .55; }
+.palco-ondas.is-on i { opacity: 1; animation: palco-onda .7s ease-in-out infinite alternate; }
+@keyframes palco-onda { to { transform: scaleY(.35); } }
+/* 04 mídia */
+.palco-celular { width: 84px; aspect-ratio: 9 / 16; border-radius: 12px; border: 3px solid #f5e6c8; overflow: hidden; background: #241a0e;
+  display: grid; place-items: center; color: #d9a54a; font: 800 12px ui-monospace, monospace; margin: 0 auto; }
+.palco-celular video { width: 100%; height: 100%; object-fit: cover; }
+/* 05 edição */
+.palco-edicao { position: relative; width: 100%; }
+.palco-faixa { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 8px; margin-top: 8px;
+  font: 700 10px ui-monospace, monospace; color: #cdb88f; }
+.palco-faixa div { display: flex; gap: 4px; } .palco-faixa i { flex: 1; height: 14px; border-radius: 4px; }
+.palco-agulha { position: absolute; top: 18px; bottom: 0; left: 70%; width: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+.palco-agulha.is-on { animation: palco-agulha 3s linear infinite; }
+@keyframes palco-agulha { from { left: 76px; } to { left: 98%; } }
+/* 06 pasta */
+.palco-pasta { position: relative; display: grid; place-items: center; gap: 6px; width: 190px; padding: 26px 10px 18px; border: 0; cursor: pointer;
+  border-radius: 6px 16px 16px 16px; background: linear-gradient(#fb923c, #ea580c); color: #3b1a03; font-weight: 900; letter-spacing: .08em;
+  box-shadow: 0 14px 30px rgba(234,88,12,.35); }
+.palco-pasta::before { content: ""; position: absolute; left: 0; top: -12px; width: 80px; height: 16px; border-radius: 8px 8px 0 0; background: #f97316; }
+.palco-pasta b { font-size: 22px; color: #fff; }
+@media (max-width: 760px) {
+  .palco-grade { grid-template-columns: 1fr; }
+  .palco-frase { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .palco-radar-varre.is-on, .palco-ondas.is-on i, .palco-agulha.is-on, .palco-luz.is-working { animation: none; }
+}

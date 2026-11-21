@@ -22,6 +22,7 @@ import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } fr
 import { ConfigSection, HistorySection } from './SectionsPublish';
 import PastaSection from './PastaSection';
 import LinhaProducao from './LinhaProducao';
+import PalcoAgente from './PalcoAgente';
 import { LembreteBackup, SistemaVigia } from './Vigia';
 import './sede.css';
 
@@ -442,6 +443,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
             <>
               <LembreteBackup atualizar={clips?.length || 0} />
               <LinhaProducao linha={snap?.linha} clipes={snap?.clips} ativo={jobActive} atualizar={clips?.length || 0} onAbrirPasta={() => go('pasta')} />
+              <PalcoAgente linha={snap?.linha} console={snap?.console} clip={previewClip} ativo={jobActive} atualizar={clips?.length || 0} onAbrirPasta={() => go('pasta')} />
               <SedeMap agents={agents} core={core} theme={theme} details={details} onOpen={(a) => go(a.module)} />
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia}

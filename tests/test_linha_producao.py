@@ -128,3 +128,17 @@ def test_old_tab_after_update_reloads_once_instead_of_dying():
     erro = (SRC / "ErroTela.jsx").read_text(encoding="utf-8")
     assert "recarregarUmaVez" in erro and "Limpar e recarregar" in erro
     assert "instalarRecuperacao()" in (SRC.parent / "main.jsx").read_text(encoding="utf-8")
+
+
+def test_agent_studio_follows_the_ad():
+    """"Segue o vídeo": each stage as its agent's card (radar, roteiro.txt with
+    gancho / virada / clímax, voice bars, vertical frame, timeline, folder)."""
+    palco = (SRC / "PalcoAgente.jsx").read_text(encoding="utf-8")
+    for trecho in ("ROTEIRO.TXT", "CENA 1 · GANCHO FORTE", "CENA 2 · A VIRADA", "CENA 3 · CLÍMAX",
+                   "TIMELINE · AUTO", "VÍDEOS NOVOS", "palco-radar", "AGENTE ·"):
+        assert trecho in palco
+    assert "auto_hook?.text" in palco and "peak_time" in palco        # real data, not a mock-up
+    assert "Sem voz instalada" in palco                                  # says so when Voz is skipped
+    assert "<PalcoAgente" in (SRC / "GamingHub.jsx").read_text(encoding="utf-8")
+    css = (SRC / "sede.css").read_text(encoding="utf-8")
+    assert ".palco-luzes" in css and "prefers-reduced-motion" in css
