@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarClock, ChevronDown, Eye, Heart, Loader2, RefreshCw, Scissors, Send, TrendingUp } from 'lucide-react';
+import { CalendarClock, ChevronDown, Eye, FolderOpen, Heart, Loader2, RefreshCw, Scissors, Send, TrendingUp } from 'lucide-react';
 import { apiJson } from '../lib/api';
 import { errText, fmtDate, PLATFORMS, safeHttpUrl, STATUS_LABEL } from './util';
 import { BarList, DayColumns, Notice } from './ui';
@@ -101,18 +101,19 @@ function Aprendizado({ m }) {
   );
 }
 
-export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uploadUserId }) {
+export default function Painel({ dash, clips, job, go, uploadPostKey, uploadUserId }) {
   const [days, setDays] = useState(30);
   const [m, loading] = useMetricas(days, uploadPostKey, uploadUserId);
+  const [pasta, setPasta] = useState(null);
+  useEffect(() => { apiJson('/api/gaming/prontos').then(setPasta).catch(() => {}); }, [clips?.length]);
 
   if (!dash) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" aria-label="Carregando" /></div>;
 
   const t = dash.totals;
   const now = Date.now() / 1000;
   const semana = (clips || []).filter((c) => c.video_url && now - c.created_at <= WEEK).length;
-  const enviadosSemana = (pubs || []).filter((p) => p.status === 'enviado' && now - p.created_at <= WEEK).length;
   const redesOk = m && m.configured && !m.error;
-  const conectar = <button type="button" className="font-bold text-brass underline" onClick={() => go('config')}>Conectar as redes</button>;
+  const conectar = 'Postagem manual: veja no YouTube Studio';
 
   return (
     <section aria-labelledby="painel-titulo" className="space-y-4">
@@ -152,7 +153,8 @@ export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uplo
           value={redesOk ? nf.format(m.totals.likes) : '—'}
           sub={redesOk && m.totals.views ? `${((m.totals.likes / m.totals.views) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% de quem viu` : `nos últimos ${days} dias`} />
         <Kpi icon={Scissors} label="Cortes gerados" value={t.clips} sub={`+${semana} nos últimos 7 dias`} />
-        <Kpi icon={Send} label="Publicados" value={t.published} sub={`+${enviadosSemana} nos últimos 7 dias`} />
+        <Kpi icon={FolderOpen} label="Na pasta de vídeos novos" value={pasta ? pasta.novos : '—'}
+          sub={pasta ? <button type="button" className="font-bold text-brass underline" onClick={() => go('pasta')}>{pasta.total} no total · abrir</button> : 'Carregando…'} />
       </div>
 
       {m?.error && <Notice tone="error">{m.error}</Notice>}
@@ -164,7 +166,7 @@ export default function Painel({ dash, clips, pubs, job, go, uploadPostKey, uplo
         </div>
         <div className="card p-5">
           <h3 className="mb-3 text-sm font-bold text-ink">Vídeos mais vistos</h3>
-          {!redesOk ? <p className="text-sm text-muted">Aparece aqui quando as redes estiverem conectadas.</p>
+          {!redesOk ? <p className="text-sm text-muted">A postagem é manual: confira as visualizações no YouTube Studio e no Instagram.</p>
             : m.top_posts.length === 0 ? <p className="text-sm text-muted">Nenhuma publicação nos últimos {m.days} dias.</p> : (
               <ol className="divide-y divide-rule">
                 {m.top_posts.slice(0, 5).map((p, i) => (

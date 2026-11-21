@@ -52,8 +52,8 @@ AGENTS = [
      "does": "Recorta e renderiza em 1080x1920 (H.264 + AAC) no layout escolhido."},
     {"id": "captions", "name": "Legendas Animadas", "role": "JOCASTA · Tipografia", "module": "subtitles",
      "does": "Queima as legendas palavra por palavra e o gancho inicial."},
-    {"id": "social", "name": "Central Social & Exportação", "role": "VERONICA · Publicador", "module": "social",
-     "does": "Entrega o MP4 com título, descrição e hashtags para aprovação manual."},
+    {"id": "social", "name": "Pasta de vídeos novos", "role": "VERONICA · Entrega", "module": "pasta",
+     "does": "Coloca cada corte pronto na pasta de vídeos novos, com título, descrição e hashtags num .txt."},
 ]
 AGENT_IDS = [a["id"] for a in AGENTS]
 _BY_ID = {a["id"]: a for a in AGENTS}
@@ -69,13 +69,54 @@ AUXILIARES = [
     {"id": "aida", "name": "Roteirista de títulos", "role": "A.I.D.A. · Títulos", "module": "clips",
      "does": "Com o Gemini: escreve 5 títulos por corte e escolhe o melhor, sem repetir."},
     {"id": "herbie", "name": "Verificador de música", "role": "H.E.R.B.I.E. · Direitos", "module": "videos",
-     "does": "Antes de publicar, avisa se o corte tem música de fundo (risco de direitos autorais)."},
-    {"id": "baymax", "name": "Melhor horário", "role": "BAYMAX · Agenda", "module": "schedule",
+     "does": "Antes de postar, avisa se o corte tem música de fundo (risco de direitos autorais)."},
+    {"id": "baymax", "name": "Melhor horário", "role": "BAYMAX · Agenda", "module": "dashboard",
      "does": "Descobre o dia e a hora em que os seus posts têm mais views."},
     {"id": "isaac", "name": "Narração", "role": "I.S.A.A.C. · Voz", "module": "editor",
      "does": "Grava uma voz lendo a pergunta do gancho no começo do corte, com o som do jogo abaixado."},
 ]
 TODOS = AGENTS + AUXILIARES
+
+# Linha de produção (owner, 21-nov-2026, from the "15 canais dark" ad): the
+# same agents shown as five stages that light up in order. A stage is done
+# when every agent in it is done (or skipped), working while any one works.
+LINHA = [
+    {"id": "tema", "label": "Tema", "agentes": ["ingest", "library", "whisper", "vision", "x51", "homer", "slicer"],
+     "does": "Recebe a gameplay, entende o jogo e acha os momentos fortes."},
+    {"id": "roteiro", "label": "Roteiro", "agentes": ["aida"],
+     "does": "Escreve o gancho, o título e a descrição de cada corte."},
+    {"id": "voz", "label": "Voz", "agentes": ["isaac"],
+     "does": "Grava a narração do gancho por cima do jogo."},
+    {"id": "midia", "label": "Mídia", "agentes": ["editor916"],
+     "does": "Monta o vídeo em pé: jogo em tela cheia e webcam no cartão."},
+    {"id": "edicao", "label": "Edição", "agentes": ["captions", "social"],
+     "does": "Legendas, abertura animada e entrega na pasta de vídeos novos."},
+]
+
+
+def linha(states):
+    """Each stage's state from its agents' states."""
+    out = []
+    for etapa in LINHA:
+        sts = [states.get(a, "idle") for a in etapa["agentes"]]
+        if any(s == "failed" for s in sts):
+            st = "failed"
+        elif any(s == "working" for s in sts):
+            st = "working"
+        elif all(s in ("done", "skipped") for s in sts):
+            st = "done" if any(s == "done" for s in sts) else "skipped"
+        elif any(s in ("done", "skipped") for s in sts) and not any(s == "stopped" for s in sts):
+            st = "working"
+        elif any(s == "stopped" for s in sts):
+            st = "stopped"
+        elif any(s == "waiting" for s in sts):
+            st = "waiting"
+        else:
+            st = "idle"
+        if etapa["id"] == "roteiro" and st == "skipped" and states.get("slicer") == "done":
+            st = "done"      # no Gemini: the local engine wrote the title and the hook
+        out.append({"id": etapa["id"], "label": etapa["label"], "does": etapa["does"], "state": st})
+    return out
 
 _STRATEGY_PT = {
     "PRO": "Shorts · jogo em tela cheia",
@@ -159,7 +200,9 @@ _RULES = [
     ("captions", r"No words in range", "Sem fala neste trecho: corte entregue sem legenda.", "warn"),
     ("captions", r"Auto-captions failed|Auto-hook failed", None, "warn"),
     ("captions", r"Overlaying hook|Hook added to|Burning subtitles", None, "detail"),
-    ("social", r"Clip (?P<a>\d+) ready", r"Corte \g<a> exportado em MP4, aguardando aprovação manual.", "ok"),
+    ("social", r"Clip (?P<a>\d+) ready", r"Corte \g<a> pronto em MP4.", "ok"),
+    ("social", r"Na pasta de vídeos novos: (?P<a>.+)", r"Na pasta de vídeos novos: \g<a>", "ok"),
+    ("social", r"Não consegui copiar para a pasta de vídeos novos", None, "warn"),
     ("vision", r"propondo candidatos para a IA", "Motor local encontrou os candidatos; a IA profissional vai avaliar.", "info"),
     ("slicer", r"IA profissional \(Gemini (?P<a>[^)]+)\) avaliando (?P<b>\d+)",
      r"IA profissional (Gemini) assistindo \g<b> momento(s) candidatos…", "info"),
@@ -169,7 +212,7 @@ _RULES = [
     ("editor916", r"Enquadramento automático", None, "info"),
     ("core", r"Job .* queued", "Gameplay recebida. Aguardando vaga na fila local…", "info"),
     ("core", r"Job started by worker", "J.A.R.V.I.S. recebeu a gameplay. Delegando aos agentes…", "info"),
-    ("core", r"Process finished successfully", "Processamento finalizado. Cortes prontos para revisão.", "ok"),
+    ("core", r"Process finished successfully", "Processamento finalizado. Cortes prontos na pasta de vídeos novos.", "ok"),
     ("core", r"Cancelamento solicitado|Processamento cancelado", None, "warn"),
     ("core", r"Process failed with exit code (?P<a>\d+)",
      r"O processamento parou com erro (código \g<a>). O motivo está na mensagem acima.", "error"),
@@ -353,6 +396,7 @@ def snapshot(logs, status, times=None, clips_ready=None):
     return {
         "status": status,
         "agents": [{**a, "state": states.get(a["id"], "idle")} for a in TODOS],
+        "linha": linha(states),
         "working": working,
         "step": step, "steps": len(AGENT_IDS), "step_label": step_label,
         "progress": pct,

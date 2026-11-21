@@ -276,3 +276,48 @@
   .sede-rgb .sede-cta, .sede-rgb .sede-btn-accent, .sede-rgb .sede-seg button[aria-pressed="true"],
   .sede-rgb .sede-pill[aria-current="page"], .sede-rgb .sede-core-chip, .sede-rgb .sede-topo::after { animation: none; }
 }
+
+/* Linha de produção (owner, 21-nov-2026): the look of the "15 canais dark"
+   ad - dark panel, hazard-stripe edge, stages lit grey / orange / green. */
+.linha-prod {
+  position: relative; border-radius: 16px; padding: 14px 16px 12px;
+  background: linear-gradient(180deg, #17120a, #0d0a06);
+  border: 1px solid #3a2a10; box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,190,80,.08);
+  color: #f5e6c8; overflow: hidden;
+}
+.linha-prod::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px;
+  background: repeating-linear-gradient(135deg, #f5b301 0 10px, #1a1408 10px 20px);
+}
+.linha-prod-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;
+  font: 700 11px/1.2 ui-monospace, "DejaVu Sans Mono", monospace; letter-spacing: .14em; }
+.linha-prod-titulo { color: #d9c08a; }
+.linha-prod-online { display: inline-flex; align-items: center; gap: 6px; color: #4ade80; }
+.linha-prod-online i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.linha-prod-etapas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 12px 0 10px; padding: 0; list-style: none; }
+.linha-prod-etapa {
+  text-align: center; padding: 8px 4px; border-radius: 8px; font-weight: 900; font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; background: #241c10; color: #7d6a48; border: 1px solid #3a2d18;
+  transition: background-color .4s, color .4s, box-shadow .4s;
+}
+.linha-prod-etapa.is-working { background: #f59e0b; color: #1b1103; border-color: #fbbf24; box-shadow: 0 0 16px rgba(245,158,11,.55);
+  animation: linha-pulsa 1.2s ease-in-out infinite; }
+.linha-prod-etapa.is-done { background: #4ade80; color: #062b13; border-color: #86efac; box-shadow: 0 0 12px rgba(74,222,128,.35); }
+.linha-prod-etapa.is-skipped { background: #1f2a20; color: #6b8f74; border-color: #2f4535; }
+.linha-prod-etapa.is-failed { background: #7f1d1d; color: #fecaca; border-color: #ef4444; }
+@keyframes linha-pulsa { 50% { box-shadow: 0 0 4px rgba(245,158,11,.25); } }
+.linha-prod-base { display: flex; align-items: center; gap: 12px; }
+.linha-prod-barra { flex: 1; height: 6px; border-radius: 99px; background: #2a2012; overflow: hidden; }
+.linha-prod-barra div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f97316, #f59e0b); transition: width .7s; }
+.linha-prod-conta { display: inline-flex; align-items: center; gap: 10px; font: 700 11px/1 ui-monospace, "DejaVu Sans Mono", monospace; letter-spacing: .08em; color: #d9c08a; white-space: nowrap; }
+.linha-prod-conta b { color: #fbbf24; }
+.linha-prod-novos { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid #3a2d18;
+  background: transparent; color: #d9c08a; font: inherit; letter-spacing: inherit; cursor: pointer; }
+.linha-prod-novos:hover { border-color: #f59e0b; }
+.linha-prod-novos b { color: #4ade80; }
+@media (max-width: 640px) {
+  .linha-prod-etapas { gap: 4px; }
+  .linha-prod-etapa { font-size: 9.5px; padding: 7px 1px; letter-spacing: .02em; }
+  .linha-prod-base { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) { .linha-prod-etapa.is-working { animation: none; } }

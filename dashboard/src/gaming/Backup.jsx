@@ -88,7 +88,7 @@ export default function BackupCard({ onRestaurado }) {
       </div>
       <p className="mt-3 text-xs text-muted">
         Restaurar não apaga nada: cortes que já estão aqui ficam como estão, e o histórico é somado.
-        As chaves (YouTube, Gemini, Upload-Post) não vão no backup; cadastre de novo num Codespace novo.
+        As chaves (YouTube, Gemini) não vão no backup; cadastre de novo num Codespace novo.
       </p>
       {fim && (
         <div className="mt-3"><Notice tone="ok">

@@ -257,18 +257,16 @@ export function ConsolePanel({ lines, roles }) {
 
 /* Cortes + prévia --------------------------------------------------------- */
 
-export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEditor, rendering, publicacao }) {
+export function ClipsStrip({ clips, selectedKey, onSelect, onReload, onOpenEditor, rendering }) {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const approve = async (c) => {
     const key = `${c.job_id}:${c.clip_index}`;
-    if (publicacao && !publicacao.confirmar(c)) return;
     setBusy(key); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${c.job_id}/${c.clip_index}`, 'PATCH', { approved: true });
       somAprovado();
       await onReload();
-      publicacao?.publicar(c);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
   // Rejecting only marks the clip: the video stays in the library (Módulos →
@@ -612,7 +610,7 @@ export function PipelineView({ agents, jobId, jobStatus, system }) {
               ['Espaço livre em disco', gb(system.disk_free_bytes)],
               ['Vídeos produzidos em disco', gb(system.output_bytes)],
               ['Gemini (opcional)', system.gemini_configured ? 'configurado' : 'não configurado'],
-              ['Upload-Post (opcional)', system.upload_post_configured ? 'configurado' : 'não configurado'],
+              ['Postagem', 'manual (pasta de vídeos novos)'],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3 border-b border-rule py-1">
                 <dt className="text-muted">{k}</dt><dd className="text-ink text-right break-words">{v}</dd>

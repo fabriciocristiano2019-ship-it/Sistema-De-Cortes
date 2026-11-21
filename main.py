@@ -2239,6 +2239,18 @@ if __name__ == '__main__':
                         # announced, never one that ffmpeg is still writing.
                         print(f"CLIP_READY {i} "
                               f"{os.path.basename(captioned or deliver_path)}")
+                        # Pasta de vídeos novos (gaming): the finished clip and
+                        # a .txt with its title/description/hashtags, ready to
+                        # post by hand. Never fails the clip.
+                        if os.path.exists(os.path.join(output_dir, "gaming_job.json")):
+                            try:
+                                from gaming import entrega
+                                na_pasta = entrega.entregar(captioned or deliver_path, clip, i)
+                                if na_pasta:
+                                    print(f"   📁 Na pasta de vídeos novos: "
+                                          f"{os.path.relpath(na_pasta, entrega.pasta())}")
+                            except OSError as e:
+                                print(f"   ⚠️ Não consegui copiar para a pasta de vídeos novos: {e}")
                     return success
                 finally:
                     if os.path.exists(clip_temp_path):

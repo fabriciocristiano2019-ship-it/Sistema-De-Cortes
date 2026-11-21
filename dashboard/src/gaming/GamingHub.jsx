@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BarChart3, CalendarClock, LogOut, Search, KeyRound, Cpu, Eye, Film, History, Layers, Moon, Scissors, Settings,
-  Share2, SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
+  BarChart3, FolderOpen, LogOut, Search, KeyRound, Cpu, Eye, Film, History, Layers, Moon, Scissors, Settings,
+  SlidersHorizontal, Sun, Terminal, Type, Upload, Volume2, VolumeX,
 } from 'lucide-react';
 import { apiFetch, apiJson } from '../lib/api';
 import { errText, JOB_KEY } from './util';
@@ -12,8 +12,6 @@ import SedeMap from './SedeMap';
 import Configuracoes from './Configuracoes';
 import { NOME_KEY, nomeSalvo } from './nome';
 import { sair } from './sair';
-import { lerAutoPub, nomesRedes, textoDoCorte } from './autoPublicar';
-import { postizHeaders, postizKey } from './postizConf';
 import JarvisOrb from './JarvisOrb';
 import { iniciarZumbido, pararZumbido, setSom, somConcluido, somErroAgente, somFalha, somFinal, somInicio, somLigado } from './sons';
 import { ClipsStrip, ConsolePanel, OrchestratorPanel, PipelineView, PreviewPanel, Toast } from './SedePanels';
@@ -21,7 +19,9 @@ import { AnalysisSection, ImportSection } from './SectionsCore';
 import Painel from './Painel';
 import CanaisSection from './CanaisSection';
 import { ClipsSection, EditorSection, SubtitlesSection, VideoLibrarySection } from './SectionsMedia';
-import { ConfigSection, HistorySection, ScheduleSection, SocialSection } from './SectionsPublish';
+import { ConfigSection, HistorySection } from './SectionsPublish';
+import PastaSection from './PastaSection';
+import LinhaProducao from './LinhaProducao';
 import { LembreteBackup, SistemaVigia } from './Vigia';
 import './sede.css';
 
@@ -36,17 +36,16 @@ const MODULES = [
   { id: 'editor', label: 'Editor de Vídeos 9:16', short: 'Editor', icon: SlidersHorizontal, group: 'Cortes' },
   { id: 'subtitles', label: 'Legendas PT-BR', short: 'Legendas', icon: Type, group: 'Cortes' },
   { id: 'videos', label: 'Biblioteca de Vídeos', short: 'Vídeos', icon: Film, group: 'Cortes' },
-  { id: 'social', label: 'Redes Sociais', short: 'Redes', icon: Share2, group: 'Publicar' },
-  { id: 'schedule', label: 'Agendamentos', short: 'Agenda', icon: CalendarClock, group: 'Publicar' },
-  { id: 'history', label: 'Histórico & Registros', short: 'Histórico', icon: History, group: 'Publicar' },
+  { id: 'pasta', label: 'Pasta de vídeos novos', short: 'Pasta', icon: FolderOpen, group: 'Entrega' },
+  { id: 'history', label: 'Histórico & Registros', short: 'Histórico', icon: History, group: 'Entrega' },
   { id: 'config', label: 'Chaves e Integrações', short: 'Chaves', icon: KeyRound, group: 'Ajustes' },
 ];
-const GROUPS = ['Criar', 'Cortes', 'Publicar', 'Ajustes'];
+const GROUPS = ['Criar', 'Cortes', 'Entrega', 'Ajustes'];
 
 const VIEWS = [
   { id: 'hq', label: 'Sede', icon: Cpu, hint: 'Sala virtual: os agentes trabalhando' },
   { id: 'painel', label: 'Painel', icon: BarChart3, hint: 'Seus números: visualizações, curtidas, cortes e publicações' },
-  { id: 'modules', label: 'Módulos', icon: Layers, hint: 'Os 12 módulos: cortes, editor, legendas, redes sociais…' },
+  { id: 'modules', label: 'Módulos', icon: Layers, hint: 'Os módulos: cortes, editor, legendas, pasta de vídeos novos…' },
   { id: 'pipeline', label: 'Fluxo', icon: Terminal, hint: 'Etapas do processamento e registros completos' },
 ];
 
@@ -311,7 +310,6 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   const core = job?.status === 'queued' ? 'queued' : jobActive ? 'working' : job?.status === 'failed' ? 'failed' : 'idle';
 
   const details = useMemo(() => {
-    const pending = (pubs || []).filter((p) => p.status === 'aguardando_aprovacao').length;
     return {
       library: 'Reconhece o jogo sozinho (nome do arquivo e fala) para o título e as hashtags.',
       ingest: 'Aceita MP4, MKV, MOV, WebM e links.',
@@ -320,9 +318,9 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
       slicer: meta ? `Durações: ${meta.durations.join(', ')} s ou personalizada.` : '',
       editor916: system ? `Codificador ${system.encoder}.` : '',
       captions: 'Destaque palavra por palavra em PT-BR.',
-      social: `${pending} publicação(ões) aguardando aprovação.`,
+      social: 'Cada corte pronto vai para a pasta de vídeos novos, com o texto para postar.',
     };
-  }, [meta, system, pubs]);
+  }, [meta, system]);
 
   // Console: what the backend really reported. Boot facts first, then the job.
   const consoleLines = useMemo(() => {
@@ -361,64 +359,17 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
   })();
 
   const mod = MODULES.find((m) => m.id === section && m.id !== 'dashboard') || MODULES[1];
-  // "Publicar ao aprovar": the Approve click is the owner's approval; the clip
-  // goes through the same publication path as module 9/10 (Upload-Post or
-  // Postiz, whichever is configured).
-  const servicoPub = !!(uploadPostKey || meta?.upload_post_configured || postizKey());
-  // Publish one clip now on the given networks (as public). Throws on failure
-  // so the caller can show it; used by "publicar ao aprovar" and by the
-  // video library's Publicar/Republicar.
-  const publicarAgora = useCallback(async (clip, plataformas, tituloEscolhido) => {
-    const redes = nomesRedes(plataformas);
-    const { titulo, desc } = textoDoCorte(clip);
-    const headers = { ...(uploadPostKey ? { 'X-Upload-Post-Key': uploadPostKey } : {}), ...postizHeaders() };
-    setToast({ text: `Publicando no ${redes}…` });
-    try {
-      const pub = await apiJson('/api/gaming/publications', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: clip.job_id, clip_index: clip.clip_index, platforms: plataformas,
-          title: tituloEscolhido || titulo, description: desc, user_id: uploadUserId || undefined, scheduled_at: null }),
-      });
-      await apiJson(`/api/gaming/publications/${pub.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: '{}' });
-      setToast({ text: `Publicado no ${redes}! Acompanhe em Módulos → Agenda.` });
-    } finally {
-      loadPubs().catch(() => {}); loadDash().catch(() => {});
-    }
-  }, [uploadPostKey, uploadUserId, loadPubs, loadDash]);
-
-  const publicacao = useMemo(() => ({
-    confirmar: () => {
-      const cfg = lerAutoPub();
-      if (!cfg.ativo || !cfg.plataformas.length) return true;
-      if (!servicoPub) {
-        return window.confirm('A publicação automática está ligada, mas nenhum serviço de publicação (Upload-Post ou Postiz) está configurado.\n\nAprovar só o corte, sem publicar?');
-      }
-      return window.confirm(`Aprovar e publicar agora no ${nomesRedes(cfg.plataformas)}, como público?`);
-    },
-    publicar: async (clip) => {
-      const cfg = lerAutoPub();
-      if (!cfg.ativo || !cfg.plataformas.length || !servicoPub) return;
-      try {
-        await publicarAgora(clip, cfg.plataformas);
-      } catch (e) {
-        setToast({ tone: 'error', text: `O corte foi aprovado, mas a publicação no ${nomesRedes(cfg.plataformas)} falhou: ${errText(e)}` });
-      }
-    },
-  }), [servicoPub, publicarAgora]);
-
   const moduleBody = {
     canais: <CanaisSection ocupado={starting || jobActive} erroInicio={startError} onCortar={(url, credito) => start(null, { url, credito })} />,
     import: <ImportSection meta={meta} form={form} setForm={setForm} onStart={() => start()} starting={starting} startError={startError} job={job} />,
     analysis: <AnalysisSection job={job} onCancel={cancel} cancelling={cancelling} go={go} />,
-    clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} publicacao={publicacao} />,
+    clips: <ClipsSection clips={clips} job={job} meta={meta} reload={reloadMedia} openEditor={openEditor} openSubs={openSubs} go={go} />,
     editor: <EditorSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
     subtitles: <SubtitlesSection clips={clips} selected={selected} onSelect={setSelected} reload={reloadMedia} />,
-    videos: <VideoLibrarySection clips={clips} openEditor={openEditor} pubs={pubs} servicoPub={servicoPub}
-      onPublicar={publicarAgora} onAbrirChaves={() => go('config')} />,
-    social: <SocialSection clips={clips} pubs={pubs} meta={meta} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} go={go} />,
-    schedule: <ScheduleSection clips={clips} pubs={pubs} reload={() => Promise.all([loadPubs(), loadDash()])} uploadPostKey={uploadPostKey} />,
+    videos: <VideoLibrarySection clips={clips} openEditor={openEditor} />,
+    pasta: <PastaSection />,
     history: <HistorySection dash={dash} pubs={pubs} clips={clips} />,
-    config: <ConfigSection meta={meta} apiKey={apiKey} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} keys={keys} />,
+    config: <ConfigSection meta={meta} apiKey={apiKey} keys={keys} />,
   }[mod.id];
 
   const closeToast = useCallback(() => setToast(null), []);
@@ -490,9 +441,10 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           {view === 'hq' && (
             <>
               <LembreteBackup atualizar={clips?.length || 0} />
+              <LinhaProducao linha={snap?.linha} clipes={snap?.clips} ativo={jobActive} atualizar={clips?.length || 0} onAbrirPasta={() => go('pasta')} />
               <SedeMap agents={agents} core={core} theme={theme} details={details} onOpen={(a) => go(a.module)} />
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-                <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia} publicacao={publicacao}
+                <ClipsStrip clips={hqClips} selectedKey={previewKey} onSelect={pick} onReload={reloadMedia}
                   onOpenEditor={() => (previewClip ? openEditor(previewClip) : go('editor'))} rendering={jobActive} />
                 <PreviewPanel clip={previewClip} obras={job?.snap?.construcao || []} jobId={job?.id} ativo={jobActive} tempo={job?.snap?.tempo} />
               </div>
@@ -531,13 +483,13 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           )}
 
           {view === 'painel' && (
-            <Painel dash={dash} clips={clips} pubs={pubs} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} />
+            <Painel dash={dash} clips={clips} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} />
           )}
+          {view === 'pipeline' && <LinhaProducao linha={snap?.linha} clipes={snap?.clips} ativo={jobActive} atualizar={clips?.length || 0} onAbrirPasta={() => go('pasta')} />}
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}
           {view === 'settings' && (
             <Configuracoes nome={nome} onNome={pickNome} theme={theme} onTheme={pickTheme} som={som} onSom={pickSom}
-              onAbrirChaves={() => go('config')} servicoPublicacao={servicoPub} onRestaurado={reloadMedia}
-              uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} onPerfilUploadPost={keys?.setUploadUserId} />
+              onAbrirChaves={() => go('config')} onRestaurado={reloadMedia} />
           )}
         </main>
       </div>

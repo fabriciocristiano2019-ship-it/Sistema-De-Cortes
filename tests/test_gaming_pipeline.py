@@ -157,7 +157,7 @@ def test_console_is_tagged_translated_and_not_flooded(logs):
     # agent lines are in Portuguese and carry their agent
     line = next(c for c in console if c["text"].startswith("Corte 1: recortando"))
     assert line["agent"] == "editor916"
-    assert any(c["agent"] == "social" and "aguardando aprovação manual" in c["text"] for c in console)
+    assert any(c["agent"] == "social" and "pronto em MP4" in c["text"] for c in console)
     assert console[-1]["agent"] == "core" and console[-1]["level"] == "ok"
 
 

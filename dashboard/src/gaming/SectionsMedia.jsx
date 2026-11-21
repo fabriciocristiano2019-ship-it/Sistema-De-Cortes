@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, Check, Download, Loader2, Pencil, Save, Scissors, Send, Type, X, Image as ImageIcon } from 'lucide-react';
-import PublicarDialog from './PublicarDialog';
 import { errText, fmtDate, fmtTime, jsonReq, mediaUrl } from './util';
 import { somAprovado } from './sons';
 import { Badge, Empty, Field, Header, Notice, ScoreBar } from './ui';
@@ -34,20 +33,18 @@ function ClipPicker({ clips, selected, onSelect }) {
 const findClip = (clips, sel) => clips.find((c) => sel && c.job_id === sel.job_id && c.clip_index === sel.clip_index);
 
 /* 05 · Cortes encontrados ------------------------------------------------- */
-function ClipCard({ clip, meta, onPatched, onEdit, onSubs, publicacao }) {
+function ClipCard({ clip, meta, onPatched, onEdit, onSubs }) {
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
 
   const patch = async (body, tag) => {
-    if (body.approved === true && publicacao && !publicacao.confirmar(clip)) return;
     setBusy(tag); setErr('');
     try {
       await jsonReq(`/api/gaming/clips/${clip.job_id}/${clip.clip_index}`, 'PATCH', body);
       if (body.approved === true) somAprovado();
       await onPatched();
-      if (body.approved === true) publicacao?.publicar(clip);
       setEdit(false);
     } catch (e) { setErr(errText(e)); } finally { setBusy(''); }
   };
@@ -173,7 +170,7 @@ function ClipCard({ clip, meta, onPatched, onEdit, onSubs, publicacao }) {
   );
 }
 
-export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, go, publicacao }) {
+export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, go }) {
   const [scope, setScope] = useState(job?.id ? 'job' : 'all');
   const list = useMemo(() => {
     const src = clips || [];
@@ -182,7 +179,7 @@ export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, g
   if (!clips || !meta) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
   return (
     <div>
-      <Header ord="05 · CORTES ENCONTRADOS" title="Cortes" hint="Cada corte mostra por que foi escolhido. Revise, ajuste o texto e aprove antes de publicar.">
+      <Header ord="05 · CORTES ENCONTRADOS" title="Cortes" hint="Cada corte mostra por que foi escolhido. Revise, ajuste o texto e aprove. Os prontos já estão na pasta de vídeos novos.">
         <select className="input-field" value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Quais cortes mostrar">
           <option value="job" disabled={!job?.id}>Da última análise</option>
           <option value="all">Todos os pendentes</option>
@@ -198,7 +195,7 @@ export function ClipsSection({ clips, job, meta, reload, openEditor, openSubs, g
         </Empty>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {list.map((c) => <ClipCard key={`${c.job_id}:${c.clip_index}`} clip={c} meta={meta} onPatched={reload} onEdit={openEditor} onSubs={openSubs} publicacao={publicacao} />)}
+          {list.map((c) => <ClipCard key={`${c.job_id}:${c.clip_index}`} clip={c} meta={meta} onPatched={reload} onEdit={openEditor} onSubs={openSubs} />)}
         </div>
       )}
     </div>
@@ -358,18 +355,7 @@ export function SubtitlesSection({ clips, selected, onSelect, reload }) {
 }
 
 /* 08 · Biblioteca de vídeos ----------------------------------------------- */
-export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub = false, onPublicar, onAbrirChaves }) {
-  const [publicando, setPublicando] = useState(null);
-  // Networks each clip already went to (sent publications), for "Republicar".
-  const enviados = useMemo(() => {
-    const m = {};
-    for (const p of pubs || []) {
-      if (p.status !== 'enviado') continue;
-      const k = `${p.job_id}:${p.clip_index}`;
-      m[k] = [...new Set([...(m[k] || []), ...(p.platforms || [])])];
-    }
-    return m;
-  }, [pubs]);
+export function VideoLibrarySection({ clips, openEditor }) {
   const [status, setStatus] = useState('');
   const list = useMemo(() => (clips || []).filter((c) => !status || c.status === status), [clips, status]);
   if (!clips) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brass" /></div>;
@@ -400,13 +386,6 @@ export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub =
                 <div className="flex flex-wrap items-center justify-between gap-1.5 mt-auto pt-1.5">
                   <Badge status={c.status} />
                   <span className="flex gap-0.5">
-                    {onPublicar && c.video_url && (
-                      <button className="btn-quiet btn-sm" onClick={() => setPublicando(c)}
-                        aria-label={enviados[`${c.job_id}:${c.clip_index}`] ? 'Publicar de novo' : 'Publicar'}
-                        title={enviados[`${c.job_id}:${c.clip_index}`] ? `Já publicado: ${enviados[`${c.job_id}:${c.clip_index}`].join(', ')}. Publicar de novo` : 'Publicar no YouTube ou outras redes'}>
-                        <Send size={14} className={enviados[`${c.job_id}:${c.clip_index}`] ? 'text-ok' : ''} />
-                      </button>
-                    )}
                     <button className="btn-quiet btn-sm" onClick={() => openEditor(c)} aria-label="Abrir no editor"><Scissors size={14} /></button>
                     {c.video_url && <a className="btn-quiet btn-sm" href={mediaUrl(c.video_url)} download aria-label="Baixar MP4"><Download size={14} /></a>}
                   </span>
@@ -415,10 +394,6 @@ export function VideoLibrarySection({ clips, openEditor, pubs = [], servicoPub =
             </article>
           ))}
         </div>
-      )}
-      {publicando && (
-        <PublicarDialog clip={publicando} jaFoi={enviados[`${publicando.job_id}:${publicando.clip_index}`] || []} servico={servicoPub}
-          onPublicar={onPublicar} onFechar={() => setPublicando(null)} onAbrirChaves={onAbrirChaves} />
       )}
     </div>
   );

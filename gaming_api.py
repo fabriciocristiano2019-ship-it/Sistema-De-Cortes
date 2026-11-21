@@ -14,7 +14,11 @@ Routes (all JSON unless noted):
   POST   /api/gaming/clips/{job_id}/{index}/thumbnail   local thumbnail: best frame + title (free)
   GET    /api/gaming/publications               publication queue + history
   POST   /api/gaming/publications               queue a clip (needs manual approval first)
-  POST   /api/gaming/publications/{id}/approve  approve -> sends to Upload-Post (now or scheduled)
+  POST   /api/gaming/publications/{id}/approve  410: automatic posting was removed (owner, 21-nov-2026)
+  GET    /api/gaming/prontos                    the folder of new videos (gaming/entrega.py)
+  POST   /api/gaming/prontos/visto              mark every clip there as seen
+  GET    /api/gaming/prontos/arquivo?caminho=   download one clip or its .txt
+  GET    /api/gaming/prontos/novos.zip          zip of the new clips
   DELETE /api/gaming/publications/{id}          cancel a queued publication
   GET    /api/gaming/pipeline/{job_id}          per-agent state of a job (Sede Virtual)
   GET    /api/gaming/queue                      jobs running / waiting right now
@@ -22,9 +26,9 @@ Routes (all JSON unless noted):
   GET    /api/gaming/system                     versions, limits, disk
   GET    /api/gaming/metrics                    views / likes from published posts
 
-Publishing goes through the existing /api/social/post (Upload-Post) in
-process, so there is one publishing path. Nothing is ever published without
-an explicit approval call.
+Nothing is posted automatically: each finished clip is copied, with a .txt
+of its title, description and hashtags, to the folder of new videos and the
+owner posts it by hand.
 """
 import asyncio
 import glob
@@ -44,7 +48,7 @@ import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
-from gaming import backup, library, pipeline, postiz, profiles
+from gaming import backup, entrega, library, pipeline, profiles
 import youtube_canais
 from gaming.pipeline import TimedLogs  # noqa: F401  (re-exported for app.py)
 from gaming.moments import fmt_ts
@@ -52,6 +56,7 @@ from gaming.moments import fmt_ts
 router = APIRouter()
 _STATE = {"output_dir": None, "jobs": None, "app": None}
 _PUB_LOCK = threading.Lock()
+SEM_POSTAGEM = "A postagem automática foi removida. Os cortes prontos ficam na pasta de vídeos novos."
 
 LAYOUTS = {
     # One format since 19-nov-2026 (owner): the Shorts model of gaming/montagem.py.
@@ -233,8 +238,7 @@ async def gaming_meta():
         "durations": DURATIONS,
         "engines": [{"id": k, "label": v} for k, v in ENGINES.items()],
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
-        "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
-        "postiz_configured": postiz.configured(),
+        "postagem": False,          # automatic posting removed (owner, 21-nov-2026)
         "defaults": library.DEFAULT_PREFS,
         "agents": pipeline.TODOS,
     }
@@ -783,8 +787,7 @@ class PubIn(BaseModel):
 @router.get("/api/gaming/publications")
 async def list_pubs():
     items = sorted(_load_pubs(), key=lambda p: -p["created_at"])
-    return {"items": items, "upload_post_configured": bool(os.environ.get("UPLOAD_POST_API_KEY")),
-            "postiz_configured": postiz.configured()}
+    return {"items": items, "postagem": False}
 
 
 @router.post("/api/gaming/publications")
@@ -824,71 +827,6 @@ def _clip_file(job_id, index):
         return None
     path = os.path.join(os.path.dirname(metas[0]), unquote(url.rsplit("/", 1)[-1].split("?")[0]))
     return path if os.path.isfile(path) else None
-
-
-def _postiz_url_from_header(value):
-    # Only an https address typed in Settings; anything else falls back to the env/default.
-    value = (value or "").strip()
-    return value if value.lower().startswith("https://") and len(value) < 300 else None
-
-
-async def _approve_with_postiz(pub_id, item, key, url_header):
-    path = _clip_file(item["job_id"], item["clip_index"])
-    ok, detail, result = False, None, None
-    if not path:
-        detail = "O vídeo deste corte não foi encontrado no disco."
-    else:
-        text = (item.get("description") or item.get("title") or "").strip()
-        try:
-            result = await asyncio.to_thread(postiz.publish, path, item["platforms"], item.get("title") or "",
-                                             text, item.get("scheduled_at"), key, _postiz_url_from_header(url_header))
-            ok = True
-        except postiz.PostizError as e:
-            detail = str(e)
-        except httpx.HTTPError as e:
-            detail = f"Não foi possível falar com o Postiz ({type(e).__name__})."
-    with _PUB_LOCK:
-        items = _load_pubs()
-        for p in items:
-            if p["id"] == pub_id:
-                p["status"] = ("agendado" if item.get("scheduled_at") else "enviado") if ok else "falhou"
-                p["approved_at"] = time.time()
-                p["provider"] = "postiz"
-                p["log"].append({"at": time.time(), "status": 200 if ok else 502, "provider": "postiz",
-                                 "detail": detail, "postiz": (result or {}).get("integrations")})
-                item = p
-        _save_pubs(items)
-    if not ok:
-        raise HTTPException(status_code=502, detail=detail or "Falha ao publicar pelo Postiz")
-    return item
-
-
-@router.post("/api/gaming/postiz/check")
-async def postiz_check(request: Request):
-    """Test the Postiz key and list which networks are connected there."""
-    key = request.headers.get("x-postiz-key")
-    if not postiz.configured(key):
-        return {"configured": False}
-    try:
-        items = await asyncio.to_thread(postiz.integrations, key, _postiz_url_from_header(request.headers.get("x-postiz-url")))
-    except postiz.PostizError as e:
-        return {"configured": True, "ok": False, "error": str(e)}
-    except httpx.HTTPError as e:
-        return {"configured": True, "ok": False, "error": f"Não foi possível falar com o Postiz ({type(e).__name__})."}
-    return {"configured": True, "ok": True, "accounts": [
-        {"network": str(i.get("identifier") or i.get("providerIdentifier") or ""), "name": i.get("name"),
-         "active": not i.get("disabled") and not i.get("refreshNeeded")} for i in items]}
-
-
-@router.get("/api/gaming/instagram")
-async def instagram_status(request: Request, perfil: Optional[str] = None):
-    """Instagram tab: is the account connected, on which profile (read only)."""
-    from gaming import instagram
-    if perfil is not None and not re.fullmatch(r"[A-Za-z0-9_.@ -]{0,80}", perfil):
-        raise HTTPException(status_code=400, detail="Perfil inválido")
-    return await asyncio.to_thread(
-        instagram.status, request.headers.get("x-upload-post-key"), request.headers.get("x-postiz-key"),
-        _postiz_url_from_header(request.headers.get("x-postiz-url")), perfil)
 
 
 @router.get("/api/gaming/gemini-chave")
@@ -1043,48 +981,49 @@ async def yt_cookies_delete():
 
 
 @router.post("/api/gaming/publications/{pub_id}/approve")
-async def approve_pub(pub_id: str, request: Request):
+async def approve_pub(pub_id: str):
+    """Automatic posting was removed (owner, 21-nov-2026): finished clips go
+    to the folder of new videos (gaming/entrega.py) and are posted by hand."""
     _check_id(pub_id, "pub_id")
-    with _PUB_LOCK:
-        items = _load_pubs()
-        item = next((p for p in items if p["id"] == pub_id), None)
-        if not item:
-            raise HTTPException(status_code=404, detail="Publicação não encontrada")
-        if item["status"] not in ("aguardando_aprovacao", "falhou"):
-            raise HTTPException(status_code=409, detail=f"Publicação já está '{item['status']}'")
-    pz_key = request.headers.get("x-postiz-key")
-    if postiz.configured(pz_key):
-        return await _approve_with_postiz(pub_id, item, pz_key, request.headers.get("x-postiz-url"))
-    payload = {"job_id": item["job_id"], "clip_index": item["clip_index"], "platforms": item["platforms"],
-               "title": item["title"] or None, "description": item["description"] or None,
-               "user_id": item.get("user_id")}
-    if item.get("scheduled_at"):
-        payload["scheduled_date"] = item["scheduled_at"]
-        payload["timezone"] = item.get("timezone") or "America/Sao_Paulo"
-    headers = {k: v for k, v in request.headers.items()
-               if k.lower() in ("x-upload-post-key", "authorization", "x-api-key", "cookie")}
-    transport = httpx.ASGITransport(app=_STATE["app"])
-    async with httpx.AsyncClient(transport=transport, base_url="http://internal", timeout=600) as c:
-        r = await c.post("/api/social/post", json=payload, headers=headers)
-    ok = r.status_code < 300
-    try:
-        detail = r.json()
-    except ValueError:
-        detail = {"text": r.text[:500]}
-    with _PUB_LOCK:
-        items = _load_pubs()
-        for p in items:
-            if p["id"] == pub_id:
-                p["status"] = ("agendado" if item.get("scheduled_at") else "enviado") if ok else "falhou"
-                p["approved_at"] = time.time()
-                p["log"].append({"at": time.time(), "status": r.status_code,
-                                 "detail": detail.get("detail") if isinstance(detail, dict) else str(detail)[:300]})
-                item = p
-        _save_pubs(items)
-    if not ok:
-        raise HTTPException(status_code=r.status_code, detail=(detail.get("detail") if isinstance(detail, dict) else None)
-                            or "Falha ao publicar")
-    return item
+    raise HTTPException(status_code=410, detail=SEM_POSTAGEM)
+
+
+# --------------------------------------------------------------------------- #
+# Pasta de vídeos novos (gaming/entrega.py)
+# --------------------------------------------------------------------------- #
+@router.get("/api/gaming/prontos")
+async def prontos_lista():
+    return await asyncio.to_thread(entrega.lista)
+
+
+@router.post("/api/gaming/prontos/visto")
+async def prontos_visto():
+    return await asyncio.to_thread(entrega.marcar_visto)
+
+
+@router.get("/api/gaming/prontos/arquivo")
+async def prontos_arquivo(caminho: str):
+    p = entrega.arquivo(caminho)
+    if not p:
+        raise HTTPException(status_code=404, detail="Arquivo não está na pasta de vídeos novos")
+    from fastapi.responses import FileResponse
+    tipo = "video/mp4" if p.endswith(".mp4") else "text/plain; charset=utf-8"
+    return FileResponse(p, media_type=tipo, filename=os.path.basename(p))
+
+
+@router.get("/api/gaming/prontos/novos.zip")
+async def prontos_zip():
+    import tempfile
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+    fd, tmp = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+    n = await asyncio.to_thread(entrega.zip_novos, tmp)
+    if not n:
+        os.remove(tmp)
+        raise HTTPException(status_code=404, detail="Nenhum vídeo novo na pasta")
+    return FileResponse(tmp, media_type="application/zip", filename=f"videos-novos-{time.strftime('%Y-%m-%d')}.zip",
+                        background=BackgroundTask(os.remove, tmp))
 
 
 @router.delete("/api/gaming/publications/{pub_id}")

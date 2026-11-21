@@ -1,16 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Archive, Copy, Instagram, FileText, Power, Rainbow, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Archive, Copy, FileText, Power, Rainbow, KeyRound, Send, Music, LogOut, Smartphone, Moon, Palette, Play, ShieldCheck, Sun, User, Volume2, VolumeX, X } from 'lucide-react';
 import {
   musicaLigada, setMusica, setVolume, setVolumeMusica, somAprovado, somConcluido, somErroAgente, somFinal,
   volume as volumeAtual, volumeMusica,
 } from './sons';
 
 import { NOME_PADRAO } from './nome';
-import { gravarAutoPub, lerAutoPub, REDES_AUTO } from './autoPublicar';
 import { sair } from './sair';
 import { aoMudar, instalado, instalar, podeInstalar } from './pwa';
 import BackupCard from './Backup';
-import InstagramIntegracao from './InstagramIntegracao';
 import { apiJson } from '../lib/api';
 import { guardarCodespace, lerCodespace } from './codespace';
 
@@ -104,8 +102,6 @@ function Religar() {
 const ABAS = [
   { id: 'geral', label: 'Geral', icon: User },
   { id: 'audio', label: 'Áudio', icon: Volume2 },
-  { id: 'publicacao', label: 'Publicação', icon: Send },
-  { id: 'instagram', label: 'Instagram', icon: Instagram },
   { id: 'celular', label: 'Celular', icon: Smartphone },
   { id: 'conta', label: 'Conta e chaves', icon: KeyRound },
   { id: 'backup', label: 'Backup', icon: Archive },
@@ -118,15 +114,14 @@ const abaSalva = () => {
 
 // One subject at a time: a list of sections on the left (a row of tabs on the
 // phone) and only the chosen one open.
-export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, servicoPublicacao = false, onRestaurado, uploadPostKey = '', uploadUserId = '', onPerfilUploadPost }) {
+export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom, onAbrirChaves, onRestaurado }) {
   const [aba, setAba] = useState(abaSalva);
   const [vol, setVol] = useState(volumeAtual);
-  const [autoPub, setAutoPub] = useState(lerAutoPub);
   const [musica, setMusicaEstado] = useState(musicaLigada);
   const [volMus, setVolMus] = useState(volumeMusica);
   const [rascunho, setRascunho] = useState(nome);
   const salvarNome = () => onNome(rascunho.trim() || NOME_PADRAO);
-  const escolher = (id) => { setAba(id); setAutoPub(lerAutoPub()); try { localStorage.setItem(ABA_KEY, id); } catch (_) { /* private mode */ } };
+  const escolher = (id) => { setAba(id); try { localStorage.setItem(ABA_KEY, id); } catch (_) { /* private mode */ } };
 
   return (
     <div className="rounded-[20px] border border-rule2 bg-paper2/60 p-4 md:p-5">
@@ -214,40 +209,6 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
 
             </>
           )}
-          {aba === 'publicacao' && (
-            <>
-        <Card icon={Send} title="Publicação automática" id="cfg-autopub">
-          <p className="mb-3 text-sm text-ink2">Ao clicar em <b className="text-ink">Aprovar</b> num corte, ele já vai para as redes marcadas. Antes de enviar, o painel pede confirmação.</p>
-          <div className="mb-3 flex gap-2">
-            <Opcao on={autoPub.ativo} onClick={() => setAutoPub(gravarAutoPub({ ...autoPub, ativo: true }))} icon={Send}>Publicar ao aprovar</Opcao>
-            <Opcao on={!autoPub.ativo} onClick={() => setAutoPub(gravarAutoPub({ ...autoPub, ativo: false }))} icon={X}>Só aprovar</Opcao>
-          </div>
-          {REDES_AUTO.map((r) => (
-            <label key={r.id} className="flex items-center gap-2 text-sm text-ink2">
-              <input type="checkbox" disabled={!autoPub.ativo} checked={autoPub.plataformas.includes(r.id)}
-                onChange={(e) => setAutoPub(gravarAutoPub({ ...autoPub, plataformas: e.target.checked ? [...autoPub.plataformas, r.id] : autoPub.plataformas.filter((p) => p !== r.id) }))} />
-              {r.label} · <span className="text-muted">publicado como público</span>
-            </label>
-          ))}
-          <p className="mt-2 text-[11px] text-muted">
-            Instagram: veja se a conta está conectada na aba{' '}
-            <button type="button" className="font-bold underline" onClick={() => escolher('instagram')}>Instagram</button>. TikTok entra depois.
-          </p>
-          {servicoPublicacao ? (
-            <p className="mt-3 text-xs text-ok">Serviço de publicação configurado.</p>
-          ) : (
-            <p className="mt-3 text-xs text-warn">
-              Falta configurar o Upload-Post ou o Postiz (onde o seu YouTube fica conectado).{' '}
-              <button type="button" className="underline font-bold" onClick={onAbrirChaves}>Abrir Chaves e Integrações</button>
-            </p>
-          )}
-        </Card>
-
-            </>
-          )}
-          {aba === 'instagram' && (
-            <InstagramIntegracao uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} onPerfil={onPerfilUploadPost} onAbrirChaves={onAbrirChaves} />
-          )}
           {aba === 'celular' && <AppCelular />}
           {aba === 'backup' && <BackupCard onRestaurado={onRestaurado} />}
           {aba === 'conta' && (
@@ -262,7 +223,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
 
         <Card icon={KeyRound} title="Chaves e integrações" id="cfg-chaves">
           <p className="mb-3 text-sm text-ink2">
-            Chave do Gemini (IA profissional), Upload-Post, Postiz e demais integrações ficam em Módulos → Chaves.
+            A chave do Gemini (IA profissional) e as demais integrações ficam em Módulos → Chaves.
             Nunca cole chaves em conversas ou arquivos do repositório.
           </p>
           <button type="button" className="sede-btn-accent px-4" onClick={onAbrirChaves}>Abrir Chaves e Integrações</button>
@@ -276,7 +237,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           <p>1. O programa é de uso pessoal e roda no seu próprio ambiente (Codespaces ou computador).</p>
           <p>2. Use apenas vídeos seus ou de canais que autorizaram o uso. Você é responsável pelos direitos do conteúdo que corta e publica.</p>
           <p>3. Nada é publicado sozinho: cada corte só vai para as redes depois da sua aprovação.</p>
-          <p>4. Serviços externos (Google Gemini, Upload-Post, Postiz, YouTube) têm regras e preços próprios. O programa não contrata nenhum serviço pago por conta própria.</p>
+          <p>4. Serviços externos (Google Gemini, YouTube) têm regras e preços próprios. O programa não contrata nenhum serviço pago por conta própria.</p>
           <p>5. O código é aberto (licença MIT) e vem sem garantia. Confira os cortes antes de publicar.</p>
         </div>
       </Card>
@@ -286,7 +247,7 @@ export default function Configuracoes({ nome, onNome, theme, onTheme, som, onSom
           <p><b className="text-ink">Vídeos:</b> ficam nas pastas <code>uploads/</code> e <code>output/</code> do seu ambiente. Apague o que não precisar.</p>
           <p><b className="text-ink">Transcrição:</b> feita no próprio ambiente (Whisper), sem enviar o áudio para fora.</p>
           <p><b className="text-ink">IA profissional (Gemini), se ligada:</b> envia ao Google 3 quadros e a fala de cada momento candidato.</p>
-          <p><b className="text-ink">Publicação:</b> só quando você aprova, o corte e o texto vão ao Upload-Post ou ao Postiz.</p>
+          <p><b className="text-ink">Postagem:</b> nada é postado sozinho. Os cortes prontos ficam na pasta de vídeos novos e você posta à mão.</p>
           <p><b className="text-ink">Chaves e cookies:</b> ficam no navegador, no arquivo <code>.env</code> ou nos Secrets do Codespaces. Nome, tema e volume ficam só neste navegador.</p>
           <p><b className="text-ink">Acesso:</b> a porta do painel é privada; só abre com o seu login do GitHub.</p>
         </div>
