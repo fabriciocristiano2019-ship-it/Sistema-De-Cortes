@@ -142,3 +142,14 @@ def test_agent_studio_follows_the_ad():
     assert "<PalcoAgente" in (SRC / "GamingHub.jsx").read_text(encoding="utf-8")
     css = (SRC / "sede.css").read_text(encoding="utf-8")
     assert ".palco-luzes" in css and "prefers-reduced-motion" in css
+
+
+def test_painel_is_detailed_and_has_no_views_or_likes():
+    """Redesigned 21-nov-2026: no views/likes (posting is manual now), more
+    detail from what is on disk."""
+    p = (SRC / "Painel.jsx").read_text(encoding="utf-8")
+    for fora in ("Visualizações", "Curtidas", "/api/gaming/metrics", "Vídeos mais vistos", "Heart", "Eye"):
+        assert fora not in p
+    for dentro in ("Cortes por dia", "Revisão dos cortes", "Por jogo", "Por tipo de momento", "Qualidade dos cortes",
+                   "Últimas gameplays", "Máquina", "Música nos cortes", "Custo", "/api/gaming/prontos", "/api/gaming/system"):
+        assert dentro in p

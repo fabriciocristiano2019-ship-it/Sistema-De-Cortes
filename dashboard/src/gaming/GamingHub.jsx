@@ -45,7 +45,7 @@ const GROUPS = ['Criar', 'Cortes', 'Entrega', 'Ajustes'];
 
 const VIEWS = [
   { id: 'hq', label: 'Sede', icon: Cpu, hint: 'Sala virtual: os agentes trabalhando' },
-  { id: 'painel', label: 'Painel', icon: BarChart3, hint: 'Seus números: visualizações, curtidas, cortes e publicações' },
+  { id: 'painel', label: 'Painel', icon: BarChart3, hint: 'Sua produção: cortes, revisão, qualidade, pasta e máquina' },
   { id: 'modules', label: 'Módulos', icon: Layers, hint: 'Os módulos: cortes, editor, legendas, pasta de vídeos novos…' },
   { id: 'pipeline', label: 'Fluxo', icon: Terminal, hint: 'Etapas do processamento e registros completos' },
 ];
@@ -71,7 +71,7 @@ const stored = (k, fallback, allowed) => {
 // OpenShorts Gaming Edition — Sede Virtual. One screen: the eight agents are
 // the real pipeline stages of the backend, the console is its real output, and
 // the twelve modules reuse the same endpoints as the rest of the dashboard.
-export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys }) {
+export default function GamingHub({ apiKey, keys }) {
   // Dark RGB is the house look since 19-nov-2026 (new key: everyone starts on it once).
   const [theme, setTheme] = useState(() => stored('os_sede_tema', 'rgb', ['rgb', 'classic', 'nova']));
   // Every visit opens on the Sede (the owner's choice), whatever tab was last open.
@@ -485,7 +485,7 @@ export default function GamingHub({ apiKey, uploadPostKey, uploadUserId, keys })
           )}
 
           {view === 'painel' && (
-            <Painel dash={dash} clips={clips} job={job} go={go} uploadPostKey={uploadPostKey} uploadUserId={uploadUserId} />
+            <Painel dash={dash} clips={clips} job={job} go={go} />
           )}
           {view === 'pipeline' && <LinhaProducao linha={snap?.linha} clipes={snap?.clips} ativo={jobActive} atualizar={clips?.length || 0} onAbrirPasta={() => go('pasta')} />}
           {view === 'pipeline' && <PipelineView agents={agents} jobId={jobId} jobStatus={job?.status} system={system} />}

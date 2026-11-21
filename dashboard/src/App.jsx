@@ -1089,8 +1089,6 @@ function App() {
       <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-hidden">
         <GamingHub
           apiKey={apiKey}
-          uploadPostKey={uploadPostKey}
-          uploadUserId={uploadUserId}
           keys={{ setApiKey, setUploadPostKey, setUploadUserId }}
         />
       </div>
